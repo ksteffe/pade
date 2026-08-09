@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pade.dev/schema/v0.1/pade.schema.json",
+  "title": "PADE Workspace",
+  "description": "v0.1 stub schema for PADE manifests. Deliberately small; prefer Dev Containers for environment definition. Capability-focused fields are the primary v0.1 surface; environment/services remain optional for compatibility with earlier design drafts.",
+  "type": "object",
+  "required": ["version"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": "0.1",
+      "description": "PADE manifest version. Fixed to 0.1 for the prototype."
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "devcontainer": {
+          "type": "string",
+          "description": "Path to a Dev Container config. Prefer DevPod/Dev Containers to own lifecycle; this field is optional in the capability-first direction."
+        }
+      }
+    },
+    "services": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["command", "port"],
+        "additionalProperties": false,
+        "properties": {
+          "command": { "type": "string" },
+          "port": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          "ingress": { "type": "string" }
+        }
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "description": "Named capability requests. Values describe required authority, never credentials.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "access": {
+            "type": "string",
+            "description": "Access intent such as read or write."
+          },
+          "provider": {
+            "type": "string",
+            "description": "Optional binding hint for prototypes (e.g. env, vault). Prefer user/org-level bindings long term."
+          },
+          "env": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "For provider=env demos: required environment variable names (not values)."
+          },
+          "required": {
+            "type": "boolean",
+            "default": true
+          }
+        }
+      }
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "idleTimeout": { "type": "string" },
+        "maximumLifetime": { "type": "string" }
+      }
+    }
+  }
+}

@@ -1,0 +1,9 @@
+# Capability-first shape (current v0.1 direction).
+# Environment lives in .devcontainer/devcontainer.json; start with DevPod.
+version: "0.1"
+
+capabilities:
+  google-analytics.read:
+    access: read
+  datadog.logs.read:
+    access: read

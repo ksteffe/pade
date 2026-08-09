@@ -1,0 +1,22 @@
+# Illustrative earlier orchestration-oriented shape from the initial prototype design.
+# Kept for comparison; not the default DevPod-first target.
+# Credentials must never appear in this file.
+version: "0.1"
+
+environment:
+  devcontainer: ".devcontainer/devcontainer.json"
+
+services:
+  web:
+    command: "npm run dev -- --host 0.0.0.0"
+    port: 3000
+
+capabilities:
+  google-analytics.read:
+    provider: env
+    env:
+      - GA_PROPERTY_ID
+      - GOOGLE_APPLICATION_CREDENTIALS
+
+lifecycle:
+  idleTimeout: "30m"
