@@ -108,7 +108,7 @@ Earlier sections of [DESIGN.md](DESIGN.md) and [docs/go-reference.md](docs/go-re
 | [examples/demo-project](examples/demo-project) | DevPod-first dogfood project (+ `identities/`) |
 | [examples/ingress-demo](examples/ingress-demo) | Teleport ingress dogfood (tiny Go HTTP app) |
 | [cmd/pade](cmd/pade) | CLI entrypoint (`validate`, `plan`, `capabilities`, `exec`, `identity`) |
-| [cmd/pade-broker](cmd/pade-broker) | Phase 2 spike: OIDC-verified capability broker |
+| [cmd/pade-broker](cmd/pade-broker) | Phase 2 spike: OIDC-verified capability broker (loopback / broker TLS / `-tls-termination=proxy`) |
 | [internal/manifest](internal/manifest) | Load + schema/semantic validation |
 | [internal/binding](internal/binding) | Local bindings + env/vault/onepassword/keeper/keepersm/broker providers |
 | [internal/broker](internal/broker) | Broker policy, OIDC verify, resolve API |

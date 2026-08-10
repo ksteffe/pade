@@ -1101,6 +1101,7 @@ A minimal `pade-broker` and `provider: broker` binding now exist as a **spike**,
 - `pade-broker` verifies JWTs against JWKS, applies server-owned subject/`repo_urls`/capability policy, and materializes via existing providers (including `keeper-secrets-manager`).
 - Agent bindings may point at the broker; `KSM_CONFIG` stays on the broker host in this mode.
 - Fake OIDC + fake KSM dogfood: `make dogfood-broker`.
+- Listener transport: loopback plaintext; broker-managed `-tls-cert`/`-tls-key`; or explicit `-tls-termination=proxy` behind a trusted upstream (Cloud Run–compatible). See `SECURITY.md`.
 - Direct Milestone 9 KSM mode remains supported and unchanged in intent.
 
 Still deferred: multi-tenant hosting, DB policy, JTI replay store, release automation, and replacing direct KSM mode.

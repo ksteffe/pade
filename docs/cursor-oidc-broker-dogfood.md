@@ -104,7 +104,9 @@ capabilities:
         GITHUB_TOKEN: "keeper://RECORD_UID/field/password"
 ```
 
-4. Run:
+4. Run (choose one transport model):
+
+**Loopback / tunnel to the broker host** (plaintext OK on loopback only):
 
 ```bash
 export KSM_CONFIG="$(base64 -w0 ksm-config.json)"
@@ -114,9 +116,33 @@ export KSM_CONFIG="$(base64 -w0 ksm-config.json)"
   -listen 127.0.0.1:8787
 ```
 
-Non-loopback listen requires `-tls-cert` / `-tls-key`. Plain HTTP is for localhost tests only.
+**Broker-managed TLS** (directly exposed non-loopback listener):
 
-Reachability from a Cloud Agent is a **deployment concern** (SSH tunnel, Tailscale, reverse proxy, etc.). Temporary tunnels are composition options, not PADE architecture.
+```bash
+./bin/pade-broker \
+  -policy /path/to/broker-policy.yaml \
+  -bindings /path/to/broker-bindings.yaml \
+  -listen 0.0.0.0:8787 \
+  -tls-cert /path/to/cert.pem \
+  -tls-key /path/to/key.pem
+```
+
+**Trusted upstream TLS termination** (Cloud Run, Kubernetes ingress, HTTPS load balancer, etc.):
+
+```bash
+# Expand PORT in the shell/entrypoint — pade-broker does not read PORT itself.
+./bin/pade-broker \
+  -policy /path/to/broker-policy.yaml \
+  -bindings /path/to/broker-bindings.yaml \
+  -listen "0.0.0.0:${PORT:-8080}" \
+  -tls-termination=proxy
+```
+
+`-tls-termination=proxy` is an operator assertion that TLS is terminated by a trusted deployment boundary and that plaintext is not reachable outside it. PADE does not verify Cloud Run / ingress / LB wiring. Non-loopback plaintext without this flag or broker-managed cert/key is rejected. See [SECURITY.md](../SECURITY.md).
+
+Google Cloud Run is a planned composition example (container listens on `0.0.0.0:$PORT` with plaintext inside the platform; Cloud Run terminates external HTTPS). It is not a normative PADE dependency.
+
+Reachability from a Cloud Agent (public HTTPS URL, SSH tunnel, Tailscale, etc.) is a **deployment concern**. Temporary tunnels are composition options, not PADE architecture.
 
 ### Agent bindings (runtime / org local)
 
@@ -142,13 +168,33 @@ Agent VM should **not** have `KSM_CONFIG` in this mode.
   examples/demo-project/scripts/github-whoami
 ```
 
+### Next dogfood (Cloud Run — not implemented in this repo yet)
+
+```text
+Cursor Cloud Agent
+  → Cursor OIDC
+  → public HTTPS Cloud Run endpoint
+  → pade-broker (-listen 0.0.0.0:$PORT -tls-termination=proxy)
+  → broker-side Keeper Secrets Manager
+```
+
+Remaining work for that milestone: Linux container image; deploy to Cloud Run; static policy/bindings; `KSM_CONFIG` via Secret Manager; external HTTPS URL as OIDC audience + agent broker endpoint; invoke from a real Cloud Agent with no agent `KSM_CONFIG`.
+
 ## Trust boundaries
 
 | Mode | Where KSM_CONFIG lives | Authorization |
 |------|------------------------|---------------|
 | Milestone 9 direct KSM | Agent VM | PADE reduces accidental propagation; VM is not sandboxed |
 | Stage B local broker | Broker process only (fake KSM OK) | Server policy on Cursor subject + capability (`requireRepoURLs` only when complete `repo_urls` attested) |
-| Stage C external broker | Broker host only | Same; prefer complete `repo_urls` when available |
+| Stage C external broker | Broker host / platform only | Same; prefer complete `repo_urls` when available |
+
+Transport (separate from authorization):
+
+| Listener | TLS |
+|----------|-----|
+| Loopback | Plain HTTP OK |
+| Non-loopback direct | Broker `-tls-cert` / `-tls-key` |
+| Non-loopback behind trusted proxy | `-tls-termination=proxy` (deployment assertion) |
 
 - Cursor OIDC authenticates the Cloud Agent **workload**, not an individual subprocess.
 - Any process that can reach Cursor’s identity socket can mint a token for that workload.
@@ -157,7 +203,8 @@ Agent VM should **not** have `KSM_CONFIG` in this mode.
 - Broker logs: identity/capability decisions only — never JWTs or resolved credentials.
 - Downstream APIs remain authoritative for final authorization.
 - JTI replay tracking is **deferred**; this spike relies on short-lived tokens (5m) + exact audience binding.
+- TLS termination (broker or upstream) does **not** replace Cursor OIDC or broker policy.
 
 ## Deferred
 
-Multi-user admin UI, hosted SaaS, DB-backed policy, SPIFFE / GitHub Actions OIDC, other agent IdPs, OAuth consent, leasing/rotation, OPA, HA, normative tunnel products, replacing direct KSM mode.
+Multi-user admin UI, hosted SaaS, DB-backed policy, SPIFFE / GitHub Actions OIDC, other agent IdPs, OAuth consent, leasing/rotation, OPA, HA, normative tunnel products, Cloud Run deployment automation, replacing direct KSM mode.

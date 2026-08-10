@@ -692,4 +692,4 @@ A later evolution can replace the long-lived KSM bootstrap in the VM with Cursor
 
 ## 35. Phase 2 spike note
 
-A prototype `pade-broker` now demonstrates that server-side policy (subject + complete `repo_urls` + capability allowlist) can gate resolution while Keeper bootstrap remains off the agent VM. This is a learning spike: short-lived token + audience binding without JTI replay storage; localhost HTTP for tests only; TLS required off-loopback. See `docs/cursor-oidc-broker-dogfood.md` and `SECURITY.md`.
+A prototype `pade-broker` now demonstrates that server-side policy (subject + complete `repo_urls` + capability allowlist) can gate resolution while Keeper bootstrap remains off the agent VM. This is a learning spike: short-lived token + audience binding without JTI replay storage; localhost HTTP for tests; broker-managed TLS or explicit `-tls-termination=proxy` for non-loopback. See `docs/cursor-oidc-broker-dogfood.md` and `SECURITY.md`.
