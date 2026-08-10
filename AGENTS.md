@@ -24,11 +24,13 @@ Authorization stays server/resource-side. Prefer documenting experimental extens
 
 ## Current v0.1 intent
 
-Prefer the **DevPod-first** direction described in the README and the later sections of [RFC.md](RFC.md) / [DESIGN.md](DESIGN.md):
+Prefer the **DevPod-first** environment composition and Intent/Consumer/Broker model in the README and later sections of [RFC.md](RFC.md) / [DESIGN.md](DESIGN.md):
 
 - DevPod (or equivalent) owns workspace lifecycle.
-- PADE owns capability declaration (Intent), validation, planning, and credential binding/resolution (Consumer / optional Broker).
+- **Intent** declares portable capability requests (`pade.yaml`).
+- A **Consumer** (reference: `pade`) validates, plans, and resolves capabilities; an optional **Broker** (reference: `pade-broker`) may authorize and materialize them.
 - Do not reimplement Dev Container semantics, port forwarding, SSH, or prebuilds unless a concrete gap is proven.
+- Do not treat `cmd/pade` or `cmd/pade-broker` as the definition of PADE.
 
 Earlier `pade up` / Dev Container orchestration designs are historical context, not the default implementation target.
 

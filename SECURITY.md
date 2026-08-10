@@ -4,33 +4,61 @@
 
 If you discover a security issue in PADE or its examples, please report it privately to the repository maintainers (GitHub Security Advisories preferred when available) rather than opening a public issue with exploit detail.
 
-## Trust boundaries (Intent / Consumer / Broker)
+## Trust boundaries
 
-PADE security thinking follows four boundaries. Repository Intent never creates authority by itself.
+PADE’s three specification surfaces (Intent / Consumer / Broker) imply **four security boundaries** when provider systems and downstream resources are included. Repository Intent never creates authority by itself.
 
 ```text
 Intent
   request only
      |
+     v
 Consumer
   authenticated workload
      |
+     v
 Broker
-  authorization
+  PADE authorization
      |
-Provider
-  credential / authority issuance
+     v
+Provider / authority system
+  materialization
      |
-Resource
+     v
+Downstream resource
   final authorization
 ```
 
-| Boundary | Rule |
-|----------|------|
-| **Intent** | Repository Intent (`pade.yaml`) is **untrusted input**. It declares capability *requests* and never grants authority. |
-| **Consumer** | Protects workload identity material and returned secrets; limits propagation as far as practical (process-scoped injection, no casual logging). |
-| **Broker** | Authenticates the workload and **independently** authorizes requested capabilities via server-owned policy. |
-| **Provider / resource** | Credential managers and downstream APIs/IAM/databases remain authoritative. |
+### Intent boundary
+
+Repository Intent (`pade.yaml`) is **untrusted input**. A declaration *requests* a capability. It does **not** grant authority. A malicious repository must not gain authority merely by listing capability names.
+
+### Consumer boundary
+
+The Consumer (reference: `pade`):
+
+- validates Intent;
+- obtains workload identity where the resolution path requires it;
+- requests approved authority (via local providers or a broker);
+- protects returned material;
+- limits propagation as much as practical (process-scoped injection; no casual logging or persistence of secrets).
+
+The Consumer **cannot** create authorization merely because a repository asks for a capability. Best-effort stdout/stderr redaction and child env omission are defense in depth—not a sandbox. See [spec/consumer.md](spec/consumer.md).
+
+### Broker boundary
+
+The Broker (reference: `pade-broker`) is an **authorization boundary**. It:
+
+- authenticates the workload;
+- validates relevant identity context;
+- applies **server-owned** authorization policy;
+- materializes only permitted capabilities.
+
+It must not authorize a capability merely because Intent declared it or a client requested it. See [spec/broker.md](spec/broker.md).
+
+### Provider / resource boundary
+
+Credential managers, IAM systems, service providers, and downstream APIs retain their own authorization responsibilities. PADE does not replace downstream authorization.
 
 Draft specs: [spec/README.md](spec/README.md), [spec/intent.md](spec/intent.md), [spec/consumer.md](spec/consumer.md), [spec/broker.md](spec/broker.md).
 
@@ -48,7 +76,7 @@ Local Vault development servers and root tokens are for proving seams only. They
 
 ## Process-scoped execution
 
-`pade exec` (reference Consumer) injects resolved material only into the child process. After exit, PADE clears its in-memory material maps.
+`pade exec` (reference Consumer) injects resolved material only into the child process. After exit, the reference Consumer clears its in-memory material maps.
 
 Best-effort behaviors (defense in depth, **not** security boundaries):
 
@@ -62,8 +90,8 @@ A process that has been given a credential can still observe, transform, encode,
 ```text
 agent VM possesses KSM_CONFIG
 → any process in the VM may potentially use it
-→ PADE reduces accidental propagation (child omit + output redaction)
-→ PADE does not sandbox the VM
+→ reference Consumer reduces accidental propagation (child omit + output redaction)
+→ the reference Consumer does not sandbox the VM
 ```
 
 Use a narrowly scoped Keeper Secrets Manager Application so possession of `KSM_CONFIG` is not equivalent to whole-vault access.
@@ -90,7 +118,7 @@ Important distinctions:
 - For single-repo confinement, require complete `repo_urls` attestation. Missing `repo_urls` means unknown, not single-repo. Do not authorize from `repo_url` alone. Managed Cloud Agents have been observed with `repo_url` but without `repo_urls`; until complete attestation exists, broker dogfood uses subject + capability (`requireRepoURLs: false`) rather than weakening policy to trust `repo_url`.
 - Broker logs must contain identity/capability decision metadata only — never JWTs or resolved credentials.
 - JTI replay tracking is deferred; this spike relies on short-lived tokens and exact audience binding.
-- PADE still does not replace resource-level authorization (GitHub, IAM, databases, etc.).
+- The PADE contract still does not replace resource-level authorization (GitHub, IAM, databases, etc.).
 
 ### Broker transport modes
 
@@ -102,7 +130,7 @@ Plain HTTP on a loopback bind (`127.0.0.1`, `localhost`, `::1`) is allowed. No T
 
 **2. Broker-managed TLS (direct exposure)**
 
-If the broker process is directly reachable on a non-loopback interface, PADE must terminate TLS itself:
+If the broker process is directly reachable on a non-loopback interface, `pade-broker` must terminate TLS itself:
 
 ```bash
 ./bin/pade-broker -listen 0.0.0.0:8787 -tls-cert … -tls-key … -policy … -bindings …
@@ -110,7 +138,7 @@ If the broker process is directly reachable on a non-loopback interface, PADE mu
 
 **3. Trusted upstream TLS termination**
 
-PADE may serve plaintext HTTP on a non-loopback interface **only** when the operator explicitly opts in with `-tls-termination=proxy` and ensures the plaintext listener is reachable only inside the trusted deployment boundary (for example Cloud Run’s internal container network, Kubernetes behind an HTTPS ingress, or an HTTPS load balancer):
+`pade-broker` may serve plaintext HTTP on a non-loopback interface **only** when the operator explicitly opts in with `-tls-termination=proxy` and ensures the plaintext listener is reachable only inside the trusted deployment boundary (for example Cloud Run’s internal container network, Kubernetes behind an HTTPS ingress, or an HTTPS load balancer):
 
 ```text
 Internet
@@ -133,7 +161,7 @@ pade-broker (plaintext on 0.0.0.0:$PORT)
 # with PORT=8080 → listens on 0.0.0.0:8080
 ```
 
-`-tls-termination=proxy` is a **deployment assertion**, not cryptographic verification by PADE. PADE cannot prove that Cloud Run, Kubernetes, or a load balancer was configured correctly. Do not treat arbitrary plaintext non-loopback deployment as safe. Cloud Run is a deployment example, not part of the Broker Specification.
+`-tls-termination=proxy` is a **deployment assertion**, not cryptographic verification by `pade-broker`. The reference Broker cannot prove that Cloud Run, Kubernetes, or a load balancer was configured correctly. Do not treat arbitrary plaintext non-loopback deployment as safe. Cloud Run is a deployment example, not part of the Broker Specification.
 
 TLS termination does **not** replace Cursor OIDC, broker policy, Keeper authorization, or downstream API authorization. Non-loopback plaintext without `-tls-termination=proxy` or broker-managed cert/key is still rejected.
 

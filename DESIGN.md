@@ -5,12 +5,11 @@
 >
 > **Reading guide:** This file is the **reference implementation** design history.
 > Draft interoperability specs (Intent / Consumer / Broker) live under
-> [spec/README.md](spec/README.md). Early sections describe a broader orchestration
-> CLI (`pade up`, …); later revisions and section 40 map code to the three specs.
->
-> **Reading guide:** Sections 1–23 describe the original Dev Container orchestration prototype.
-> Sections 24+ revise toward DevPod-first capability resolution. Prefer the later sections
-> and the repository README when implementing v0.1.
+> [spec/README.md](spec/README.md). Sections 1–23 describe the original Dev Container
+> orchestration prototype (`pade up`, …). Sections 24+ revise toward DevPod-first
+> capability resolution. Section 40 maps code to the three specs. Prefer later
+> sections, the README, and [docs/go-reference.md](docs/go-reference.md) when
+> implementing v0.1.
 
 **Status: Exploratory Prototype**  
 **Implementation language: Go**  
@@ -1114,19 +1113,20 @@ Still deferred: multi-tenant hosting, DB policy, JTI replay store, release autom
 
 ## 40. Specification architecture vs reference implementation
 
-PADE’s **interoperability contract** is drafted under [`spec/`](spec/README.md). This DESIGN document describes how the **Go reference implementation** explores that contract.
+PADE’s **interoperability contract** is drafted under [`spec/`](spec/README.md). This DESIGN document describes how the **Go reference implementation** explores that contract. Package-level notes: [docs/go-reference.md](docs/go-reference.md).
 
-| Specification | Reference mapping (approximate) |
-|---------------|----------------------------------|
-| **Intent** | [`spec/pade.schema.json`](spec/pade.schema.json), [`internal/manifest`](internal/manifest), planner views in [`internal/planner`](internal/planner) |
-| **Consumer** | [`cmd/pade`](cmd/pade), [`internal/execution`](internal/execution), [`internal/binding`](internal/binding) (incl. broker client), [`internal/identity`](internal/identity) |
-| **Broker** | [`cmd/pade-broker`](cmd/pade-broker), [`internal/broker`](internal/broker) |
+| Spec | Spec docs | Reference code |
+|------|-----------|----------------|
+| **Intent** | [`spec/intent.md`](spec/intent.md), [`spec/pade.schema.json`](spec/pade.schema.json) | [`internal/manifest`](internal/manifest), [`internal/planner`](internal/planner) |
+| **Consumer** | [`spec/consumer.md`](spec/consumer.md) | [`cmd/pade`](cmd/pade), [`internal/execution`](internal/execution), [`internal/binding`](internal/binding) (incl. broker client), [`internal/identity`](internal/identity) |
+| **Broker** | [`spec/broker.md`](spec/broker.md) | [`cmd/pade-broker`](cmd/pade-broker), [`internal/broker`](internal/broker) |
 
 **Not** portable PADE standards by default:
 
 - Local bindings YAML (endpoint/audience, Vault paths, Keeper refs, …) — reference Consumer/Broker configuration.
-- The Go `Provider` interface — internal reference architecture; third-party brokers need not implement it.
-- Cursor OIDC, Keeper/Vault/1Password/env adapters — provider/identity adapters for dogfood.
+- The Go `Provider` interface — internal reference architecture; third-party Consumers/Brokers need not implement it.
+- Cursor OIDC — one reference workload-identity adapter, not a normative PADE requirement.
+- Keeper/Vault/1Password/env adapters — provider adapters for dogfood.
 - Cloud Run, Teleport, or other deployment/ingress experiments — deployment examples, not protocol requirements.
 
 ### Open design question: material vs grant/lease
