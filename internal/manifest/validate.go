@@ -13,8 +13,8 @@ import (
 
 // Result is the outcome of validating a manifest.
 type Result struct {
-	Valid  bool    `json:"valid"`
-	Checks []Check `json:"checks"`
+	Valid  bool     `json:"valid"`
+	Checks []Check  `json:"checks"`
 	Errors []string `json:"errors,omitempty"`
 }
 
@@ -135,7 +135,7 @@ func validateSchema(m *Manifest, res *Result) error {
 func yamlToJSONDocument(m *Manifest) (any, error) {
 	// Re-marshal through JSON so numbers/bools match JSON Schema expectations.
 	b, err := json.Marshal(struct {
-		Version      string                        `json:"version"`
+		Version      string                       `json:"version"`
 		Environment  *Environment                 `json:"environment,omitempty"`
 		Services     map[string]Service           `json:"services,omitempty"`
 		Capabilities map[string]CapabilityRequest `json:"capabilities,omitempty"`

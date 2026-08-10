@@ -10,12 +10,12 @@ import (
 // Plan is a side-effect-free description of what PADE intends to do.
 // It must never include secret values.
 type Plan struct {
-	ManifestPath string             `json:"manifestPath"`
-	Workspace    WorkspacePlan      `json:"workspace"`
-	Capabilities []CapabilityPlan   `json:"capabilities"`
-	Services     []ServicePlan      `json:"services,omitempty"`
+	ManifestPath string              `json:"manifestPath"`
+	Workspace    WorkspacePlan       `json:"workspace"`
+	Capabilities []CapabilityPlan    `json:"capabilities"`
+	Services     []ServicePlan       `json:"services,omitempty"`
 	Lifecycle    *manifest.Lifecycle `json:"lifecycle,omitempty"`
-	Notes        []string           `json:"notes,omitempty"`
+	Notes        []string            `json:"notes,omitempty"`
 }
 
 // WorkspacePlan describes environment ownership for the plan.

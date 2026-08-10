@@ -2,7 +2,7 @@
 # System Go 1.13 and similar cannot build this module (no embed stdlib, old modules).
 GO ?= $(shell if [ -x "$(CURDIR)/.tools/go/bin/go" ]; then echo "$(CURDIR)/.tools/go/bin/go"; else command -v go; fi)
 
-.PHONY: check-go test build validate plan
+.PHONY: check-go test build validate plan vet fmt-check ci
 
 check-go:
 	@v="$$( $(GO) env GOVERSION 2>/dev/null || true )"; \
@@ -15,6 +15,17 @@ check-go:
 	     exit 1 ;; \
 	esac
 
+fmt-check: check-go
+	@unformatted="$$(gofmt -l cmd internal spec)"; \
+	if [ -n "$$unformatted" ]; then \
+	  echo "The following files need gofmt:"; \
+	  echo "$$unformatted"; \
+	  exit 1; \
+	fi
+
+vet: check-go
+	$(GO) vet ./...
+
 test: check-go
 	$(GO) test ./...
 
@@ -26,3 +37,13 @@ validate: check-go
 
 plan: check-go
 	$(GO) run ./cmd/pade plan -f spec/examples/web-app.yaml
+
+# Local mirror of .github/workflows/ci.yml
+ci: check-go fmt-check vet test build
+	./bin/pade validate -f spec/examples/web-app.yaml
+	./bin/pade plan -f spec/examples/web-app.yaml --json > /tmp/pade-plan.json
+	mkdir -p /tmp/pade-orch/.devcontainer
+	printf '{}\n' > /tmp/pade-orch/.devcontainer/devcontainer.json
+	cp spec/examples/web-app-orchestrated.yaml /tmp/pade-orch/pade.yaml
+	./bin/pade validate -f /tmp/pade-orch/pade.yaml
+	./bin/pade plan -f /tmp/pade-orch/pade.yaml --json > /tmp/pade-orch-plan.json

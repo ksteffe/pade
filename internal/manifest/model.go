@@ -7,11 +7,11 @@ import (
 // Manifest is the parsed portable workspace declaration.
 // It never contains secret values.
 type Manifest struct {
-	Version      string                          `yaml:"version" json:"version"`
-	Environment  *Environment                   `yaml:"environment,omitempty" json:"environment,omitempty"`
-	Services     map[string]Service             `yaml:"services,omitempty" json:"services,omitempty"`
-	Capabilities map[string]CapabilityRequest   `yaml:"capabilities,omitempty" json:"capabilities,omitempty"`
-	Lifecycle    *Lifecycle                     `yaml:"lifecycle,omitempty" json:"lifecycle,omitempty"`
+	Version      string                       `yaml:"version" json:"version"`
+	Environment  *Environment                 `yaml:"environment,omitempty" json:"environment,omitempty"`
+	Services     map[string]Service           `yaml:"services,omitempty" json:"services,omitempty"`
+	Capabilities map[string]CapabilityRequest `yaml:"capabilities,omitempty" json:"capabilities,omitempty"`
+	Lifecycle    *Lifecycle                   `yaml:"lifecycle,omitempty" json:"lifecycle,omitempty"`
 
 	// SourcePath is the filesystem path the manifest was loaded from.
 	SourcePath string `yaml:"-" json:"-"`
@@ -49,7 +49,7 @@ func (c CapabilityRequest) IsRequired() bool {
 
 // Lifecycle holds optional lifecycle hints (may be unsupported by providers).
 type Lifecycle struct {
-	IdleTimeout      string `yaml:"idleTimeout,omitempty" json:"idleTimeout,omitempty"`
+	IdleTimeout     string `yaml:"idleTimeout,omitempty" json:"idleTimeout,omitempty"`
 	MaximumLifetime string `yaml:"maximumLifetime,omitempty" json:"maximumLifetime,omitempty"`
 }
 
