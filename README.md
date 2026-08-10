@@ -2,9 +2,46 @@
 
 **Portable Agent Development Environments**
 
-PADE is an exploratory specification and Go reference CLI for declaring **portable agent workspace capabilities** beside existing development-environment standards (Dev Containers, DevPod), without embedding credentials or coupling to a single AI vendor.
+PADE is an exploratory **interoperability specification** with a Go **reference implementation**. It defines how projects declare portable development **intent**, how **consumers** request capabilities, and how **brokers** authenticate workloads and materialize authorized authority—beside existing environment standards (Dev Containers, DevPod), without embedding credentials or coupling to a single AI vendor.
 
-This repository is at **Milestone 9** with a **Phase 2 spike**: Keeper Secrets Manager direct mode plus a minimal Cursor OIDC capability broker (`pade-broker`) that keeps `KSM_CONFIG` off the agent VM. Earlier milestones remain dogfoodable via `make dogfood*` targets. Teleport ingress remains a Milestone 8 spike.
+These specs are **draft / exploratory (v0.1)**. They are not an industry standard, and no vendor is claimed to support PADE today.
+
+## Specification surfaces
+
+| Spec | Role | Document |
+|------|------|----------|
+| **Intent** | Portable `pade.yaml`: what capabilities a project may need | [spec/intent.md](spec/intent.md) |
+| **Consumer** | Software that reads intent and requests/uses capabilities | [spec/consumer.md](spec/consumer.md) |
+| **Broker** | Authenticate workload, authorize, materialize | [spec/broker.md](spec/broker.md) |
+
+Entry point: [spec/README.md](spec/README.md).
+
+```text
+pade.yaml (Intent)
+   |
+   v
+Consumer
+   |
+   v
+Broker
+   |
+   v
+existing authority / service systems
+```
+
+A conforming ecosystem participant should not need to run binaries from this repository. Hypothetical future implementers (for example a Cursor-like Consumer or a Vercel-like Broker) would interoperate through the specifications—not by embedding the Go reference code.
+
+## This repository’s reference implementation
+
+| Piece | Role | Maturity |
+|-------|------|----------|
+| [`pade`](cmd/pade) | Reference Consumer / CLI | v0.1 capability path implemented |
+| [`pade-broker`](cmd/pade-broker) | Reference Broker | **Experimental spike** (Phase 2) |
+| [`spec/pade.schema.json`](spec/pade.schema.json) | Intent schema (machine-readable) | v0.1 stub |
+
+Provider adapters (env, Vault, 1Password, Keeper, Keeper Secrets Manager, Cursor OIDC) are **reference implementation** integrations, not automatic parts of the PADE standard.
+
+This repository is at **Milestone 9** with a **Phase 2 broker spike**: Keeper Secrets Manager direct mode plus Cursor OIDC + `pade-broker` so `KSM_CONFIG` can stay off the agent VM. Teleport ingress remains a Milestone 8 spike (not a PADE dependency).
 
 ## Quick start
 
@@ -63,21 +100,21 @@ Dependabot keeps Go modules and GitHub Actions on a weekly cadence via [`.github
 
 ## Current direction (v0.1)
 
-**DevPod-first, capability-focused.**
+**DevPod-first environment lifecycle; PADE-owned capability interoperability.**
 
 Research captured in the RFC and design docs shows DevPod already covers much of the portable workspace/runtime layer (Dev Container consumption, local/remote providers, lifecycle, SSH, port forwarding, prebuilds). PADE should not reimplement that.
 
-The current prototype target is:
+The current target is:
 
-1. A repository declares **capabilities** (required authority), not secrets.
-2. Developers/organizations bind those capabilities to approved credential managers (Vault, 1Password, env, etc.).
-3. **DevPod** (or an equivalent existing runtime) owns workspace creation and lifecycle.
-4. PADE validates, plans, and resolves capabilities for scoped executions (for example `pade exec --capability …`).
-5. Longer-term: authenticated ephemeral review URLs for executable review with collaborators.
+1. A repository declares **Intent** (required capability names), not secrets.
+2. A **Consumer** validates/plans and resolves capabilities for scoped executions (reference: `pade exec`).
+3. Resolution may use local provider bindings **or** a **Broker** with workload identity (reference spike: `pade-broker` + Cursor OIDC).
+4. **DevPod** (or an equivalent existing runtime) owns workspace creation and lifecycle.
+5. Longer-term hypotheses (authenticated review URLs, resource/lease-shaped capabilities) remain open—see [spec/README.md](spec/README.md).
 
 ```text
 Dev Container spec → DevPod → local/remote workspace
-Capability declaration → PADE binding/resolution → credential manager → process-scoped authority
+Intent (pade.yaml) → Consumer → [bindings | Broker] → authority systems → process-scoped use
 ```
 
 ## Historical / alternate path
@@ -88,12 +125,18 @@ Earlier sections of [DESIGN.md](DESIGN.md) and [docs/go-reference.md](docs/go-re
 
 | Path | Purpose |
 |------|---------|
-| [RFC.md](RFC.md) | Problem statement, architecture, security model, DevPod-first revision |
-| [DESIGN.md](DESIGN.md) | v0.1 prototype design, CLI surface, milestones, capability/Vault experiments |
-| [docs/go-reference.md](docs/go-reference.md) | Go package/design notes for the reference implementation |
+| [spec/README.md](spec/README.md) | PADE specification entry (Intent / Consumer / Broker) |
+| [spec/intent.md](spec/intent.md) | Intent Specification |
+| [spec/consumer.md](spec/consumer.md) | Consumer Specification |
+| [spec/broker.md](spec/broker.md) | Broker Specification (experimental protocol) |
+| [spec/pade.schema.json](spec/pade.schema.json) | Intent JSON Schema (v0.1 stub) |
+| [spec/examples/](spec/examples/) | Example manifests, bindings, broker policy |
+| [RFC.md](RFC.md) | Problem statement and architectural evolution |
+| [DESIGN.md](DESIGN.md) | Reference implementation design history |
+| [docs/go-reference.md](docs/go-reference.md) | Go reference Consumer/Broker design notes |
 | [AGENTS.md](AGENTS.md) | Guidance for coding agents working in this repo |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute |
-| [SECURITY.md](SECURITY.md) | Secret-handling invariants and reporting |
+| [SECURITY.md](SECURITY.md) | Trust boundaries and secret-handling invariants |
 | [LICENSE](LICENSE) | Apache License 2.0 |
 | [docs/devpod-dogfood.md](docs/devpod-dogfood.md) | DevPod composition rules for Milestone 4 |
 | [docs/identity-separation.md](docs/identity-separation.md) | Milestone 5 identity-separation dogfood |
@@ -104,13 +147,11 @@ Earlier sections of [DESIGN.md](DESIGN.md) and [docs/go-reference.md](docs/go-re
 | [docs/cursor-cloud-dogfood.md](docs/cursor-cloud-dogfood.md) | Cursor Cloud Agent + KSM composition (vendor-specific) |
 | [docs/cursor-oidc-broker-dogfood.md](docs/cursor-oidc-broker-dogfood.md) | Phase 2 Cursor OIDC broker spike |
 | [docs/teleport-ingress.md](docs/teleport-ingress.md) | Teleport Application Access / Milestone 8 ingress spike |
-| [spec/pade.schema.json](spec/pade.schema.json) | Normative JSON Schema for `pade.yaml` (v0.1 stub) |
-| [spec/examples/](spec/examples/) | Example manifests |
 | [examples/demo-project](examples/demo-project) | DevPod-first dogfood project (+ `identities/`) |
 | [examples/ingress-demo](examples/ingress-demo) | Teleport ingress dogfood (tiny Go HTTP app) |
-| [cmd/pade](cmd/pade) | CLI entrypoint (`validate`, `plan`, `capabilities`, `exec`, `identity`) |
-| [cmd/pade-broker](cmd/pade-broker) | Phase 2 spike: OIDC-verified capability broker (loopback / broker TLS / `-tls-termination=proxy`) |
-| [internal/manifest](internal/manifest) | Load + schema/semantic validation |
+| [cmd/pade](cmd/pade) | Reference Consumer CLI (`validate`, `plan`, `capabilities`, `exec`, `identity`) |
+| [cmd/pade-broker](cmd/pade-broker) | Reference Broker spike (loopback / broker TLS / `-tls-termination=proxy`) |
+| [internal/manifest](internal/manifest) | Intent load + schema/semantic validation |
 | [internal/binding](internal/binding) | Local bindings + env/vault/onepassword/keeper/keepersm/broker providers |
 | [internal/broker](internal/broker) | Broker policy, OIDC verify, resolve API |
 | [internal/identity](internal/identity) | Workload token source seam (+ Cursor adapter) |
@@ -118,7 +159,7 @@ Earlier sections of [DESIGN.md](DESIGN.md) and [docs/go-reference.md](docs/go-re
 | [internal/planner](internal/planner) | Side-effect-free plan model |
 | [internal/output](internal/output) | Human and JSON rendering |
 
-## Manifest sketch
+## Manifest sketch (Intent)
 
 Capabilities only — no secrets in the repo:
 
@@ -134,9 +175,9 @@ capabilities:
 
 Environment construction stays in `.devcontainer/devcontainer.json` and is started with DevPod (for example `devpod up .`). See [spec/examples/web-app.yaml](spec/examples/web-app.yaml) for the capability-first shape and [spec/examples/web-app-orchestrated.yaml](spec/examples/web-app-orchestrated.yaml) for the earlier environment/services shape.
 
-## Local bindings
+## Local bindings (reference Consumer)
 
-`pade.yaml` declares capability names only. Bindings are local:
+`pade.yaml` declares capability names only. Bindings are local to the reference Consumer (or broker host), not portable Intent:
 
 - `.pade/bindings.yaml` (gitignored via `.pade/`)
 - `~/.config/pade/bindings.yaml`
@@ -144,16 +185,16 @@ Environment construction stays in `.devcontainer/devcontainer.json` and is start
 
 See [spec/examples/bindings.example.yaml](spec/examples/bindings.example.yaml). Plan/capabilities may show paths and env **names**, never secret values. Vault `-dev` and the 1Password dogfood shim are prototype-only.
 
-## CLI (capability-focused v0.1)
+## CLI (reference Consumer / Broker)
 
 | Command | Status | Role |
 |---------|--------|------|
-| `pade validate` | Implemented | Validate `pade.yaml` and referenced config |
+| `pade validate` | Implemented | Validate Intent (`pade.yaml`) and referenced config |
 | `pade plan` | Implemented | Side-effect-free plan including binding status |
 | `pade capabilities` | Implemented | Show declared capabilities and binding probes |
 | `pade exec --capability … -- <cmd>` | Implemented | Run a command with process-scoped capability injection |
 | `pade identity --audience …` | Implemented | Inspect Cursor workload identity (safe claims; no raw JWT) |
-| `pade-broker` | Spike | OIDC-verified capability broker (Phase 2) |
+| `pade-broker` | Experimental spike | OIDC-verified capability broker (Phase 2) |
 
 Flags: `-f` / `--file`, `--bindings`, `--json` (validate/plan/capabilities), `--capability` / `-c` (exec, repeatable).
 
@@ -161,8 +202,9 @@ Workspace lifecycle: prefer `devpod up` / `devpod stop` directly. See [examples/
 
 ## Design principles
 
-- Compose Dev Containers, DevPod, and existing IAM/secrets systems; standardize only the missing capability boundary.
+- Compose Dev Containers, DevPod, and existing IAM/secrets systems; standardize only the missing capability interoperability boundary.
 - Separate **environment**, **agent behavior**, and **runtime authority**.
+- Separate **Intent**, **Consumer**, and **Broker** specification surfaces from the Go reference code.
 - Credentials must never appear in manifests, plan output, `.pade/` state, or normal logs.
 - Downstream systems remain authoritative for authorization.
 - If an existing tool already owns a concern, PADE should delegate or drop the abstraction.
@@ -182,11 +224,11 @@ Workspace lifecycle: prefer `devpod up` / `devpod stop` directly. See [examples/
 | **7** | Keeper Commander CLI binding provider (fake-keeper CI) |
 | **8** | Local Teleport authenticated ingress (`examples/ingress-demo`) |
 | **9** | Keeper Secrets Manager + Cursor Cloud dogfood (`KSM_CONFIG`, exec redaction) |
-| **9b** (spike) | Cursor OIDC token source + minimal `pade-broker` (server-side policy) |
-| **9+** | Real Cursor OIDC + hosted/tunneled broker dogfood; optional release artifacts |
-| Later | External validation / re-evaluate standalone PADE |
+| **9b** (spike) | Cursor OIDC token source + minimal `pade-broker` (server-side policy) — **implemented as experimental reference Broker** |
+| **9+** | Further broker dogfood / deployment learning; optional release artifacts |
+| Later | External validation of the Intent/Consumer/Broker specs; re-evaluate standalone packaging |
 
-Details: [DESIGN.md](DESIGN.md) (including DevPod-first revisions) and [docs/go-reference.md](docs/go-reference.md).
+Details: [DESIGN.md](DESIGN.md), [spec/README.md](spec/README.md), and [docs/go-reference.md](docs/go-reference.md).
 
 ## License
 

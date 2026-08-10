@@ -4,6 +4,36 @@
 
 If you discover a security issue in PADE or its examples, please report it privately to the repository maintainers (GitHub Security Advisories preferred when available) rather than opening a public issue with exploit detail.
 
+## Trust boundaries (Intent / Consumer / Broker)
+
+PADE security thinking follows four boundaries. Repository Intent never creates authority by itself.
+
+```text
+Intent
+  request only
+     |
+Consumer
+  authenticated workload
+     |
+Broker
+  authorization
+     |
+Provider
+  credential / authority issuance
+     |
+Resource
+  final authorization
+```
+
+| Boundary | Rule |
+|----------|------|
+| **Intent** | Repository Intent (`pade.yaml`) is **untrusted input**. It declares capability *requests* and never grants authority. |
+| **Consumer** | Protects workload identity material and returned secrets; limits propagation as far as practical (process-scoped injection, no casual logging). |
+| **Broker** | Authenticates the workload and **independently** authorizes requested capabilities via server-owned policy. |
+| **Provider / resource** | Credential managers and downstream APIs/IAM/databases remain authoritative. |
+
+Draft specs: [spec/README.md](spec/README.md), [spec/intent.md](spec/intent.md), [spec/consumer.md](spec/consumer.md), [spec/broker.md](spec/broker.md).
+
 ## Prototype invariants
 
 Even for local demos (including Vault `-dev` mode):
@@ -12,13 +42,13 @@ Even for local demos (including Vault `-dev` mode):
 - Never print secret values in `pade plan`, status, logs, or errors.
 - Never persist secrets in `.pade/` workspace state.
 - Never bake resolved credentials into images or snapshots.
-- Treat Vault/1Password/env/Keeper/KSM/broker adapters as **bindings**, not as part of the portable specification.
+- Treat Vault/1Password/env/Keeper/KSM/broker adapters as **bindings / providers**, not as part of the portable Intent Specification.
 
 Local Vault development servers and root tokens are for proving seams only. They are not production-safe and must not be documented as recommended production practice.
 
 ## Process-scoped execution
 
-`pade exec` injects resolved material only into the child process. After exit, PADE clears its in-memory material maps.
+`pade exec` (reference Consumer) injects resolved material only into the child process. After exit, PADE clears its in-memory material maps.
 
 Best-effort behaviors (defense in depth, **not** security boundaries):
 
@@ -38,6 +68,8 @@ agent VM possesses KSM_CONFIG
 
 Use a narrowly scoped Keeper Secrets Manager Application so possession of `KSM_CONFIG` is not equivalent to whole-vault access.
 
+Keeper Secrets Manager is one **reference materialization provider**. It is not part of the portable Intent Specification.
+
 ## Phase 2 — Cursor OIDC broker mode (spike)
 
 ```text
@@ -51,7 +83,7 @@ agent VM has no KSM_CONFIG
 
 Important distinctions:
 
-- Cursor OIDC authenticates the **Cloud Agent workload**, not an individual subprocess.
+- Cursor OIDC authenticates the **Cloud Agent workload**, not an individual subprocess. It is one workload-identity adapter used by the reference Consumer/Broker dogfood—not a mandatory PADE identity mechanism.
 - Any process able to reach Cursor’s local identity socket can mint an identity token for that workload.
 - The security boundary for capability resolution therefore lives at **broker authorization**.
 - A capability name in `pade.yaml` is a **request**, not authorization. The broker must not trust capability names merely because a client asks or a repo declares them.
@@ -62,7 +94,7 @@ Important distinctions:
 
 ### Broker transport modes
 
-`pade-broker` supports three listener models. Defaults stay fail-closed.
+`pade-broker` supports three listener models. Defaults stay fail-closed. The Broker Specification requires protected transport for non-local use at the abstract level; these modes are the **reference** deployment shapes.
 
 **1. Local development (loopback)**
 
@@ -101,7 +133,7 @@ pade-broker (plaintext on 0.0.0.0:$PORT)
 # with PORT=8080 → listens on 0.0.0.0:8080
 ```
 
-`-tls-termination=proxy` is a **deployment assertion**, not cryptographic verification by PADE. PADE cannot prove that Cloud Run, Kubernetes, or a load balancer was configured correctly. Do not treat arbitrary plaintext non-loopback deployment as safe.
+`-tls-termination=proxy` is a **deployment assertion**, not cryptographic verification by PADE. PADE cannot prove that Cloud Run, Kubernetes, or a load balancer was configured correctly. Do not treat arbitrary plaintext non-loopback deployment as safe. Cloud Run is a deployment example, not part of the Broker Specification.
 
 TLS termination does **not** replace Cursor OIDC, broker policy, Keeper authorization, or downstream API authorization. Non-loopback plaintext without `-tls-termination=proxy` or broker-managed cert/key is still rejected.
 

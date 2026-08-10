@@ -3,8 +3,12 @@
 > Converted from the project Google Doc for repository use.
 > Preserve revision history in-document; README states the current v0.1 direction.
 >
-> **Reading guide:** Early sections describe the broad portable workspace vision.
-> Sections 24+ revise toward DevPod-first capability interoperability.
+> **Reading guide:** Early sections describe the broad portable workspace vision
+> (including historical “workspace broker” language). Sections 24+ revise toward
+> DevPod-first capability interoperability. Section 36 records the latest model:
+> Intent Spec + Consumer Spec + Broker Spec. For current draft specifications see
+> [spec/README.md](spec/README.md). The README is the short source of truth for
+> current direction.
 
 **Status: Exploratory**  
 **Date: August 2026**  
@@ -693,3 +697,45 @@ A later evolution can replace the long-lived KSM bootstrap in the VM with Cursor
 ## 35. Phase 2 spike note
 
 A prototype `pade-broker` now demonstrates that server-side policy (subject + complete `repo_urls` + capability allowlist) can gate resolution while Keeper bootstrap remains off the agent VM. This is a learning spike: short-lived token + audience binding without JTI replay storage; localhost HTTP for tests; broker-managed TLS or explicit `-tls-termination=proxy` for non-loopback. See `docs/cursor-oidc-broker-dogfood.md` and `SECURITY.md`.
+
+## 36. Revision: PADE as interoperability contract
+
+### Progression of architectural learning
+
+| Stage | Learning |
+|-------|----------|
+| Original idea | Portable agent development workspace spanning vendors |
+| DevPod learning | Do not own workspace lifecycle; compose Dev Containers + DevPod |
+| Capability learning | Portable **intent** (capability declaration) is the valuable artifact |
+| OIDC / broker learning | Runtime identity and authority materialization can be separated from the agent VM |
+| Latest model | **Intent Spec** + **Consumer Spec** + **Broker Spec** |
+
+PADE is evolving from “a Go CLI with a portable capability declaration” toward an interoperability contract that other runtimes, agent vendors, brokers, and service providers could implement **without** using this repository’s Go code.
+
+```text
+                         PADE
+            portable interoperability contract
+          ┌────────────┬──────────────┐
+          │            │              │
+          ▼            ▼              ▼
+     Intent Spec   Consumer Spec   Broker Spec
+```
+
+```text
+pade.yaml (Intent)
+   |
+   v
+Consumer
+   |
+   | authenticated capability request
+   v
+Broker
+   |
+   | authorization + materialization
+   v
+Existing systems / service providers
+```
+
+The Go CLI (`pade`) and broker (`pade-broker`) are now framed as **reference implementations** used to discover protocol boundaries—not as requirements for participating in a PADE ecosystem. Draft specs live under [`spec/`](spec/README.md). Provider adapters (Keeper, Vault, 1Password, env, Cursor OIDC, and so on) remain implementation-specific unless later promoted into a specification with evidence.
+
+This revision does not erase earlier RFC sections. Historical “workspace broker” / orchestration language remains useful context; prefer sections 24+ and this section when they conflict with early product-platform framing. The specifications are exploratory v0.1 drafts, not standards-body deliverables.

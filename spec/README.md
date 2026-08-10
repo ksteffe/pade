@@ -1,0 +1,150 @@
+# PADE Specifications
+
+**Status:** Draft / Exploratory  
+**Version:** 0.1  
+
+PADE is an exploratory **interoperability contract** for agent and development workloads: declare portable intent, consume that intent safely, and broker authorized capabilities through existing authority systems.
+
+These documents are **not** an approved industry standard. There is no external standards-body ratification. They exist so other runtimes, agent vendors, brokers, and service providers could eventually implement the contract **without** embedding this repository’s Go binaries.
+
+The Go CLI (`pade`) and broker (`pade-broker`) in this repository are **reference implementations** used to discover and evolve the boundaries—not requirements for participating in a PADE ecosystem.
+
+## Three draft specification surfaces
+
+| Surface | Document | Core question |
+|---------|----------|---------------|
+| **Intent** | [intent.md](intent.md) | What external capabilities does this project declare that a development workload may need? |
+| **Consumer** | [consumer.md](consumer.md) | How does software consume PADE intent and request/use authority safely? |
+| **Broker** | [broker.md](broker.md) | Given an authenticated workload requesting a declared capability, may it exercise it, and how is that materialized? |
+
+### PADE Intent Specification
+
+Portable repository metadata (`pade.yaml`) that names required capabilities without saying where execution occurs, which agent runs, where secrets live, which broker is used, or which human/workload is authorized. The machine-readable v0.1 shape is [pade.schema.json](pade.schema.json).
+
+### PADE Consumer Specification
+
+Software operating in or on behalf of a development workload that reads intent, selects a resolution path (direct provider bindings or a broker), authenticates when required, and exposes returned material as narrowly as practical. The current reference consumer is `pade`.
+
+### PADE Broker Specification
+
+A network authority boundary that authenticates a workload, evaluates **server-owned** authorization policy, and materializes permitted capabilities through implementation-specific systems. The current reference broker is `pade-broker` (experimental HTTP spike).
+
+## Architecture
+
+```text
+Repository
+   |
+   | PADE Intent (pade.yaml)
+   v
+Consumer
+   |
+   | PADE Broker Protocol
+   | + workload identity
+   v
+Broker
+   |
+   | implementation-specific integration
+   v
+Keeper / Vault / cloud IAM / preview provider /
+enterprise platform / other authority system
+```
+
+Conceptually:
+
+```text
+                         PADE
+            portable interoperability contract
+          ┌────────────┬──────────────┐
+          │            │              │
+          ▼            ▼              ▼
+     Intent Spec   Consumer Spec   Broker Spec
+```
+
+## Specification vs reference implementation vs providers
+
+| Kind | Meaning |
+|------|---------|
+| **Specification** | Interoperability behavior that independent implementations can agree upon. |
+| **Reference implementation** | The Go code in this repository (`cmd/pade`, `cmd/pade-broker`, `internal/*`) used to prove and revise the specs. |
+| **Provider / adapter** | Implementation-specific integrations such as Keeper, Keeper Secrets Manager, Vault, 1Password, env, or Cursor OIDC. These are **not** automatically part of the PADE standard. |
+
+A conforming PADE ecosystem participant SHOULD NOT need to run binaries produced by this repository. For example, hypothetically:
+
+- a Cursor-like runtime could implement a PADE Consumer directly;
+- a Vercel-like platform could implement a PADE Broker directly;
+- an enterprise platform could implement both.
+
+Those are **roles in a story**, not claims that any vendor currently supports PADE.
+
+## Hypothetical interoperability story
+
+```text
+Repository
+  pade.yaml requests preview.http
+Cursor-like runtime
+  implements PADE Consumer
+Vercel-like service
+  implements PADE Broker
+Broker authorizes workload
+  and returns temporary preview access
+Development server
+  remains in the original runtime
+```
+
+This illustrates separated Intent, Consumer, and Broker roles. `preview.http` is **not** in the v0.1 schema; resource/lease-shaped results remain an open design question.
+
+## Current reference dogfood path
+
+```text
+Repository
+  pade.yaml requests github.user.read
+pade
+  reference Consumer
+Cursor OIDC
+  one workload-identity adapter
+pade-broker
+  reference Broker (experimental)
+Keeper Secrets Manager
+  one materialization provider
+GitHub
+  downstream authorization
+```
+
+See [examples/](examples/) and the dogfood guides under [`docs/`](../docs/).
+
+## Maturity and versioning
+
+- Labels such as **Draft / Exploratory** and **Version: 0.1** describe this repository’s intent documents and schema stub.
+- Protocol and schema versioning remain under active development. Do not assume a sophisticated version-negotiation scheme.
+- Distinguish carefully:
+  - **current normative v0.1 behavior** (what the Intent schema and documented wire shapes actually constrain today);
+  - **future direction** (hypotheses and open questions);
+  - **reference implementation behavior** (what `pade` / `pade-broker` do in Go).
+
+The Intent schema is the most concrete machine-readable contract today. The Consumer and Broker documents mix draft interoperability requirements with accurate descriptions of the reference spike.
+
+## Open specification questions
+
+Dogfood should drive these; do not freeze them prematurely:
+
+1. **Grant / lease model** — Today results are largely credential **material** (env maps). Future capabilities (preview URLs, ephemeral databases, temporary queues/storage, cloud roles) may need a broader grant/lease result model. There is no Grant Specification yet.
+2. **Capability vocabulary** — Naming, namespaces, registration, and third-party extension rules remain exploratory. There is no global capability registry in v0.1.
+3. **Broker discovery / configuration** — Today the reference consumer configures broker endpoint and audience via local bindings. Universal discovery is unspecified.
+4. **Workload identity catalog** — Cursor OIDC is the first reference adapter. GitHub Actions OIDC, SPIFFE, cloud workload identity, and enterprise mechanisms are possible later adapters, not standardized here.
+5. **Version negotiation** — Schema/protocol version fields and compatibility rules beyond fixed `"0.1"` remain future work.
+
+## Normative language
+
+Where useful, these drafts use RFC-style **MUST** / **MUST NOT** / **SHOULD** / **MAY**. Prefer clarity about *current vs future vs reference* over dense normative prose.
+
+## Documents in this directory
+
+| Path | Role |
+|------|------|
+| [intent.md](intent.md) | PADE Intent Specification |
+| [consumer.md](consumer.md) | PADE Consumer Specification |
+| [broker.md](broker.md) | PADE Broker Specification |
+| [pade.schema.json](pade.schema.json) | Machine-readable Intent shape (v0.1) |
+| [examples/](examples/) | Example manifests, bindings, and broker policy fixtures |
+
+Related repository docs: [../README.md](../README.md), [../RFC.md](../RFC.md), [../DESIGN.md](../DESIGN.md), [../SECURITY.md](../SECURITY.md), [../docs/go-reference.md](../docs/go-reference.md).
