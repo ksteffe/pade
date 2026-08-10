@@ -4,7 +4,7 @@
 
 PADE is an exploratory specification and Go reference CLI for declaring **portable agent workspace capabilities** beside existing development-environment standards (Dev Containers, DevPod), without embedding credentials or coupling to a single AI vendor.
 
-This repository is at **Milestone 9**: Cursor Cloud + Keeper Secrets Manager capability resolution (`keeper-secrets-manager` provider) beside existing adapters (env, Vault, 1Password, Keeper Commander) and the Milestone 8 Teleport ingress spike. Earlier milestones remain dogfoodable via `make dogfood*` targets.
+This repository is at **Milestone 9** with a **Phase 2 spike**: Keeper Secrets Manager direct mode plus a minimal Cursor OIDC capability broker (`pade-broker`) that keeps `KSM_CONFIG` off the agent VM. Earlier milestones remain dogfoodable via `make dogfood*` targets. Teleport ingress remains a Milestone 8 spike.
 
 ## Quick start
 
@@ -44,6 +44,7 @@ make install-keeper-cli   # install real `keeper` (Homebrew or .tools/keeper-ven
 make dogfood-keeper-live  # local only: real Keeper + real GitHub API
 make dogfood-ksm          # Milestone 9: Keeper Secrets Manager (PADE_KSM_FAKE=1 in CI)
 make dogfood-ksm-live     # local / Cursor Cloud: real KSM + real GitHub API
+make dogfood-broker       # Phase 2 spike: fake Cursor OIDC + pade-broker + fake KSM
 make dogfood-ingress-teleport  # Milestone 8 spike: Teleport Application Access (host; Docker optional)
 make dogfood-ingress-teleport-down
 make dogfood-devpod  # optional: full DevPod proof (needs docker + devpod)
@@ -52,7 +53,7 @@ make dogfood-devpod  # optional: full DevPod proof (needs docker + devpod)
 CI runs on pushes to `main` and on pull requests via [`.github/workflows/ci.yml`](.github/workflows/ci.yml):
 
 - **Unit tests** — `gofmt`, `go vet`, `go test`, build (fast feedback)
-- **Smoke** — example validate/plan/exec, identity dogfood, Vault `-dev` dogfood, 1Password dogfood, Keeper dogfood, KSM dogfood (needs the unit job)
+- **Smoke** — example validate/plan/exec, identity dogfood, Vault `-dev` dogfood, 1Password dogfood, Keeper dogfood, KSM dogfood, broker OIDC dogfood (needs the unit job)
 
 A separate [DevPod dogfood](.github/workflows/devpod-dogfood.yml) workflow boots a real DevPod workspace and runs PADE inside it (path-filtered / manual `workflow_dispatch`).
 
@@ -99,14 +100,18 @@ Earlier sections of [DESIGN.md](DESIGN.md) and [docs/go-reference.md](docs/go-re
 | [docs/keeper-dogfood.md](docs/keeper-dogfood.md) | Keeper Commander provider / Milestone 7 dogfood |
 | [docs/keeper-secrets-manager-dogfood.md](docs/keeper-secrets-manager-dogfood.md) | Keeper Secrets Manager provider / Milestone 9 |
 | [docs/cursor-cloud-dogfood.md](docs/cursor-cloud-dogfood.md) | Cursor Cloud Agent + KSM composition (vendor-specific) |
+| [docs/cursor-oidc-broker-dogfood.md](docs/cursor-oidc-broker-dogfood.md) | Phase 2 Cursor OIDC broker spike |
 | [docs/teleport-ingress.md](docs/teleport-ingress.md) | Teleport Application Access / Milestone 8 ingress spike |
 | [spec/pade.schema.json](spec/pade.schema.json) | Normative JSON Schema for `pade.yaml` (v0.1 stub) |
 | [spec/examples/](spec/examples/) | Example manifests |
 | [examples/demo-project](examples/demo-project) | DevPod-first dogfood project (+ `identities/`) |
 | [examples/ingress-demo](examples/ingress-demo) | Teleport ingress dogfood (tiny Go HTTP app) |
-| [cmd/pade](cmd/pade) | CLI entrypoint (`validate`, `plan`, `capabilities`, `exec`) |
+| [cmd/pade](cmd/pade) | CLI entrypoint (`validate`, `plan`, `capabilities`, `exec`, `identity`) |
+| [cmd/pade-broker](cmd/pade-broker) | Phase 2 spike: OIDC-verified capability broker |
 | [internal/manifest](internal/manifest) | Load + schema/semantic validation |
-| [internal/binding](internal/binding) | Local bindings + env/vault/onepassword/keeper/keepersm providers |
+| [internal/binding](internal/binding) | Local bindings + env/vault/onepassword/keeper/keepersm/broker providers |
+| [internal/broker](internal/broker) | Broker policy, OIDC verify, resolve API |
+| [internal/identity](internal/identity) | Workload token source seam (+ Cursor adapter) |
 | [internal/execution](internal/execution) | Process-scoped capability injection + best-effort output redaction |
 | [internal/planner](internal/planner) | Side-effect-free plan model |
 | [internal/output](internal/output) | Human and JSON rendering |
@@ -145,6 +150,8 @@ See [spec/examples/bindings.example.yaml](spec/examples/bindings.example.yaml). 
 | `pade plan` | Implemented | Side-effect-free plan including binding status |
 | `pade capabilities` | Implemented | Show declared capabilities and binding probes |
 | `pade exec --capability … -- <cmd>` | Implemented | Run a command with process-scoped capability injection |
+| `pade identity --audience …` | Implemented | Inspect Cursor workload identity (safe claims; no raw JWT) |
+| `pade-broker` | Spike | OIDC-verified capability broker (Phase 2) |
 
 Flags: `-f` / `--file`, `--bindings`, `--json` (validate/plan/capabilities), `--capability` / `-c` (exec, repeatable).
 
@@ -172,8 +179,9 @@ Workspace lifecycle: prefer `devpod up` / `devpod stop` directly. See [examples/
 | **6** | Second credential provider (1Password CLI adapter) |
 | **7** | Keeper Commander CLI binding provider (fake-keeper CI) |
 | **8** | Local Teleport authenticated ingress (`examples/ingress-demo`) |
-| **9** (current) | Keeper Secrets Manager + Cursor Cloud dogfood (`KSM_CONFIG`, exec redaction) |
-| **9+** | External validation / re-evaluate PADE; optional Cursor OIDC broker |
+| **9** | Keeper Secrets Manager + Cursor Cloud dogfood (`KSM_CONFIG`, exec redaction) |
+| **9b** (spike) | Cursor OIDC token source + minimal `pade-broker` (server-side policy) |
+| **9+** | Real Cursor OIDC + hosted/tunneled broker dogfood; optional release artifacts |
 | Later | External validation / re-evaluate standalone PADE |
 
 Details: [DESIGN.md](DESIGN.md) (including DevPod-first revisions) and [docs/go-reference.md](docs/go-reference.md).

@@ -86,11 +86,12 @@ make install-keeper-cli  # install real `keeper` for live demos
 make dogfood-keeper-live   # local real Keeper + GitHub API (not CI)
 make dogfood-ksm   # Milestone 9 Keeper Secrets Manager (PADE_KSM_FAKE=1)
 make dogfood-ksm-live   # local / Cursor Cloud: real KSM + GitHub API (not CI)
+make dogfood-broker   # Phase 2 spike: fake OIDC + pade-broker + fake KSM
 make dogfood-ingress-teleport  # Milestone 8 Teleport Application Access (host; Docker optional)
 make dogfood-ingress-teleport-down
 ```
 
-DevPod lifecycle is documented in [docs/devpod-dogfood.md](docs/devpod-dogfood.md) and [examples/demo-project/README.md](examples/demo-project/README.md). Do not add a PADE wrapper that reimplements `devpod up`. Full DevPod proof runs locally via `make dogfood-devpod` and in CI via [`.github/workflows/devpod-dogfood.yml`](.github/workflows/devpod-dogfood.yml) (separate from the fast main CI). Teleport ingress composition is documented in [docs/teleport-ingress.md](docs/teleport-ingress.md); do not add a PADE wrapper that reimplements Teleport Application Access. Keeper Secrets Manager / Cursor Cloud composition is documented in [docs/keeper-secrets-manager-dogfood.md](docs/keeper-secrets-manager-dogfood.md) and [docs/cursor-cloud-dogfood.md](docs/cursor-cloud-dogfood.md); do not put Cursor-specific config into portable `pade.yaml`.
+DevPod lifecycle is documented in [docs/devpod-dogfood.md](docs/devpod-dogfood.md) and [examples/demo-project/README.md](examples/demo-project/README.md). Do not add a PADE wrapper that reimplements `devpod up`. Full DevPod proof runs locally via `make dogfood-devpod` and in CI via [`.github/workflows/devpod-dogfood.yml`](.github/workflows/devpod-dogfood.yml) (separate from the fast main CI). Teleport ingress composition is documented in [docs/teleport-ingress.md](docs/teleport-ingress.md); do not add a PADE wrapper that reimplements Teleport Application Access. Keeper Secrets Manager / Cursor Cloud composition is documented in [docs/keeper-secrets-manager-dogfood.md](docs/keeper-secrets-manager-dogfood.md) and [docs/cursor-cloud-dogfood.md](docs/cursor-cloud-dogfood.md). Phase 2 broker composition is documented in [docs/cursor-oidc-broker-dogfood.md](docs/cursor-oidc-broker-dogfood.md). Do not put Cursor-specific config into portable `pade.yaml`.
 
 Treat [spec/pade.schema.json](spec/pade.schema.json) as the machine-readable contract. Update examples when the schema changes.
 

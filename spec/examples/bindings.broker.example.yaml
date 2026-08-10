@@ -1,0 +1,12 @@
+# Example agent-side broker binding (Phase 2 spike).
+# Portable pade.yaml stays capability-only; this file is runtime/org local.
+# The agent VM should not need KSM_CONFIG when using provider: broker.
+version: "0.1"
+
+capabilities:
+  github.user.read:
+    provider: broker
+    broker:
+      endpoint: "http://127.0.0.1:8787"
+      audience: "https://pade-broker.local"
+      # identity defaults to cursor

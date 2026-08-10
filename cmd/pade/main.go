@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/ksteffe/pade/internal/binding"
+	brokerprovider "github.com/ksteffe/pade/internal/binding/broker"
 	envprovider "github.com/ksteffe/pade/internal/binding/env"
 	keeperprovider "github.com/ksteffe/pade/internal/binding/keeper"
 	keepersmprovider "github.com/ksteffe/pade/internal/binding/keepersm"
@@ -244,5 +245,6 @@ func defaultRegistry() *binding.Registry {
 		onepasswordprovider.New(),
 		keeperprovider.New(),
 		keepersmprovider.New(),
+		brokerprovider.New(),
 	)
 }

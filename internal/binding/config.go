@@ -31,6 +31,7 @@ type CapabilityBinding struct {
 	OnePassword          *OnePasswordBinding          `yaml:"onepassword,omitempty" json:"onepassword,omitempty"`
 	Keeper               *KeeperBinding               `yaml:"keeper,omitempty" json:"keeper,omitempty"`
 	KeeperSecretsManager *KeeperSecretsManagerBinding `yaml:"keeperSecretsManager,omitempty" json:"keeperSecretsManager,omitempty"`
+	Broker               *BrokerBinding               `yaml:"broker,omitempty" json:"broker,omitempty"`
 }
 
 // VaultBinding configures a Vault KV lookup. Field values are Vault secret keys
@@ -58,6 +59,15 @@ type KeeperBinding struct {
 // Bootstrap config comes from the ambient KSM_CONFIG environment variable.
 type KeeperSecretsManagerBinding struct {
 	Refs map[string]string `yaml:"refs" json:"refs"` // ENV_NAME -> keeper://... notation
+}
+
+// BrokerBinding resolves a capability through a remote PADE broker using
+// Cursor workload identity. Endpoint and audience are runtime/org config —
+// never portable pade.yaml fields.
+type BrokerBinding struct {
+	Endpoint string `yaml:"endpoint" json:"endpoint"`
+	Audience string `yaml:"audience" json:"audience"`
+	Identity string `yaml:"identity,omitempty" json:"identity,omitempty"` // default: cursor
 }
 
 // Load reads a bindings file from path.
@@ -181,6 +191,20 @@ func (c *Config) Validate() error {
 				if !strings.HasPrefix(ref, "keeper://") {
 					return fmt.Errorf("binding %q: keeperSecretsManager ref %q must start with keeper://", name, ref)
 				}
+			}
+		case "broker":
+			if b.Broker == nil {
+				return fmt.Errorf("binding %q: broker provider requires broker config", name)
+			}
+			if strings.TrimSpace(b.Broker.Endpoint) == "" {
+				return fmt.Errorf("binding %q: broker.endpoint is required", name)
+			}
+			if strings.TrimSpace(b.Broker.Audience) == "" {
+				return fmt.Errorf("binding %q: broker.audience is required", name)
+			}
+			id := strings.TrimSpace(b.Broker.Identity)
+			if id != "" && id != "cursor" {
+				return fmt.Errorf("binding %q: unsupported broker.identity %q (want cursor)", name, id)
 			}
 		default:
 			return fmt.Errorf("binding %q: unsupported provider %q", name, b.Provider)
