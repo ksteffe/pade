@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test and validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Verify module checksums
+        run: go mod verify
+
+      - name: Check formatting
+        run: |
+          unformatted="$(gofmt -l cmd internal spec)"
+          if [ -n "$unformatted" ]; then
+            echo "The following files need gofmt:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test ./...
+
+      - name: Build
+        run: go build -o bin/pade ./cmd/pade
+
+      - name: Validate example manifests
+        run: |
+          ./bin/pade validate -f spec/examples/web-app.yaml
+          ./bin/pade plan -f spec/examples/web-app.yaml --json > /tmp/pade-plan.json
+
+          mkdir -p /tmp/pade-orch/.devcontainer
+          printf '{}\n' > /tmp/pade-orch/.devcontainer/devcontainer.json
+          cp spec/examples/web-app-orchestrated.yaml /tmp/pade-orch/pade.yaml
+          ./bin/pade validate -f /tmp/pade-orch/pade.yaml
+          ./bin/pade plan -f /tmp/pade-orch/pade.yaml --json > /tmp/pade-orch-plan.json

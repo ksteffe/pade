@@ -27,7 +27,10 @@ Or use Make (auto-selects `.tools/go` when present):
 make test
 make validate
 make plan
+make ci          # local mirror of GitHub Actions checks
 ```
+
+CI runs on pushes to `main` and on pull requests via [`.github/workflows/ci.yml`](.github/workflows/ci.yml) (`gofmt`, `go vet`, tests, build, example validate/plan).
 
 ## Current direction (v0.1)
 

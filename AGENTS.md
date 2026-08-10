@@ -66,6 +66,7 @@ export PATH="$(pwd)/.tools/go/bin:$PATH"
 go test ./...
 go run ./cmd/pade validate -f spec/examples/web-app.yaml
 go run ./cmd/pade plan -f spec/examples/web-app.yaml --json
+make ci   # local mirror of GitHub Actions
 ```
 
 Treat [spec/pade.schema.json](spec/pade.schema.json) as the machine-readable contract. Update examples when the schema changes.
