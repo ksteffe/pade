@@ -35,6 +35,7 @@ make plan
 make ci          # local mirror of GitHub Actions checks
 make dogfood     # PADE smoke against examples/demo-project
 make dogfood-identity  # Milestone 5: Alice/Bob bindings against the same pade.yaml
+make dogfood-vault     # Vault -dev resolution (+ Alice/Bob KV paths; prototype only)
 make dogfood-devpod  # optional: full DevPod proof (needs docker + devpod)
 ```
 
@@ -80,6 +81,7 @@ Earlier sections of [DESIGN.md](DESIGN.md) and [docs/go-reference.md](docs/go-re
 | [LICENSE](LICENSE) | Apache License 2.0 |
 | [docs/devpod-dogfood.md](docs/devpod-dogfood.md) | DevPod composition rules for Milestone 4 |
 | [docs/identity-separation.md](docs/identity-separation.md) | Milestone 5 identity-separation dogfood |
+| [docs/vault-dogfood.md](docs/vault-dogfood.md) | Vault `-dev` capability resolution dogfood |
 | [spec/pade.schema.json](spec/pade.schema.json) | Normative JSON Schema for `pade.yaml` (v0.1 stub) |
 | [spec/examples/](spec/examples/) | Example manifests |
 | [examples/demo-project](examples/demo-project) | DevPod-first dogfood project (+ `identities/`) |
@@ -146,7 +148,8 @@ Workspace lifecycle: prefer `devpod up` / `devpod stop` directly. See [examples/
 | **2** | Local bindings (`env`, `vault`) + `capabilities` |
 | **3** | Scoped `pade exec --capability` |
 | **4** | DevPod dogfood (`examples/demo-project`) |
-| **5** (current) | Identity separation (same repo, distinct credentials) |
+| **5** | Identity separation (same repo, distinct credentials) |
+| **5b** (current) | Vault `-dev` validation of bindings / identity paths |
 | **6+** | More credential providers, review ingress |
 | Later | External validation / re-evaluate standalone PADE |
 

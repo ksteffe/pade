@@ -1,0 +1,12 @@
+# Example Vault -dev capability bindings (prototype only; not production-safe).
+# Copy pattern into .pade/bindings.yaml or pass --bindings. Do not commit real credentials.
+version: "0.1"
+
+capabilities:
+  google-analytics.read:
+    provider: vault
+    vault:
+      path: secret/pade/google-analytics
+      fields:
+        property_id: GA_PROPERTY_ID
+        credentials_path: GOOGLE_APPLICATION_CREDENTIALS
