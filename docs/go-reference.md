@@ -1,33 +1,51 @@
-# PADE Design Specification — Go Reference Implementation
+# PADE Go Reference Implementation
 
 > Converted from the project Google Doc for repository use.
 > Preserve revision history in-document; README states the current v0.1 direction.
 >
+> **Purpose of this document:** design notes for the **Go reference implementation**
+> of the draft PADE specifications. Interoperability contracts live under
+> [spec/README.md](../spec/README.md) ([Intent](../spec/intent.md),
+> [Consumer](../spec/consumer.md), [Broker](../spec/broker.md)).
+>
 > This document still emphasizes a broader orchestration CLI in places. Align new
-> implementation work with the DevPod-first direction in the repository README and
-> later sections of [DESIGN.md](../DESIGN.md).
+> implementation work with the DevPod-first direction in the repository README,
+> later sections of [DESIGN.md](../DESIGN.md), and the three specification surfaces.
+> Historical `pade up` / RuntimeProvider sections are learning artifacts.
 
 **Status: Draft / v0.1 Design**  
-**Related: RFC — Portable Agent Development Environments (PADE)**  
+**Related:** [RFC](../RFC.md), [DESIGN.md](../DESIGN.md), [spec/README.md](../spec/README.md)  
 **Language: Go**  
+
+## 0. Reference mapping to the three specifications
+
+| Spec | Reference code |
+|------|----------------|
+| **Intent** | [`spec/pade.schema.json`](../spec/pade.schema.json), [`internal/manifest`](../internal/manifest), [`internal/planner`](../internal/planner) |
+| **Consumer** | [`cmd/pade`](../cmd/pade) — reference Consumer CLI; [`internal/execution`](../internal/execution), [`internal/binding`](../internal/binding), [`internal/identity`](../internal/identity) |
+| **Broker** | [`cmd/pade-broker`](../cmd/pade-broker), [`internal/broker`](../internal/broker) — experimental spike |
+
+Local bindings YAML and the Go `Provider` interface are **reference implementation mechanisms**. Third-party Consumers or Brokers need not use those Go interfaces; they interoperate through the draft specifications (and, for broker mode, the experimental wire protocol documented in [spec/broker.md](../spec/broker.md)).
+
+Provider adapters (env, Vault, 1Password, Keeper, Keeper Secrets Manager, Cursor OIDC) are not automatically part of the PADE standard.
 
 ## 1. Purpose
 
-This document defines the initial software design for the PADE reference implementation. PADE is a thin, portable orchestration layer for agent development environments. It consumes a language-neutral workspace specification and delegates environment construction, execution, credentials, networking, and resource authorization to existing tools and providers.
+This document defines the initial software design for the PADE **Go reference implementation**. PADE as a product boundary is the draft interoperability contract (Intent / Consumer / Broker). The Go code is a thin reference Consumer and experimental Broker used to prove those seams against real workflows—not a requirement for other implementers, and not a new container runtime, IAM platform, secrets manager, cloud scheduler, or AI agent framework.
 
-The first implementation is intentionally small. Its purpose is to test the PADE abstraction against real workflows, not to build a new container runtime, IAM platform, secrets manager, cloud scheduler, or AI agent framework.
+Earlier drafts described PADE primarily as a portable **orchestration** layer (`pade up`, Dev Container lifecycle). Prefer the capability / Intent-first direction in the README; keep orchestration prose below as historical context.
 
 The core development loop is:
 
 ```
-RFC → schema → Go reference CLI → local dogfood → provider adapters → revise specification.
+RFC / specs → schema → Go reference Consumer/Broker → local dogfood → provider adapters → revise specification.
 ```
 
 ## 2. Design Principles
 
 PADE should compose mature tooling rather than reimplement it.
 
-The specification is the product boundary; the Go CLI is a reference implementation.
+The specification is the product boundary; the Go CLI and broker are reference implementations.
 
 Environment, agent behavior, and runtime authority are separate concepts.
 

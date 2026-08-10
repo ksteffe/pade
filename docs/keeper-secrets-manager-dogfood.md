@@ -2,6 +2,8 @@
 
 Prove that the same portable `pade.yaml` can resolve capabilities through **Keeper Secrets Manager** (official Go SDK) without embedding Keeper details in the portable specification.
 
+> **Spec context:** Keeper Secrets Manager is one **reference materialization provider**. It is not part of the portable Intent Specification. Bindings and `KSM_CONFIG` stay outside `pade.yaml`. See [../spec/intent.md](../spec/intent.md) and [../spec/README.md](../spec/README.md).
+
 The Commander provider (`provider: keeper`) remains available and unchanged. This adapter is a separate provider: `keeper-secrets-manager`.
 
 The demo capability is **`github.user.read`** → env **`GITHUB_TOKEN`**.

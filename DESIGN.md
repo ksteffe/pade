@@ -3,6 +3,11 @@
 > Converted from the project Google Doc for repository use.
 > Preserve revision history in-document; README states the current v0.1 direction.
 >
+> **Reading guide:** This file is the **reference implementation** design history.
+> Draft interoperability specs (Intent / Consumer / Broker) live under
+> [spec/README.md](spec/README.md). Early sections describe a broader orchestration
+> CLI (`pade up`, …); later revisions and section 40 map code to the three specs.
+>
 > **Reading guide:** Sections 1–23 describe the original Dev Container orchestration prototype.
 > Sections 24+ revise toward DevPod-first capability resolution. Prefer the later sections
 > and the repository README when implementing v0.1.
@@ -1083,15 +1088,15 @@ Milestone 9 proves capability resolution inside an existing cloud-agent runtime 
 
 Cursor Cloud / iOS dogfood is documented in `docs/cursor-cloud-dogfood.md`. It is vendor-specific documentation; Cursor config does not belong in the portable schema.
 
-### Evolutionary path (not implemented): Cursor OIDC broker
+### Evolutionary path: Cursor OIDC broker
 
-Cursor Cloud Agents can mint short-lived OIDC JWTs from a local identity socket. A later architecture can keep KSM credentials entirely outside the VM:
+Cursor Cloud Agents can mint short-lived OIDC JWTs from a local identity socket. Keeping KSM credentials entirely outside the VM is the Phase 2 learning path:
 
 ```
 Cloud Agent → mint Cursor OIDC JWT → PADE capability broker → verify identity/policy → Keeper SM → scoped material → workload
 ```
 
-That path should use a new binding provider / remote broker adapter. Portable manifests remain capability-only; Cursor OIDC stays a runtime identity mechanism.
+Portable manifests remain capability-only; Cursor OIDC stays a runtime identity adapter (not a PADE-wide identity standard). The spike status is recorded in §39.
 
 ## 39. Phase 2 spike status (implemented as spike)
 
@@ -1106,3 +1111,36 @@ A minimal `pade-broker` and `provider: broker` binding now exist as a **spike**,
 - Direct Milestone 9 KSM mode remains supported and unchanged in intent.
 
 Still deferred: multi-tenant hosting, DB policy, JTI replay store, release automation, and replacing direct KSM mode.
+
+## 40. Specification architecture vs reference implementation
+
+PADE’s **interoperability contract** is drafted under [`spec/`](spec/README.md). This DESIGN document describes how the **Go reference implementation** explores that contract.
+
+| Specification | Reference mapping (approximate) |
+|---------------|----------------------------------|
+| **Intent** | [`spec/pade.schema.json`](spec/pade.schema.json), [`internal/manifest`](internal/manifest), planner views in [`internal/planner`](internal/planner) |
+| **Consumer** | [`cmd/pade`](cmd/pade), [`internal/execution`](internal/execution), [`internal/binding`](internal/binding) (incl. broker client), [`internal/identity`](internal/identity) |
+| **Broker** | [`cmd/pade-broker`](cmd/pade-broker), [`internal/broker`](internal/broker) |
+
+**Not** portable PADE standards by default:
+
+- Local bindings YAML (endpoint/audience, Vault paths, Keeper refs, …) — reference Consumer/Broker configuration.
+- The Go `Provider` interface — internal reference architecture; third-party brokers need not implement it.
+- Cursor OIDC, Keeper/Vault/1Password/env adapters — provider/identity adapters for dogfood.
+- Cloud Run, Teleport, or other deployment/ingress experiments — deployment examples, not protocol requirements.
+
+### Open design question: material vs grant/lease
+
+Today most flows look like:
+
+```text
+Capability → credential Material → environment variable
+```
+
+Future providers (preview services, ephemeral databases, temporary queues/storage, cloud roles) may look more like:
+
+```text
+Capability → resource / lease → URL + connection info + expiration
+```
+
+There is **no** general Grant type in the Go code or schema yet. Do not standardize leasing, renewal, revocation, or preview tunnel protocols here. Let dogfood drive any future Grant Specification. See [spec/README.md](spec/README.md#open-specification-questions).

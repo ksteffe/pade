@@ -2,6 +2,8 @@
 
 Prove that **Teleport Application Access** can front a private local web app with human login, as composition next to PADE—without putting Teleport (or any ingress runtime) inside the Go CLI.
 
+> **Spec context:** Teleport was an **ingress experiment**, not a normative PADE dependency. It is not part of the Intent, Consumer, or Broker specifications. See [../spec/README.md](../spec/README.md).
+
 This matches the RFC interactive-ingress direction: an executable review artifact should be reachable through **authenticated temporary ingress**, while PADE stays the capability-declaration layer.
 
 Workload identity (SPIFFE / SPIRE) is **out of scope** for this spike; that is a later, separate concern.

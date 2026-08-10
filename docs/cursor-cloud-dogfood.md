@@ -6,6 +6,8 @@ Vendor-specific composition guide: prove
 
 without a Cursor product integration and without putting Cursor or Keeper secrets into portable `pade.yaml`.
 
+> **Spec context:** This dogfood exercises the **reference Consumer** (`pade`) with a Keeper Secrets Manager **provider** adapter. Cursor Cloud is one runtime; Keeper is one materialization path. Neither is required by the PADE Intent Specification. See [../spec/README.md](../spec/README.md).
+
 Companion: [keeper-secrets-manager-dogfood.md](keeper-secrets-manager-dogfood.md).
 
 ## What already owns what

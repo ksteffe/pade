@@ -4,14 +4,30 @@ Guidance for coding agents and humans working on PADE.
 
 ## Purpose
 
-PADE explores a portable **capability declaration** layer for agent development environments. It sits beside Dev Containers and DevPod. It is not a new container runtime, IAM platform, secrets manager, MCP replacement, or AI agent framework.
+PADE explores a portable **interoperability contract** for agent development environments: declare Intent, consume it, and broker authorized capabilities. It sits beside Dev Containers and DevPod. It is not a new container runtime, IAM platform, secrets manager, MCP replacement, or AI agent framework.
+
+Draft specifications: [spec/README.md](spec/README.md) ([Intent](spec/intent.md), [Consumer](spec/consumer.md), [Broker](spec/broker.md)).
+
+## Specification vs reference implementation
+
+Do not collapse these layers:
+
+| Layer | Meaning |
+|-------|---------|
+| **Intent** (`pade.yaml`) | Portable capability *requests*. Provider-specific details (Keeper IDs, Vault paths, broker URLs, tokens) do **not** belong there. |
+| **Consumer** | Software that interprets Intent. [`cmd/pade`](cmd/pade) is a **reference** Consumer, not the definition of PADE. |
+| **Broker** | Authn + server authz + materialization. [`cmd/pade-broker`](cmd/pade-broker) is a **reference** Broker spike, not the only valid broker. |
+| **Internal Go interfaces** | Implementation details (`Provider`, bindings YAML, packages under `internal/`) unless explicitly promoted into a specification. |
+| **Vendor adapters** | Cursor OIDC, Keeper, Vault, 1Password, Teleport, Cloud Run, etc. are dogfood/adapters—**not** normative PADE without evidence and an explicit spec change. |
+
+Authorization stays server/resource-side. Prefer documenting experimental extensions before declaring them standard.
 
 ## Current v0.1 intent
 
 Prefer the **DevPod-first** direction described in the README and the later sections of [RFC.md](RFC.md) / [DESIGN.md](DESIGN.md):
 
 - DevPod (or equivalent) owns workspace lifecycle.
-- PADE owns capability declaration, validation, planning, and credential binding/resolution.
+- PADE owns capability declaration (Intent), validation, planning, and credential binding/resolution (Consumer / optional Broker).
 - Do not reimplement Dev Container semantics, port forwarding, SSH, or prebuilds unless a concrete gap is proven.
 
 Earlier `pade up` / Dev Container orchestration designs are historical context, not the default implementation target.
@@ -22,15 +38,15 @@ Earlier `pade up` / Dev Container orchestration designs are historical context, 
 |---------|--------|
 | Reproducible toolchain/image | Dev Containers (`devcontainer.json`) |
 | Workspace lifecycle / providers | DevPod (or peer runtime) |
-| What authority is needed | PADE capability declaration |
-| How credentials are stored | User/org credential manager binding |
+| What authority is needed | PADE Intent (`pade.yaml`) |
+| How credentials are stored | User/org credential manager binding (reference Consumer/Broker config) |
 | Final authorization | Downstream resource (API, IAM, DB, etc.) |
 | How to use a capability | Repo skills/scripts/MCP — not PADE core |
 
 ## Design principles
 
 1. Compose mature tools; do not reimplement them.
-2. The specification is the product boundary; the Go CLI is a reference implementation.
+2. The specification is the product boundary; the Go CLI and broker are reference implementations.
 3. Environment, agent behavior, and runtime authority stay separate.
 4. Providers own provider-specific behavior; keep adapters outside the portable core.
 5. Secure defaults should be easier than insecure workarounds.
@@ -42,6 +58,7 @@ Before adding a feature, ask:
 2. Does an existing CLI or API already implement this?
 3. Can PADE delegate to it?
 4. Is the remaining gap actually required for portability?
+5. Does this change Intent, Consumer, Broker, or **reference implementation only**? Update the matching [spec/](spec/) docs when protocol-affecting.
 
 ## Secrets and logging (non-negotiable)
 
@@ -57,6 +74,7 @@ Before adding a feature, ask:
 - When behavior changes, update `spec/`, examples, and design docs in the same change when practical.
 - Keep v0.1 schemas small; every field creates compatibility pressure.
 - Prefer clear package boundaries over speculative abstractions.
+- Do not invent grant/lease/preview protocols in schema without dogfood evidence.
 
 ## Tests and commands
 
@@ -95,8 +113,8 @@ make dogfood-ingress-teleport-down
 
 DevPod lifecycle is documented in [docs/devpod-dogfood.md](docs/devpod-dogfood.md) and [examples/demo-project/README.md](examples/demo-project/README.md). Do not add a PADE wrapper that reimplements `devpod up`. Full DevPod proof runs locally via `make dogfood-devpod` and in CI via [`.github/workflows/devpod-dogfood.yml`](.github/workflows/devpod-dogfood.yml) (separate from the fast main CI). Teleport ingress composition is documented in [docs/teleport-ingress.md](docs/teleport-ingress.md); do not add a PADE wrapper that reimplements Teleport Application Access. Keeper Secrets Manager / Cursor Cloud composition is documented in [docs/keeper-secrets-manager-dogfood.md](docs/keeper-secrets-manager-dogfood.md) and [docs/cursor-cloud-dogfood.md](docs/cursor-cloud-dogfood.md). Phase 2 broker composition is documented in [docs/cursor-oidc-broker-dogfood.md](docs/cursor-oidc-broker-dogfood.md). Do not put Cursor-specific config into portable `pade.yaml`.
 
-Treat [spec/pade.schema.json](spec/pade.schema.json) as the machine-readable contract. Update examples when the schema changes.
+Treat [spec/pade.schema.json](spec/pade.schema.json) as the machine-readable Intent contract. Update examples when the schema changes. See also [spec/README.md](spec/README.md).
 
 ## Adding a provider later
 
-Capability and runtime providers should be adapters behind small interfaces. Prefer CLI adapters when practical. The Keeper Secrets Manager adapter (`internal/binding/keepersm`) is an intentional exception that imports Keeper’s official Go SDK in the adapter package only — not in portable core packages. Do not import Vault/Google/Cursor/Keeper SDKs into portable packages. See [docs/go-reference.md](docs/go-reference.md).
+Capability and runtime providers should be adapters behind small interfaces in the **reference implementation**. Prefer CLI adapters when practical. The Keeper Secrets Manager adapter (`internal/binding/keepersm`) is an intentional exception that imports Keeper’s official Go SDK in the adapter package only — not in portable core packages. Do not import Vault/Google/Cursor/Keeper SDKs into portable packages. See [docs/go-reference.md](docs/go-reference.md). Third-party brokers need not use the Go `Provider` interface.
