@@ -6,9 +6,10 @@ DEVPOD_DOGFOOD := $(CURDIR)/scripts/devpod-dogfood.sh
 IDENTITY_DOGFOOD := $(CURDIR)/scripts/identity-dogfood.sh
 VAULT_DOGFOOD := $(CURDIR)/scripts/vault-dogfood.sh
 ONEPASSWORD_DOGFOOD := $(CURDIR)/scripts/onepassword-dogfood.sh
+ONEPASSWORD_LIVE_DOGFOOD := $(CURDIR)/scripts/onepassword-live-dogfood.sh
 
 .PHONY: check-go test build build-linux validate plan capabilities exec-demo dogfood \
-	dogfood-identity dogfood-vault dogfood-onepassword \
+	dogfood-identity dogfood-vault dogfood-onepassword dogfood-onepassword-live \
 	dogfood-devpod dogfood-devpod-check dogfood-devpod-provider dogfood-devpod-up \
 	dogfood-devpod-install dogfood-devpod-smoke dogfood-devpod-down dogfood-devpod-delete \
 	dogfood-devpod-ci \
@@ -93,6 +94,11 @@ dogfood-vault: check-go build
 dogfood-onepassword: check-go build
 	@chmod +x "$(ONEPASSWORD_DOGFOOD)" scripts/fake-op.sh
 	@PADE="$(CURDIR)/bin/pade" "$(ONEPASSWORD_DOGFOOD)"
+
+# Local-only: real 1Password CLI (op signin required). Seeds a disposable demo vault/item.
+dogfood-onepassword-live: check-go build
+	@chmod +x "$(ONEPASSWORD_LIVE_DOGFOOD)"
+	@PADE="$(CURDIR)/bin/pade" "$(ONEPASSWORD_LIVE_DOGFOOD)"
 
 # --- DevPod dogfood (requires docker + devpod; separate DevPod GHA workflow) ---
 dogfood-devpod-check:
