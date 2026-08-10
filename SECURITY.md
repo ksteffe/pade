@@ -22,8 +22,8 @@ Local Vault development servers and root tokens are for proving seams only. They
 
 Best-effort behaviors (defense in depth, **not** security boundaries):
 
-- Exact-match redaction of resolved secret values on child stdout/stderr before they reach the caller (helps cloud-agent transcripts).
-- For `keeper-secrets-manager`, strip ambient `KSM_CONFIG` from the child environment after resolution.
+- Exact-match redaction of resolved secret values on child stdout/stderr before they reach the caller (helps cloud-agent transcripts). Encoded, transformed, hashed, or substring-altered values are not recognized. A child that possesses a credential can still intentionally exfiltrate it.
+- Providers may omit ambient bootstrap env keys from the child (for example `keeper-secrets-manager` omits `KSM_CONFIG`) after resolution.
 
 A process that has been given a credential can still observe, transform, encode, or exfiltrate it. Any process that can read ambient bootstrap credentials (for example `KSM_CONFIG`) can also call the secret manager directly, bypassing PADE.
 

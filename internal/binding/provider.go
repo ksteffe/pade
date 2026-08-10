@@ -16,6 +16,14 @@ type Provider interface {
 	Resolve(ctx context.Context, name string, b CapabilityBinding) (*Material, error)
 }
 
+// ChildEnvOmitter is an optional Provider extension. Providers that rely on
+// ambient bootstrap credentials (for example KSM_CONFIG) should list those
+// keys so pade exec does not inherit them into the child process after
+// resolution. This is defense in depth, not a sandbox.
+type ChildEnvOmitter interface {
+	ChildEnvOmit() []string
+}
+
 // ProbeResult is safe to display and serialize.
 type ProbeResult struct {
 	Provider string            `json:"provider"`
