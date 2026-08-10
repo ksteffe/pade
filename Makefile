@@ -7,12 +7,15 @@ IDENTITY_DOGFOOD := $(CURDIR)/scripts/identity-dogfood.sh
 VAULT_DOGFOOD := $(CURDIR)/scripts/vault-dogfood.sh
 ONEPASSWORD_DOGFOOD := $(CURDIR)/scripts/onepassword-dogfood.sh
 KEEPER_DOGFOOD := $(CURDIR)/scripts/keeper-dogfood.sh
-GITHUB_LIVE_DOGFOOD := $(CURDIR)/scripts/github-live-dogfood.sh
+ONEPASSWORD_LIVE_DOGFOOD := $(CURDIR)/scripts/onepassword-live-dogfood.sh
+KEEPER_LIVE_DOGFOOD := $(CURDIR)/scripts/keeper-live-dogfood.sh
 INSTALL_ONEPASSWORD_CLI := $(CURDIR)/scripts/install-onepassword-cli.sh
+INSTALL_KEEPER_CLI := $(CURDIR)/scripts/install-keeper-cli.sh
 
 .PHONY: check-go test build build-linux validate plan capabilities exec-demo dogfood \
-	dogfood-identity dogfood-vault dogfood-onepassword dogfood-keeper dogfood-github-live \
-	install-onepassword-cli \
+	dogfood-identity dogfood-vault dogfood-onepassword dogfood-keeper \
+	dogfood-onepassword-live dogfood-keeper-live dogfood-github-live \
+	install-onepassword-cli install-keeper-cli \
 	dogfood-devpod dogfood-devpod-check dogfood-devpod-provider dogfood-devpod-up \
 	dogfood-devpod-install dogfood-devpod-smoke dogfood-devpod-down dogfood-devpod-delete \
 	dogfood-devpod-ci \
@@ -102,15 +105,28 @@ dogfood-keeper: check-go build
 	@chmod +x "$(KEEPER_DOGFOOD)" scripts/fake-keeper.sh
 	@PADE="$(CURDIR)/bin/pade" "$(KEEPER_DOGFOOD)"
 
+# Install Keeper Commander (`keeper`) for local live demos (Homebrew or .tools/keeper-venv).
+install-keeper-cli:
+	@chmod +x "$(INSTALL_KEEPER_CLI)"
+	@"$(INSTALL_KEEPER_CLI)"
+
 # Install real 1Password CLI (`op`) for local live demos (Homebrew, else .tools/op).
 install-onepassword-cli:
 	@chmod +x "$(INSTALL_ONEPASSWORD_CLI)"
 	@"$(INSTALL_ONEPASSWORD_CLI)"
 
 # Local-only (not CI): real 1Password + real GitHub API. Requires op signin and a PAT in 1Password.
-dogfood-github-live: check-go build
-	@chmod +x "$(GITHUB_LIVE_DOGFOOD)" examples/demo-project/scripts/github-whoami
-	@PADE="$(CURDIR)/bin/pade" "$(GITHUB_LIVE_DOGFOOD)"
+dogfood-onepassword-live: check-go build
+	@chmod +x "$(ONEPASSWORD_LIVE_DOGFOOD)" examples/demo-project/scripts/github-whoami
+	@PADE="$(CURDIR)/bin/pade" "$(ONEPASSWORD_LIVE_DOGFOOD)"
+
+# Deprecated alias — prefer dogfood-onepassword-live.
+dogfood-github-live: dogfood-onepassword-live
+
+# Local-only (not CI): real Keeper Commander + real GitHub API. Requires login + KEEPER_RECORD_UID.
+dogfood-keeper-live: check-go build
+	@chmod +x "$(KEEPER_LIVE_DOGFOOD)" examples/demo-project/scripts/github-whoami
+	@PADE="$(CURDIR)/bin/pade" "$(KEEPER_LIVE_DOGFOOD)"
 
 # --- DevPod dogfood (requires docker + devpod; separate DevPod GHA workflow) ---
 dogfood-devpod-check:

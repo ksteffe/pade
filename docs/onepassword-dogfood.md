@@ -11,7 +11,7 @@ The demo capability is **`github.user.read`** → env **`GITHUB_TOKEN`**.
 | Goal | Command | CI? |
 |------|---------|-----|
 | Fake-op smoke (no account) | `make dogfood-onepassword` | Yes (Smoke job) |
-| **Real 1Password + real GitHub API** | `make dogfood-github-live` | **No** (local only) |
+| **Real 1Password + real GitHub API** | `make dogfood-onepassword-live` | **No** (local only) |
 
 ## Realistic live demo (your laptop)
 
@@ -41,10 +41,10 @@ op item create --category='API Credential' --title=pade-github --vault=pade-demo
 ### Run
 
 ```bash
-make dogfood-github-live
+make dogfood-onepassword-live
 ```
 
-Expected ending: `dogfood-github-live: ok` and a real `login: <your-github-username>` line (not `stub-user`).
+Expected ending: `dogfood-onepassword-live: ok` and a real `login: <your-github-username>` line (not `stub-user`).
 
 Overrides: `OP_VAULT`, `OP_ITEM`, `OP_FIELD`, `PADE_ONEPASSWORD_BINDINGS`, `PADE_OP_BIN`.
 

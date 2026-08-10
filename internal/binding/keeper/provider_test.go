@@ -114,19 +114,79 @@ capabilities:
 	}
 }
 
+func TestPasswordFromNoisyStdout(t *testing.T) {
+	t.Parallel()
+	fake := writeFakeKeeperNoisy(t, "pade-demo-github", "keeper-secret")
+	p := &keeper.Provider{
+		KeeperBin: fake,
+		LookPath:  func(file string) (string, error) { return file, nil },
+		CommandContext: func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+			return exec.CommandContext(ctx, name, arg...)
+		},
+	}
+	b := binding.CapabilityBinding{
+		Provider: "keeper",
+		Keeper: &binding.KeeperBinding{
+			Refs: map[string]string{"GITHUB_TOKEN": "keeper://pade-demo-github"},
+		},
+	}
+	mat, err := p.Resolve(context.Background(), "github.user.read", b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mat.Env["GITHUB_TOKEN"] != "keeper-secret" {
+		t.Fatalf("material=%v", mat.Env)
+	}
+}
+
+func writeFakeKeeperNoisy(t *testing.T, uid, val string) string {
+	t.Helper()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "fake-keeper-noisy")
+	script := "#!/bin/sh\n" +
+		"if [ \"$1\" = \"get\" ] && [ \"$2\" = \"--format=password\" ]; then\n" +
+		"  printf '%s\\n' 'Logging in to Keeper Commander'\n" +
+		"  printf '%s\\n' 'Syncing...'\n" +
+		"  printf '%s\\n' 'Decrypted [1] record(s)'\n" +
+		"  printf '%s\\n' '" + val + "'\n" +
+		"  exit 0\n" +
+		"fi\n" +
+		"echo usage >&2; exit 2\n"
+	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_ = uid
+	return path
+}
+
 func writeFakeKeeper(t *testing.T, values map[string]string) string {
 	t.Helper()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "fake-keeper")
 	var body strings.Builder
 	body.WriteString("#!/bin/sh\n")
-	body.WriteString("if [ \"$1\" != \"get\" ] || [ \"$2\" != \"--format=password\" ]; then echo 'usage' >&2; exit 2; fi\n")
-	body.WriteString("case \"$3\" in\n")
+	body.WriteString("uid=\"\"\n")
+	body.WriteString("mode=password\n")
+	body.WriteString("if [ \"$1\" = \"get\" ] && [ \"$2\" = \"--format=password\" ]; then\n")
+	body.WriteString("  if [ \"$3\" = \"--unmask\" ]; then uid=\"$4\"; else uid=\"$3\"; fi\n")
+	body.WriteString("elif [ \"$1\" = \"get\" ] && [ \"$2\" = \"--format=json\" ]; then\n")
+	body.WriteString("  mode=json\n")
+	body.WriteString("  if [ \"$3\" = \"--unmask\" ]; then uid=\"$4\"; else uid=\"$3\"; fi\n")
+	body.WriteString("elif [ \"$1\" = \"find-password\" ]; then uid=\"$2\"\n")
+	body.WriteString("elif [ \"$1\" = \"clipboard-copy\" ] && [ \"$2\" = \"--output\" ] && [ \"$3\" = \"stdout\" ]; then uid=\"$4\"\n")
+	body.WriteString("else echo 'usage' >&2; exit 2; fi\n")
+	body.WriteString("val=\"\"\n")
+	body.WriteString("case \"$uid\" in\n")
 	for uid, val := range values {
-		body.WriteString("  '" + uid + "') printf '%s\\n' '" + val + "' ;;\n")
+		body.WriteString("  '" + uid + "') val='" + val + "' ;;\n")
 	}
 	body.WriteString("  *) echo 'unknown uid' >&2; exit 1 ;;\n")
 	body.WriteString("esac\n")
+	body.WriteString("if [ \"$mode\" = \"json\" ]; then\n")
+	body.WriteString("  printf '{\"uid\":\"%s\",\"fields\":[{\"type\":\"password\",\"value\":[\"%s\"]}]}\\n' \"$uid\" \"$val\"\n")
+	body.WriteString("else\n")
+	body.WriteString("  printf '%s\\n' \"$val\"\n")
+	body.WriteString("fi\n")
 	if err := os.WriteFile(path, []byte(body.String()), 0o755); err != nil {
 		t.Fatal(err)
 	}
