@@ -43,7 +43,7 @@ This repository contains the Go **reference** Consumer ([`pade`](cmd/pade)) and 
 | [`cmd/pade-broker`](cmd/pade-broker) | Reference Broker | **Experimental spike** |
 | [`spec/pade.schema.json`](spec/pade.schema.json) | Machine-readable Intent schema | v0.1 stub |
 
-Provider adapters (env, Vault, 1Password, Keeper, Keeper Secrets Manager, Cursor OIDC) are **reference implementation** integrations—not automatic parts of the PADE standard.
+Provider adapters (env, Vault, 1Password, Keeper, Keeper Secrets Manager) and the Cursor OIDC workload identity adapter are **reference implementation** integrations—not automatic parts of the PADE standard.
 
 ## Quick start
 
