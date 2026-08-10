@@ -4,7 +4,30 @@
 
 PADE is an exploratory specification and Go reference CLI for declaring **portable agent workspace capabilities** beside existing development-environment standards (Dev Containers, DevPod), without embedding credentials or coupling to a single AI vendor.
 
-This repository is at **Milestone 0**: documentation, schema stub, and project scaffolding. The Go CLI is not implemented yet.
+This repository is at **Milestone 1**: `pade validate` and `pade plan` against the v0.1 schema. Capability binding and scoped `exec` come next.
+
+## Quick start
+
+Requires **Go 1.22+**. macOS Homebrew `go` 1.13 will fail with errors like `cannot load embed` — that toolchain predates the `embed` standard library.
+
+If you already have a local SDK under `.tools/go` (or after installing one from https://go.dev/dl/):
+
+```bash
+export PATH="$(pwd)/.tools/go/bin:$PATH"
+go version   # expect go1.22+
+go test ./...
+go run ./cmd/pade validate -f spec/examples/web-app.yaml
+go run ./cmd/pade plan -f spec/examples/web-app.yaml
+go run ./cmd/pade plan -f spec/examples/web-app.yaml --json
+```
+
+Or use Make (auto-selects `.tools/go` when present):
+
+```bash
+make test
+make validate
+make plan
+```
 
 ## Current direction (v0.1)
 
@@ -43,7 +66,10 @@ Earlier sections of [DESIGN.md](DESIGN.md) and [docs/go-reference.md](docs/go-re
 | [spec/pade.schema.json](spec/pade.schema.json) | Normative JSON Schema for `pade.yaml` (v0.1 stub) |
 | [spec/examples/](spec/examples/) | Example manifests |
 | `examples/` | Dogfood apps (added as implementation proceeds) |
-| `cmd/`, `internal/` | Go CLI (not present until Milestone 1+) |
+| [cmd/pade](cmd/pade) | CLI entrypoint (`validate`, `plan`) |
+| [internal/manifest](internal/manifest) | Load + schema/semantic validation |
+| [internal/planner](internal/planner) | Side-effect-free plan model |
+| [internal/output](internal/output) | Human and JSON rendering |
 
 ## Manifest sketch
 
@@ -59,16 +85,18 @@ capabilities:
     access: read
 ```
 
-Environment construction stays in `.devcontainer/devcontainer.json` and is started with DevPod (for example `devpod up .`). See [spec/examples/web-app.yaml](spec/examples/web-app.yaml) for a fuller illustrative manifest that also shows the earlier environment/services shape for comparison.
+Environment construction stays in `.devcontainer/devcontainer.json` and is started with DevPod (for example `devpod up .`). See [spec/examples/web-app.yaml](spec/examples/web-app.yaml) for the capability-first shape and [spec/examples/web-app-orchestrated.yaml](spec/examples/web-app-orchestrated.yaml) for the earlier environment/services shape.
 
-## Planned CLI (capability-focused v0.1)
+## CLI (capability-focused v0.1)
 
-| Command | Role |
-|---------|------|
-| `pade validate` | Validate `pade.yaml` and referenced config |
-| `pade plan` | Side-effect-free resolution preview |
-| `pade capabilities` | Show requested capabilities and binding status (never secret values) |
-| `pade exec --capability … -- <cmd>` | Run a command with resolved capability injection |
+| Command | Status | Role |
+|---------|--------|------|
+| `pade validate` | Implemented | Validate `pade.yaml` and referenced config |
+| `pade plan` | Implemented | Side-effect-free plan (never prints secrets) |
+| `pade capabilities` | Planned | Show requested capabilities and binding status |
+| `pade exec --capability … -- <cmd>` | Planned | Run a command with resolved capability injection |
+
+Flags: `-f` / `--file` for manifest path; `--json` for machine-readable output.
 
 Workspace lifecycle: prefer `devpod up` / `devpod stop` directly.
 
@@ -84,8 +112,8 @@ Workspace lifecycle: prefer `devpod up` / `devpod stop` directly.
 
 | Milestone | Focus |
 |-----------|--------|
-| **0** (this branch) | Repo, docs, license, schema stub, examples |
-| **1** | `validate` / `plan` against schema |
+| **0** | Repo, docs, license, schema stub, examples |
+| **1** (current) | `validate` / `plan` against schema |
 | **2+** | Capability resolution (env → Vault demo), DevPod-oriented exec flow |
 | Later | Authenticated review ingress, second runtime/credential providers, external validation |
 

@@ -59,10 +59,16 @@ Before adding a feature, ask:
 
 ## Tests and commands
 
-Go modules and tests will land with Milestone 1+. Until then:
+Requires Go 1.22+. If `go version` shows 1.13 (or similar), put a current SDK first on `PATH` (for example `$(pwd)/.tools/go/bin`) or run `make test`.
 
-- Treat [spec/pade.schema.json](spec/pade.schema.json) as the machine-readable contract.
-- Validate examples mentally or with a JSON Schema tool against the schema.
+```bash
+export PATH="$(pwd)/.tools/go/bin:$PATH"
+go test ./...
+go run ./cmd/pade validate -f spec/examples/web-app.yaml
+go run ./cmd/pade plan -f spec/examples/web-app.yaml --json
+```
+
+Treat [spec/pade.schema.json](spec/pade.schema.json) as the machine-readable contract. Update examples when the schema changes.
 
 ## Adding a provider later
 

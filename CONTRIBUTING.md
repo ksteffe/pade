@@ -8,6 +8,22 @@ Thanks for interest in PADE. The project is early (Milestone 0: specification an
 2. Prefer composing Dev Containers / DevPod / existing secret managers over new PADE subsystems.
 3. Keep secrets out of manifests, logs, plan output, and git.
 
+## Development
+
+Requires **Go 1.22+**. Older toolchains (for example Homebrew Go 1.13) fail on `embed` and modern module requirements.
+
+```bash
+# Prefer a current SDK on PATH, or the repo-local toolchain:
+export PATH="$(pwd)/.tools/go/bin:$PATH"
+
+go test ./...
+go run ./cmd/pade validate -f spec/examples/web-app.yaml
+go run ./cmd/pade plan -f spec/examples/web-app.yaml
+
+# Or:
+make test
+```
+
 ## Pull requests
 
 - Keep changes focused and explained against the design hypotheses.
