@@ -1,0 +1,121 @@
+package binding
+
+import (
+	"context"
+	"fmt"
+	"sort"
+)
+
+// Provider resolves or probes a capability binding without logging secrets.
+type Provider interface {
+	Name() string
+	// Probe reports whether the binding can be satisfied. It must never return secret values.
+	Probe(ctx context.Context, name string, b CapabilityBinding) (ProbeResult, error)
+	// Resolve returns process-scoped credential material for later exec injection.
+	// Callers must not log or persist Material.Env values.
+	Resolve(ctx context.Context, name string, b CapabilityBinding) (*Material, error)
+}
+
+// ProbeResult is safe to display and serialize.
+type ProbeResult struct {
+	Provider string            `json:"provider"`
+	Status   string            `json:"status"` // available | unavailable | error
+	Message  string            `json:"message,omitempty"`
+	Meta     map[string]string `json:"meta,omitempty"` // path, env key names, field maps — never values
+}
+
+// Material holds resolved credential material for process injection.
+// It is intentionally not JSON-tagged for accidental encoding.
+type Material struct {
+	Provider string
+	Env      map[string]string
+}
+
+// Status is the inspectable binding outcome for one declared capability.
+type Status struct {
+	Name     string            `json:"name"`
+	Access   string            `json:"access,omitempty"`
+	Required bool              `json:"required"`
+	Bound    bool              `json:"bound"`
+	Provider string            `json:"provider,omitempty"`
+	Status   string            `json:"status"` // unbound | available | unavailable | error
+	Message  string            `json:"message,omitempty"`
+	Meta     map[string]string `json:"meta,omitempty"`
+}
+
+// Registry maps provider names to implementations.
+type Registry struct {
+	providers map[string]Provider
+}
+
+// NewRegistry constructs a registry with the given providers.
+func NewRegistry(providers ...Provider) *Registry {
+	r := &Registry{providers: map[string]Provider{}}
+	for _, p := range providers {
+		r.providers[p.Name()] = p
+	}
+	return r
+}
+
+// Get returns a provider by name.
+func (r *Registry) Get(name string) (Provider, bool) {
+	p, ok := r.providers[name]
+	return p, ok
+}
+
+// ResolveAll probes each manifest capability against local bindings.
+func ResolveAll(ctx context.Context, reg *Registry, caps map[string]CapabilityRequestView, cfg *Config) ([]Status, error) {
+	names := make([]string, 0, len(caps))
+	for name := range caps {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	out := make([]Status, 0, len(names))
+	for _, name := range names {
+		view := caps[name]
+		st := Status{
+			Name:     name,
+			Access:   view.Access,
+			Required: view.Required,
+			Status:   "unbound",
+			Message:  "no local binding configured",
+		}
+		if cfg == nil {
+			out = append(out, st)
+			continue
+		}
+		b, ok := cfg.Capabilities[name]
+		if !ok {
+			out = append(out, st)
+			continue
+		}
+		st.Bound = true
+		st.Provider = b.Provider
+		p, ok := reg.Get(b.Provider)
+		if !ok {
+			st.Status = "error"
+			st.Message = fmt.Sprintf("unknown provider %q", b.Provider)
+			out = append(out, st)
+			continue
+		}
+		probe, err := p.Probe(ctx, name, b)
+		if err != nil {
+			st.Status = "error"
+			st.Message = err.Error()
+			out = append(out, st)
+			continue
+		}
+		st.Status = probe.Status
+		st.Message = probe.Message
+		st.Meta = probe.Meta
+		out = append(out, st)
+	}
+	return out, nil
+}
+
+// CapabilityRequestView is the subset of manifest capability data needed for resolution.
+type CapabilityRequestView struct {
+	Access   string
+	Required bool
+}

@@ -51,6 +51,7 @@ jobs:
         run: |
           ./bin/pade validate -f spec/examples/web-app.yaml
           ./bin/pade plan -f spec/examples/web-app.yaml --json > /tmp/pade-plan.json
+          ./bin/pade capabilities -f spec/examples/web-app.yaml --bindings spec/examples/bindings.example.yaml --json > /tmp/pade-capabilities.json
 
           mkdir -p /tmp/pade-orch/.devcontainer
           printf '{}\n' > /tmp/pade-orch/.devcontainer/devcontainer.json
