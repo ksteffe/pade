@@ -141,15 +141,14 @@ cmd_smoke() {
     bash -lc '
 set -euo pipefail
 command -v pade >/dev/null || { echo "pade not installed; run: make dogfood-devpod-install" >&2; exit 1; }
-chmod +x ./scripts/ga-summary 2>/dev/null || true
+chmod +x ./scripts/github-whoami 2>/dev/null || true
 pade validate
 pade plan --bindings bindings.example.yaml >/tmp/pade-plan.txt
-GA_PROPERTY_ID=demo-property \
-GOOGLE_APPLICATION_CREDENTIALS=/tmp/fake-ga.json \
+GITHUB_TOKEN=pade-demo-env-token \
 pade exec \
   --bindings bindings.example.yaml \
-  --capability google-analytics.read \
-  -- ./scripts/ga-summary
+  --capability github.user.read \
+  -- ./scripts/github-whoami
 echo "ok: DevPod + PADE smoke succeeded"
 '
 }

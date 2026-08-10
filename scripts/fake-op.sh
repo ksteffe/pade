@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Deterministic stand-in for the 1Password CLI (`op read`) used by Milestone 6 dogfood/CI.
-# Not a secrets manager — returns fixed demo values for known op:// refs only.
+# Returns fixed demo tokens (pade-demo-* prefix) for known op:// refs only.
 set -euo pipefail
 
 if [[ "${1:-}" != "read" ]]; then
@@ -10,23 +10,14 @@ fi
 
 ref="${2:-}"
 case "$ref" in
-  "op://pade-demo/google-analytics/property_id")
-    printf '%s\n' "op-demo-property"
+  "op://pade-demo/github/credential")
+    printf '%s\n' "pade-demo-op-token"
     ;;
-  "op://pade-demo/google-analytics/credentials_path")
-    printf '%s\n' "/tmp/op-ga.json"
+  "op://pade-demo/developers/alice/github/credential")
+    printf '%s\n' "pade-demo-alice-op-token"
     ;;
-  "op://pade-demo/developers/alice/google-analytics/property_id")
-    printf '%s\n' "alice-op-property"
-    ;;
-  "op://pade-demo/developers/alice/google-analytics/credentials_path")
-    printf '%s\n' "/tmp/alice-op-ga.json"
-    ;;
-  "op://pade-demo/developers/bob/google-analytics/property_id")
-    printf '%s\n' "bob-op-property"
-    ;;
-  "op://pade-demo/developers/bob/google-analytics/credentials_path")
-    printf '%s\n' "/tmp/bob-op-ga.json"
+  "op://pade-demo/developers/bob/github/credential")
+    printf '%s\n' "pade-demo-bob-op-token"
     ;;
   *)
     echo "fake-op: unknown ref" >&2

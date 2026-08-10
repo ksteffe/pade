@@ -4,17 +4,7 @@
 version: "0.1"
 
 capabilities:
-  google-analytics.read:
+  github.user.read:
     provider: env
     env:
-      - GA_PROPERTY_ID
-      - GOOGLE_APPLICATION_CREDENTIALS
-
-  # Vault alternative (local -dev only): Alice-specific path
-  # google-analytics.read:
-  #   provider: vault
-  #   vault:
-  #     path: secret/pade/developers/alice/google-analytics
-  #     fields:
-  #       property_id: GA_PROPERTY_ID
-  #       token: GA_ACCESS_TOKEN
+      - GITHUB_TOKEN

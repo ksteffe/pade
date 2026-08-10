@@ -15,8 +15,7 @@ import (
 func TestOnePasswordProbeAndResolve(t *testing.T) {
 	t.Parallel()
 	fake := writeFakeOp(t, map[string]string{
-		"op://Employee/GA Demo/property_id":      "op-property",
-		"op://Employee/GA Demo/credentials_path": "/tmp/op-ga.json",
+		"op://Employee/GitHub/credential": "op-property",
 	})
 
 	p := &onepassword.Provider{
@@ -30,13 +29,12 @@ func TestOnePasswordProbeAndResolve(t *testing.T) {
 		Provider: "onepassword",
 		OnePassword: &binding.OnePasswordBinding{
 			Refs: map[string]string{
-				"GA_PROPERTY_ID":                 "op://Employee/GA Demo/property_id",
-				"GOOGLE_APPLICATION_CREDENTIALS": "op://Employee/GA Demo/credentials_path",
+				"GITHUB_TOKEN": "op://Employee/GitHub/credential",
 			},
 		},
 	}
 
-	probe, err := p.Probe(context.Background(), "google-analytics.read", b)
+	probe, err := p.Probe(context.Background(), "github.user.read", b)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,11 +48,11 @@ func TestOnePasswordProbeAndResolve(t *testing.T) {
 		t.Fatalf("probe leaked secret: %+v", probe)
 	}
 
-	mat, err := p.Resolve(context.Background(), "google-analytics.read", b)
+	mat, err := p.Resolve(context.Background(), "github.user.read", b)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if mat.Env["GA_PROPERTY_ID"] != "op-property" || mat.Env["GOOGLE_APPLICATION_CREDENTIALS"] != "/tmp/op-ga.json" {
+	if mat.Env["GITHUB_TOKEN"] != "op-property" {
 		t.Fatalf("material=%v", mat.Env)
 	}
 }
@@ -68,7 +66,7 @@ func TestOnePasswordMissingCLI(t *testing.T) {
 	b := binding.CapabilityBinding{
 		Provider: "onepassword",
 		OnePassword: &binding.OnePasswordBinding{
-			Refs: map[string]string{"GA_PROPERTY_ID": "op://v/i/f"},
+			Refs: map[string]string{"GITHUB_TOKEN": "op://v/i/f"},
 		},
 	}
 	probe, err := p.Probe(context.Background(), "cap", b)
@@ -85,16 +83,16 @@ func TestParseOnePasswordBinding(t *testing.T) {
 	cfg, err := binding.Parse([]byte(`
 version: "0.1"
 capabilities:
-  google-analytics.read:
+  github.user.read:
     provider: onepassword
     onepassword:
       refs:
-        GA_PROPERTY_ID: "op://Employee/GA Demo/property_id"
+        GITHUB_TOKEN: "op://Employee/GitHub/credential"
 `), "bindings.yaml")
 	if err != nil {
 		t.Fatal(err)
 	}
-	b := cfg.Capabilities["google-analytics.read"]
+	b := cfg.Capabilities["github.user.read"]
 	if b.Provider != "onepassword" || b.OnePassword == nil {
 		t.Fatalf("unexpected: %+v", b)
 	}
@@ -109,7 +107,7 @@ capabilities:
     provider: onepassword
     onepassword:
       refs:
-        GA_PROPERTY_ID: "not-an-op-ref"
+        GITHUB_TOKEN: "not-an-op-ref"
 `), "bindings.yaml")
 	if err == nil {
 		t.Fatal("expected error")

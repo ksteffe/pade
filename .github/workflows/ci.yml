@@ -78,16 +78,15 @@ jobs:
             --capability google-analytics.read \
             -- /bin/sh -c 'test -n "$GA_PROPERTY_ID" && test -n "$GOOGLE_APPLICATION_CREDENTIALS" && printf exec-ok'
 
-          chmod +x examples/demo-project/scripts/ga-summary
+          chmod +x examples/demo-project/scripts/github-whoami
           ./bin/pade validate -f examples/demo-project/pade.yaml
           ./bin/pade plan -f examples/demo-project/pade.yaml --bindings examples/demo-project/bindings.example.yaml --json > /tmp/pade-demo-plan.json
-          GA_PROPERTY_ID=demo-property \
-          GOOGLE_APPLICATION_CREDENTIALS=/tmp/fake-ga.json \
+          GITHUB_TOKEN=pade-demo-env-token \
           ./bin/pade exec \
             -f examples/demo-project/pade.yaml \
             --bindings examples/demo-project/bindings.example.yaml \
-            --capability google-analytics.read \
-            -- ./scripts/ga-summary
+            --capability github.user.read \
+            -- ./scripts/github-whoami
 
           # Milestone 5: same pade.yaml, Alice/Bob bindings, distinct material.
           chmod +x scripts/identity-dogfood.sh

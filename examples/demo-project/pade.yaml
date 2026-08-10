@@ -4,5 +4,5 @@ environment:
   devcontainer: ".devcontainer/devcontainer.json"
 
 capabilities:
-  google-analytics.read:
+  github.user.read:
     access: read

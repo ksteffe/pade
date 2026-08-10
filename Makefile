@@ -6,10 +6,10 @@ DEVPOD_DOGFOOD := $(CURDIR)/scripts/devpod-dogfood.sh
 IDENTITY_DOGFOOD := $(CURDIR)/scripts/identity-dogfood.sh
 VAULT_DOGFOOD := $(CURDIR)/scripts/vault-dogfood.sh
 ONEPASSWORD_DOGFOOD := $(CURDIR)/scripts/onepassword-dogfood.sh
-ONEPASSWORD_LIVE_DOGFOOD := $(CURDIR)/scripts/onepassword-live-dogfood.sh
+GITHUB_LIVE_DOGFOOD := $(CURDIR)/scripts/github-live-dogfood.sh
 
 .PHONY: check-go test build build-linux validate plan capabilities exec-demo dogfood \
-	dogfood-identity dogfood-vault dogfood-onepassword dogfood-onepassword-live \
+	dogfood-identity dogfood-vault dogfood-onepassword dogfood-github-live \
 	dogfood-devpod dogfood-devpod-check dogfood-devpod-provider dogfood-devpod-up \
 	dogfood-devpod-install dogfood-devpod-smoke dogfood-devpod-down dogfood-devpod-delete \
 	dogfood-devpod-ci \
@@ -69,16 +69,15 @@ exec-demo: check-go build
 
 # Milestone 4: PADE smoke against examples/demo-project (DevPod not required).
 dogfood: check-go build
-	chmod +x examples/demo-project/scripts/ga-summary
+	chmod +x examples/demo-project/scripts/github-whoami
 	./bin/pade validate -f examples/demo-project/pade.yaml
 	./bin/pade plan -f examples/demo-project/pade.yaml --bindings examples/demo-project/bindings.example.yaml
-	GA_PROPERTY_ID=demo-property \
-	GOOGLE_APPLICATION_CREDENTIALS=/tmp/fake-ga.json \
+	GITHUB_TOKEN=pade-demo-env-token \
 	./bin/pade exec \
 	  -f examples/demo-project/pade.yaml \
 	  --bindings examples/demo-project/bindings.example.yaml \
-	  --capability google-analytics.read \
-	  -- ./scripts/ga-summary
+	  --capability github.user.read \
+	  -- ./scripts/github-whoami
 
 # Milestone 5: same pade.yaml, two simulated identities, distinct resolved material.
 dogfood-identity: check-go build
@@ -95,10 +94,10 @@ dogfood-onepassword: check-go build
 	@chmod +x "$(ONEPASSWORD_DOGFOOD)" scripts/fake-op.sh
 	@PADE="$(CURDIR)/bin/pade" "$(ONEPASSWORD_DOGFOOD)"
 
-# Local-only: real 1Password CLI (op signin required). Seeds a disposable demo vault/item.
-dogfood-onepassword-live: check-go build
-	@chmod +x "$(ONEPASSWORD_LIVE_DOGFOOD)"
-	@PADE="$(CURDIR)/bin/pade" "$(ONEPASSWORD_LIVE_DOGFOOD)"
+# Local-only (not CI): real 1Password + real GitHub API. Requires op signin and a PAT in 1Password.
+dogfood-github-live: check-go build
+	@chmod +x "$(GITHUB_LIVE_DOGFOOD)" examples/demo-project/scripts/github-whoami
+	@PADE="$(CURDIR)/bin/pade" "$(GITHUB_LIVE_DOGFOOD)"
 
 # --- DevPod dogfood (requires docker + devpod; separate DevPod GHA workflow) ---
 dogfood-devpod-check:

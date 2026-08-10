@@ -1,12 +1,10 @@
 # Simulated developer Alice — Vault -dev bindings (prototype only).
-# Same capability name as the shared pade.yaml; Alice-specific KV path.
 version: "0.1"
 
 capabilities:
-  google-analytics.read:
+  github.user.read:
     provider: vault
     vault:
-      path: secret/pade/developers/alice/google-analytics
+      path: secret/pade/developers/alice/github
       fields:
-        property_id: GA_PROPERTY_ID
-        credentials_path: GOOGLE_APPLICATION_CREDENTIALS
+        token: GITHUB_TOKEN

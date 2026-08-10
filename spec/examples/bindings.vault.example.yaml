@@ -3,10 +3,9 @@
 version: "0.1"
 
 capabilities:
-  google-analytics.read:
+  github.user.read:
     provider: vault
     vault:
-      path: secret/pade/google-analytics
+      path: secret/pade/github
       fields:
-        property_id: GA_PROPERTY_ID
-        credentials_path: GOOGLE_APPLICATION_CREDENTIALS
+        token: GITHUB_TOKEN

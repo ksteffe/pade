@@ -150,7 +150,7 @@ func newExecCmd(file, bindings *string) *cobra.Command {
 Secret values are never printed. After the command exits, resolved material is discarded from PADE's memory maps (the child process may still have observed them while running).
 
 Example:
-  pade exec --capability google-analytics.read -- ./scripts/ga-summary`,
+  pade exec --capability github.user.read -- ./scripts/github-whoami`,
 		DisableFlagsInUseLine: true,
 		Args:                  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

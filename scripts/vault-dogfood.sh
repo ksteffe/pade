@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Vault -dev dogfood: resolve capabilities from Vault without ambient env secrets.
+# Vault -dev dogfood: resolve github.user.read from Vault without ambient GITHUB_TOKEN.
 # Prototype-only. Secret values must not appear in PADE plan/capabilities output.
 set -euo pipefail
 
@@ -73,7 +73,6 @@ ensure_vault_bin() {
   url="https://releases.hashicorp.com/vault/${VAULT_VERSION}/vault_${VAULT_VERSION}_${platform}.zip"
   echo "Downloading Vault ${VAULT_VERSION} (${platform})..."
   curl -fsSL -o "$zip" "$url"
-  # unzip may be missing; use python as a portable fallback.
   if command -v unzip >/dev/null 2>&1; then
     unzip -o -q "$zip" vault -d "$TOOLS_DIR"
   else
@@ -102,7 +101,6 @@ wait_for_vault() {
 }
 
 start_vault_dev() {
-  # Reuse an already-running local -dev if healthy and token matches.
   if curl -fsS "${VAULT_ADDR}/v1/sys/health" >/dev/null 2>&1; then
     if VAULT_TOKEN="$VAULT_TOKEN" "$VAULT_BIN" status >/dev/null 2>&1; then
       echo "Using existing Vault at ${VAULT_ADDR}"
@@ -122,31 +120,26 @@ start_vault_dev() {
 }
 
 seed_secrets() {
-  # KV v2 is mounted at secret/ in vault -dev.
-  "$VAULT_BIN" kv put secret/pade/google-analytics \
-    property_id="vault-demo-property" \
-    credentials_path="/tmp/vault-ga.json" >/dev/null
+  "$VAULT_BIN" kv put secret/pade/github \
+    token="pade-demo-vault-token" >/dev/null
 
-  "$VAULT_BIN" kv put secret/pade/developers/alice/google-analytics \
-    property_id="alice-vault-property" \
-    credentials_path="/tmp/alice-vault-ga.json" >/dev/null
+  "$VAULT_BIN" kv put secret/pade/developers/alice/github \
+    token="pade-demo-alice-vault-token" >/dev/null
 
-  "$VAULT_BIN" kv put secret/pade/developers/bob/google-analytics \
-    property_id="bob-vault-property" \
-    credentials_path="/tmp/bob-vault-ga.json" >/dev/null
+  "$VAULT_BIN" kv put secret/pade/developers/bob/github \
+    token="pade-demo-bob-vault-token" >/dev/null
 }
 
 assert_no_secret_leak() {
   local file="$1"
-  if grep -E 'vault-demo-property|alice-vault-property|bob-vault-property|/tmp/vault-ga\.json|/tmp/alice-vault-ga\.json|/tmp/bob-vault-ga\.json' "$file" >/dev/null; then
+  if grep -E 'pade-demo-vault-token|pade-demo-alice-vault-token|pade-demo-bob-vault-token' "$file" >/dev/null; then
     die "PADE output appears to contain Vault credential material: $file"
   fi
 }
 
 run_shared_vault() {
   echo "=== Vault shared binding ==="
-  # Prove resolution does not depend on ambient GA_* env.
-  unset GA_PROPERTY_ID GOOGLE_APPLICATION_CREDENTIALS GA_ACCESS_TOKEN || true
+  unset GITHUB_TOKEN || true
 
   "$PADE" validate -f "$MANIFEST"
   "$PADE" plan -f "$MANIFEST" --bindings "$SHARED_BINDINGS" --json >/tmp/pade-vault-plan.json
@@ -162,10 +155,9 @@ run_shared_vault() {
     "$PADE" exec \
       -f "$MANIFEST" \
       --bindings "$SHARED_BINDINGS" \
-      --capability google-analytics.read \
+      --capability github.user.read \
       -- /bin/sh -c '
-        test "$GA_PROPERTY_ID" = "vault-demo-property" || exit 1
-        test "$GOOGLE_APPLICATION_CREDENTIALS" = "/tmp/vault-ga.json" || exit 1
+        test "$GITHUB_TOKEN" = "pade-demo-vault-token" || exit 1
         printf "vault-ok:shared\n"
       '
   )"
@@ -174,7 +166,7 @@ run_shared_vault() {
 
 run_identity_vault() {
   echo "=== Vault Alice/Bob identity paths ==="
-  unset GA_PROPERTY_ID GOOGLE_APPLICATION_CREDENTIALS GA_ACCESS_TOKEN || true
+  unset GITHUB_TOKEN || true
 
   "$PADE" plan -f "$MANIFEST" --bindings "$ALICE_BINDINGS" --json >/tmp/pade-vault-alice-plan.json
   "$PADE" plan -f "$MANIFEST" --bindings "$BOB_BINDINGS" --json >/tmp/pade-vault-bob-plan.json
@@ -186,10 +178,9 @@ run_identity_vault() {
     "$PADE" exec \
       -f "$MANIFEST" \
       --bindings "$ALICE_BINDINGS" \
-      --capability google-analytics.read \
+      --capability github.user.read \
       -- /bin/sh -c '
-        test "$GA_PROPERTY_ID" = "alice-vault-property" || exit 1
-        test "$GOOGLE_APPLICATION_CREDENTIALS" = "/tmp/alice-vault-ga.json" || exit 1
+        test "$GITHUB_TOKEN" = "pade-demo-alice-vault-token" || exit 1
         printf "vault-ok:alice\n"
       '
   )"
@@ -197,10 +188,9 @@ run_identity_vault() {
     "$PADE" exec \
       -f "$MANIFEST" \
       --bindings "$BOB_BINDINGS" \
-      --capability google-analytics.read \
+      --capability github.user.read \
       -- /bin/sh -c '
-        test "$GA_PROPERTY_ID" = "bob-vault-property" || exit 1
-        test "$GOOGLE_APPLICATION_CREDENTIALS" = "/tmp/bob-vault-ga.json" || exit 1
+        test "$GITHUB_TOKEN" = "pade-demo-bob-vault-token" || exit 1
         printf "vault-ok:bob\n"
       '
   )"

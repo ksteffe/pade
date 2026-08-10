@@ -17,13 +17,11 @@ fi
 
 "$PADE" validate -f "$MANIFEST"
 
-# Binding files differ only by documented identity; capability names match.
 "$PADE" plan -f "$MANIFEST" --bindings "$ALICE_BINDINGS" --json >/tmp/pade-identity-alice-plan.json
 "$PADE" plan -f "$MANIFEST" --bindings "$BOB_BINDINGS" --json >/tmp/pade-identity-bob-plan.json
 
-# Refuse if plan JSON accidentally contains demo secret substrings.
 for f in /tmp/pade-identity-alice-plan.json /tmp/pade-identity-bob-plan.json; do
-  if grep -E 'alice-ga-property|bob-ga-property|alice-ga\.json|bob-ga\.json' "$f" >/dev/null; then
+  if grep -E 'pade-demo-alice-token|pade-demo-bob-token' "$f" >/dev/null; then
     echo "error: plan output appears to contain credential material: $f" >&2
     exit 1
   fi
@@ -32,34 +30,26 @@ done
 run_identity() {
   local name="$1"
   local bindings="$2"
-  local property_id="$3"
-  local creds_path="$4"
+  local token="$3"
 
-  GA_PROPERTY_ID="$property_id" \
-  GOOGLE_APPLICATION_CREDENTIALS="$creds_path" \
+  GITHUB_TOKEN="$token" \
   "$PADE" exec \
     -f "$MANIFEST" \
     --bindings "$bindings" \
-    --capability google-analytics.read \
+    --capability github.user.read \
     -- /bin/sh -c '
-      expected_property="$1"
-      expected_creds="$2"
-      label="$3"
-      if [ "$GA_PROPERTY_ID" != "$expected_property" ]; then
-        echo "identity-mismatch:property" >&2
+      expected_token="$1"
+      label="$2"
+      if [ "$GITHUB_TOKEN" != "$expected_token" ]; then
+        echo "identity-mismatch:token" >&2
         exit 1
       fi
-      if [ "$GOOGLE_APPLICATION_CREDENTIALS" != "$expected_creds" ]; then
-        echo "identity-mismatch:creds" >&2
-        exit 1
-      fi
-      # Parent shell must not leave ambient demo values for the other identity.
       printf "identity-ok:%s\n" "$label"
-    ' sh "$property_id" "$creds_path" "$name"
+    ' sh "$token" "$name"
 }
 
-alice_out="$(run_identity alice "$ALICE_BINDINGS" "alice-ga-property" "/tmp/alice-ga.json")"
-bob_out="$(run_identity bob "$BOB_BINDINGS" "bob-ga-property" "/tmp/bob-ga.json")"
+alice_out="$(run_identity alice "$ALICE_BINDINGS" "pade-demo-alice-token")"
+bob_out="$(run_identity bob "$BOB_BINDINGS" "pade-demo-bob-token")"
 
 test "$alice_out" = "identity-ok:alice"
 test "$bob_out" = "identity-ok:bob"

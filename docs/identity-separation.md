@@ -2,6 +2,8 @@
 
 Prove that the same repository, `pade.yaml`, and development image can be used by two developers (or simulated identities) while each execution resolves **different** credential material — without changing the portable capability declaration.
 
+Demo capability: **`github.user.read`** → **`GITHUB_TOKEN`**.
+
 ## Ownership
 
 | Concern | Owner |
@@ -11,27 +13,21 @@ Prove that the same repository, `pade.yaml`, and development image can be used b
 | Secret values | Credential manager / ambient env (never in repo) |
 | Workspace lifecycle | DevPod (unchanged from Milestone 4) |
 
-PADE does not become an identity provider. It only keeps capability declaration separate from per-developer binding and resolution.
-
 ## Acceptance criteria
 
-1. One shared `pade.yaml` declares `google-analytics.read` (no secrets).
+1. One shared `pade.yaml` declares `github.user.read` (no secrets).
 2. Two binding configs (Alice / Bob) map that capability to resolution paths appropriate to each identity.
-3. `pade exec --capability google-analytics.read` under Alice’s ambient credentials yields Alice’s values; Bob’s yield Bob’s.
+3. `pade exec --capability github.user.read` under Alice’s ambient credentials yields Alice’s values; Bob’s yield Bob’s.
 4. Plan / capabilities / injection notices never print secret values (names and providers only).
 5. The portable repo files (`pade.yaml`, Dev Container, skills/scripts) are identical for both identities.
 
-## Dogfood (local, no Vault required)
-
-From the repository root:
+## Dogfood
 
 ```bash
 make dogfood-identity
 ```
 
-This runs [scripts/identity-dogfood.sh](../scripts/identity-dogfood.sh): same `examples/demo-project/pade.yaml`, Alice then Bob bindings + ambient env, child process asserts the expected identity label without echoing secret material into PADE logs.
-
-Vault simulation (local `-dev` only): `make dogfood-vault` seeds Alice/Bob KV paths and runs the same portable `pade.yaml` through [alice.vault.bindings.yaml](../examples/demo-project/identities/alice.vault.bindings.yaml) / [bob.vault.bindings.yaml](../examples/demo-project/identities/bob.vault.bindings.yaml). See [vault-dogfood.md](vault-dogfood.md).
+Vault / 1Password variants: `make dogfood-vault`, `make dogfood-onepassword`. Realistic GitHub API path (local only): `make dogfood-github-live`.
 
 ## Out of scope for M5
 
