@@ -27,6 +27,7 @@ make dogfood                 # stub token injection (CI-friendly)
 make dogfood-identity
 make dogfood-vault
 make dogfood-onepassword     # fake-op shim
+make install-onepassword-cli # real `op` CLI (Homebrew / .tools/op)
 make dogfood-github-live     # local only: real op + real GitHub API
 ```
 

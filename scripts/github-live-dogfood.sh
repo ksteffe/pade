@@ -32,7 +32,7 @@ Set up a real GitHub PAT in 1Password, then re-run:
 
   3. Create a vault (once) and item with your PAT in field '${OP_FIELD}':
      op vault create ${OP_VAULT}
-     op item create --category=API_Credential --title=${OP_ITEM} --vault=${OP_VAULT} \\
+     op item create --category='API Credential' --title=${OP_ITEM} --vault=${OP_VAULT} \\
        '${OP_FIELD}[concealed]=YOUR_GITHUB_PAT'
 
   4. Confirm the ref resolves (prints the token — do this privately):
@@ -50,8 +50,9 @@ require_real_op() {
     die "PADE_OP_BIN points at fake-op; unset it for the live GitHub demo"
   fi
   if ! command -v "$OP_BIN" >/dev/null 2>&1; then
-    die "1Password CLI '$OP_BIN' not found. Install: https://developer.1password.com/docs/cli/get-started/"
+    die "1Password CLI '$OP_BIN' not found. Run: make install-onepassword-cli"
   fi
+
   if ! "$OP_BIN" whoami >/dev/null 2>&1; then
     echo "error: 1Password CLI is not signed in (run: op signin)" >&2
     print_setup
