@@ -66,6 +66,7 @@ export PATH="$(pwd)/.tools/go/bin:$PATH"
 go test ./...
 go run ./cmd/pade validate -f spec/examples/web-app.yaml
 go run ./cmd/pade plan -f spec/examples/web-app.yaml --json
+go run ./cmd/pade capabilities -f spec/examples/web-app.yaml --bindings spec/examples/bindings.example.yaml
 make ci   # local mirror of GitHub Actions
 ```
 

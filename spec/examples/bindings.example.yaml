@@ -1,0 +1,22 @@
+# Example local capability bindings. Copy to .pade/bindings.yaml (gitignored)
+# or ~/.config/pade/bindings.yaml. Do not commit real credentials.
+#
+# Repo pade.yaml declares capability *names* only.
+# This file maps those names to how *your* machine resolves them.
+version: "0.1"
+
+capabilities:
+  google-analytics.read:
+    provider: env
+    env:
+      - GA_PROPERTY_ID
+      - GOOGLE_APPLICATION_CREDENTIALS
+
+  # Alternative Vault binding (local -dev only; not production-safe):
+  # google-analytics.read:
+  #   provider: vault
+  #   vault:
+  #     path: secret/pade/google-analytics
+  #     fields:
+  #       property_id: GA_PROPERTY_ID
+  #       token: GA_ACCESS_TOKEN

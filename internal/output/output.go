@@ -6,6 +6,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/ksteffe/pade/internal/binding"
 	"github.com/ksteffe/pade/internal/manifest"
 	"github.com/ksteffe/pade/internal/planner"
 )
@@ -36,6 +37,9 @@ func WritePlanHuman(w io.Writer, p *planner.Plan) {
 		fmt.Fprintf(w, "  config: %s\n", p.Workspace.Config)
 	}
 	fmt.Fprintf(w, "  ownedBy: %s\n", p.Workspace.OwnedBy)
+	if p.BindingsPath != "" {
+		fmt.Fprintf(w, "  bindings: %s\n", p.BindingsPath)
+	}
 	fmt.Fprintln(w)
 
 	fmt.Fprintln(w, "Capabilities")
@@ -43,23 +47,7 @@ func WritePlanHuman(w io.Writer, p *planner.Plan) {
 		fmt.Fprintln(w, "  (none declared)")
 	}
 	for _, c := range p.Capabilities {
-		fmt.Fprintf(w, "  %s\n", c.Name)
-		if c.Access != "" {
-			fmt.Fprintf(w, "    access: %s\n", c.Access)
-		}
-		if c.Provider != "" {
-			fmt.Fprintf(w, "    provider: %s\n", c.Provider)
-		} else {
-			fmt.Fprintln(w, "    provider: (unbound)")
-		}
-		fmt.Fprintf(w, "    required: %v\n", c.Required)
-		fmt.Fprintf(w, "    status: %s\n", c.Status)
-		if len(c.Requires) > 0 {
-			fmt.Fprintln(w, "    requires:")
-			for _, key := range c.Requires {
-				fmt.Fprintf(w, "      %s\n", key)
-			}
-		}
+		writeCapability(w, c)
 	}
 	fmt.Fprintln(w)
 
@@ -95,6 +83,89 @@ func WritePlanHuman(w io.Writer, p *planner.Plan) {
 		for _, n := range p.Notes {
 			fmt.Fprintf(w, "  - %s\n", n)
 		}
+	}
+}
+
+// WriteCapabilitiesHuman prints binding resolution status without secrets.
+func WriteCapabilitiesHuman(w io.Writer, statuses []binding.Status, bindingsPath string) {
+	if bindingsPath != "" {
+		fmt.Fprintf(w, "Bindings: %s\n\n", bindingsPath)
+	} else {
+		fmt.Fprintln(w, "Bindings: (none found)")
+		fmt.Fprintln(w)
+	}
+	if len(statuses) == 0 {
+		fmt.Fprintln(w, "(no capabilities declared)")
+		return
+	}
+	for _, st := range statuses {
+		fmt.Fprintf(w, "%s\n", st.Name)
+		if st.Access != "" {
+			fmt.Fprintf(w, "  access: %s\n", st.Access)
+		}
+		fmt.Fprintf(w, "  required: %v\n", st.Required)
+		fmt.Fprintf(w, "  bound: %v\n", st.Bound)
+		if st.Provider != "" {
+			fmt.Fprintf(w, "  provider: %s\n", st.Provider)
+		} else {
+			fmt.Fprintln(w, "  provider: (unbound)")
+		}
+		fmt.Fprintf(w, "  status: %s\n", st.Status)
+		if st.Message != "" {
+			fmt.Fprintf(w, "  message: %s\n", st.Message)
+		}
+		writeMeta(w, st.Meta)
+		fmt.Fprintln(w)
+	}
+}
+
+func writeCapability(w io.Writer, c planner.CapabilityPlan) {
+	fmt.Fprintf(w, "  %s\n", c.Name)
+	if c.Access != "" {
+		fmt.Fprintf(w, "    access: %s\n", c.Access)
+	}
+	if c.Provider != "" {
+		fmt.Fprintf(w, "    provider: %s\n", c.Provider)
+	} else {
+		fmt.Fprintln(w, "    provider: (unbound)")
+	}
+	fmt.Fprintf(w, "    bound: %v\n", c.Bound)
+	fmt.Fprintf(w, "    required: %v\n", c.Required)
+	fmt.Fprintf(w, "    status: %s\n", c.Status)
+	if c.Message != "" {
+		fmt.Fprintf(w, "    message: %s\n", c.Message)
+	}
+	if len(c.Requires) > 0 {
+		fmt.Fprintln(w, "    requires:")
+		for _, key := range c.Requires {
+			fmt.Fprintf(w, "      %s\n", key)
+		}
+	}
+	writeMetaIndented(w, "    ", c.Meta)
+}
+
+func writeMeta(w io.Writer, meta map[string]string) {
+	writeMetaIndented(w, "  ", meta)
+}
+
+func writeMetaIndented(w io.Writer, indent string, meta map[string]string) {
+	if len(meta) == 0 {
+		return
+	}
+	keys := make([]string, 0, len(meta))
+	for k := range meta {
+		keys = append(keys, k)
+	}
+	// stable order
+	for i := 0; i < len(keys); i++ {
+		for j := i + 1; j < len(keys); j++ {
+			if keys[j] < keys[i] {
+				keys[i], keys[j] = keys[j], keys[i]
+			}
+		}
+	}
+	for _, k := range keys {
+		fmt.Fprintf(w, "%s%s: %s\n", indent, k, meta[k])
 	}
 }
 

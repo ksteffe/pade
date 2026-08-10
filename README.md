@@ -4,7 +4,7 @@
 
 PADE is an exploratory specification and Go reference CLI for declaring **portable agent workspace capabilities** beside existing development-environment standards (Dev Containers, DevPod), without embedding credentials or coupling to a single AI vendor.
 
-This repository is at **Milestone 1**: `pade validate` and `pade plan` against the v0.1 schema. Capability binding and scoped `exec` come next.
+This repository is at **Milestone 2**: local capability bindings (`env` and `vault` providers) with `pade capabilities` / updated `pade plan`. Scoped `pade exec` comes next.
 
 ## Quick start
 
@@ -19,6 +19,7 @@ go test ./...
 go run ./cmd/pade validate -f spec/examples/web-app.yaml
 go run ./cmd/pade plan -f spec/examples/web-app.yaml
 go run ./cmd/pade plan -f spec/examples/web-app.yaml --json
+go run ./cmd/pade capabilities -f spec/examples/web-app.yaml --bindings spec/examples/bindings.example.yaml
 ```
 
 Or use Make (auto-selects `.tools/go` when present):
@@ -71,8 +72,9 @@ Earlier sections of [DESIGN.md](DESIGN.md) and [docs/go-reference.md](docs/go-re
 | [spec/pade.schema.json](spec/pade.schema.json) | Normative JSON Schema for `pade.yaml` (v0.1 stub) |
 | [spec/examples/](spec/examples/) | Example manifests |
 | `examples/` | Dogfood apps (added as implementation proceeds) |
-| [cmd/pade](cmd/pade) | CLI entrypoint (`validate`, `plan`) |
+| [cmd/pade](cmd/pade) | CLI entrypoint (`validate`, `plan`, `capabilities`) |
 | [internal/manifest](internal/manifest) | Load + schema/semantic validation |
+| [internal/binding](internal/binding) | Local bindings config + env/vault providers |
 | [internal/planner](internal/planner) | Side-effect-free plan model |
 | [internal/output](internal/output) | Human and JSON rendering |
 
@@ -92,16 +94,26 @@ capabilities:
 
 Environment construction stays in `.devcontainer/devcontainer.json` and is started with DevPod (for example `devpod up .`). See [spec/examples/web-app.yaml](spec/examples/web-app.yaml) for the capability-first shape and [spec/examples/web-app-orchestrated.yaml](spec/examples/web-app-orchestrated.yaml) for the earlier environment/services shape.
 
+## Local bindings
+
+`pade.yaml` declares capability names only. Bindings are local:
+
+- `.pade/bindings.yaml` (gitignored via `.pade/`)
+- `~/.config/pade/bindings.yaml`
+- `PADE_BINDINGS` or `--bindings`
+
+See [spec/examples/bindings.example.yaml](spec/examples/bindings.example.yaml). Plan/capabilities may show paths and env **names**, never secret values. Vault `-dev` is prototype-only.
+
 ## CLI (capability-focused v0.1)
 
 | Command | Status | Role |
 |---------|--------|------|
 | `pade validate` | Implemented | Validate `pade.yaml` and referenced config |
-| `pade plan` | Implemented | Side-effect-free plan (never prints secrets) |
-| `pade capabilities` | Planned | Show requested capabilities and binding status |
-| `pade exec --capability … -- <cmd>` | Planned | Run a command with resolved capability injection |
+| `pade plan` | Implemented | Side-effect-free plan including binding status |
+| `pade capabilities` | Implemented | Show declared capabilities and binding probes |
+| `pade exec --capability … -- <cmd>` | Planned (M3) | Run a command with resolved capability injection |
 
-Flags: `-f` / `--file` for manifest path; `--json` for machine-readable output.
+Flags: `-f` / `--file`, `--bindings`, `--json`.
 
 Workspace lifecycle: prefer `devpod up` / `devpod stop` directly.
 
@@ -118,9 +130,10 @@ Workspace lifecycle: prefer `devpod up` / `devpod stop` directly.
 | Milestone | Focus |
 |-----------|--------|
 | **0** | Repo, docs, license, schema stub, examples |
-| **1** (current) | `validate` / `plan` against schema |
-| **2+** | Capability resolution (env → Vault demo), DevPod-oriented exec flow |
-| Later | Authenticated review ingress, second runtime/credential providers, external validation |
+| **1** | `validate` / `plan` against schema |
+| **2** (current) | Local bindings (`env`, `vault`) + `capabilities` |
+| **3+** | Scoped `pade exec`, DevPod dogfood, more providers |
+| Later | Authenticated review ingress, external validation |
 
 Details: [DESIGN.md](DESIGN.md) (including DevPod-first revisions) and [docs/go-reference.md](docs/go-reference.md).
 
