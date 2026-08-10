@@ -13,5 +13,8 @@ RUN CGO_ENABLED=0 go build -o /out/pade-broker ./cmd/pade-broker
 # Docker HEALTHCHECK omitted: distroless has no HTTP client; Cloud Run/K8s probe /healthz.
 FROM gcr.io/distroless/static-debian12:nonroot
 COPY --from=build /out/pade-broker /pade-broker
+# Container platforms (Cloud Run, etc.) typically inject PORT; default aids local docker run.
+ENV PORT=8080
+EXPOSE 8080
 USER nonroot:nonroot
 ENTRYPOINT ["/pade-broker"]

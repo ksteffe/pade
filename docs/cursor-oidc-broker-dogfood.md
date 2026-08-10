@@ -162,6 +162,7 @@ docker run --rm -p 8080:8080 -e PORT=8080 \
   -tls-termination=proxy \
   -policy /config/policy.yaml \
   -bindings /config/bindings.yaml
+# Image defaults PORT=8080; -e PORT=8080 shown for Cloud Run parity.
 ```
 
 Probe `GET /healthz` (no auth). There is no Docker `HEALTHCHECK` (distroless has no curl); Cloud Run / Kubernetes should use the HTTP probe.
