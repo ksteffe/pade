@@ -40,13 +40,43 @@ Notes:
 - Socket: `CURSOR_AGENT_SOCKET` or `/run/cursor/api.sock`
 - Token authenticates the **Cloud Agent workload**, not a subprocess
 - Prefer `subject` / `owner_user_id` over email for policy
+- **Observed on managed Cloud Agents:** `repo_url` (primary) may be present while `repo_urls` / `repo_count` are absent. Missing `repo_urls` means the complete repository set is **unknown** — not proof of single-repo confinement. Do not authorize from `repo_url` alone. Policies with `requireRepoURLs: true` fail closed until Cursor attests the complete set.
 
-## Stage B — real broker (manual host)
+## Stage B — real OIDC + local broker (Cloud Agent)
+
+Prove the broker path on a Cloud Agent VM **without** putting `KSM_CONFIG` on the agent:
+
+```text
+real Cursor OIDC (identity socket)
+  → local pade-broker on 127.0.0.1 (real JWKS from api.cursor.com)
+  → fake KSM on the broker process only (PADE_KSM_FAKE=1)
+  → pade exec injects process-scoped material
+```
+
+```bash
+make dogfood-broker-stage-b
+# optional pin: PADE_STAGE_B_SUBJECT=user:<id> make dogfood-broker-stage-b
+```
+
+Not included in CI (requires a live Cursor identity socket). The script:
+
+1. Mints identity via `pade identity` (safe claims only; no raw JWT).
+2. Writes a **session-local** broker policy for the attested `subject` + `github.user.read` with **`requireRepoURLs: false`** (see Stage A finding).
+3. Starts `pade-broker` on loopback with server-side fake KSM bindings.
+4. Runs `pade` plan/capabilities/exec through `provider: broker` with **no** `PADE_BROKER_FAKE_JWT` and **no** agent `KSM_CONFIG`.
+
+Example policy shape: [`spec/examples/broker-policy.stage-b.example.yaml`](../spec/examples/broker-policy.stage-b.example.yaml).
+
+Production policies should be **static allowlists**, not generated from the current token. Stage B generates policy only to dogfood the path.
+
+## Stage C — external broker + real KSM (manual host)
+
+Next live step after Stage B: keep the same OIDC + policy path, but run the broker **outside** the agent VM with real Keeper Secrets Manager.
 
 ### Broker host (outside the agent VM)
 
 1. Narrowly scoped Keeper Secrets Manager Application + `KSM_CONFIG` on the **broker host only**.
-2. Server-side policy (example: [`spec/examples/broker-policy.example.yaml`](../spec/examples/broker-policy.example.yaml)):
+2. Server-side policy (example: [`spec/examples/broker-policy.example.yaml`](../spec/examples/broker-policy.example.yaml)). Use `requireRepoURLs: true` only when Cursor attests complete `repo_urls`; otherwise follow the Stage B subject + capability pattern until that attestation exists.
 
 ```yaml
 version: "0.1"
@@ -117,7 +147,8 @@ Agent VM should **not** have `KSM_CONFIG` in this mode.
 | Mode | Where KSM_CONFIG lives | Authorization |
 |------|------------------------|---------------|
 | Milestone 9 direct KSM | Agent VM | PADE reduces accidental propagation; VM is not sandboxed |
-| Phase 2 broker | Broker host only | Server policy on Cursor subject + `repo_urls` + capability allowlist |
+| Stage B local broker | Broker process only (fake KSM OK) | Server policy on Cursor subject + capability (`requireRepoURLs` only when complete `repo_urls` attested) |
+| Stage C external broker | Broker host only | Same; prefer complete `repo_urls` when available |
 
 - Cursor OIDC authenticates the Cloud Agent **workload**, not an individual subprocess.
 - Any process that can reach Cursor’s identity socket can mint a token for that workload.

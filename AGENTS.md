@@ -87,6 +87,7 @@ make dogfood-keeper-live   # local real Keeper + GitHub API (not CI)
 make dogfood-ksm   # Milestone 9 Keeper Secrets Manager (PADE_KSM_FAKE=1)
 make dogfood-ksm-live   # local / Cursor Cloud: real KSM + GitHub API (not CI)
 make dogfood-broker   # Phase 2 spike: fake OIDC + pade-broker + fake KSM
+make dogfood-broker-stage-b   # Stage B: real Cursor OIDC + local broker (Cloud Agent; not CI)
 make dogfood-ingress-teleport  # Milestone 8 Teleport Application Access (host; Docker optional)
 make dogfood-ingress-teleport-down
 ```

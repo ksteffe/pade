@@ -55,7 +55,7 @@ Important distinctions:
 - Any process able to reach Cursor’s local identity socket can mint an identity token for that workload.
 - The security boundary for capability resolution therefore lives at **broker authorization**.
 - A capability name in `pade.yaml` is a **request**, not authorization. The broker must not trust capability names merely because a client asks or a repo declares them.
-- For single-repo confinement, require complete `repo_urls` attestation. Missing `repo_urls` means unknown, not single-repo. Do not authorize from `repo_url` alone.
+- For single-repo confinement, require complete `repo_urls` attestation. Missing `repo_urls` means unknown, not single-repo. Do not authorize from `repo_url` alone. Managed Cloud Agents have been observed with `repo_url` but without `repo_urls`; until complete attestation exists, broker dogfood uses subject + capability (`requireRepoURLs: false`) rather than weakening policy to trust `repo_url`.
 - Broker logs must contain identity/capability decision metadata only — never JWTs or resolved credentials.
 - JTI replay tracking is deferred; this spike relies on short-lived tokens and exact audience binding.
 - PADE still does not replace resource-level authorization (GitHub, IAM, databases, etc.).
