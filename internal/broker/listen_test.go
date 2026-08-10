@@ -10,6 +10,44 @@ import (
 	"github.com/ksteffe/pade/internal/broker"
 )
 
+func TestResolveListenAddr(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name    string
+		flag    string
+		port    string
+		want    string
+		wantErr string
+	}{
+		{name: "explicit listen wins", flag: "127.0.0.1:9000", port: "8080", want: "127.0.0.1:9000"},
+		{name: "default when empty", want: broker.DefaultListenAddr},
+		{name: "PORT fallback", port: "8080", want: "0.0.0.0:8080"},
+		{name: "explicit overrides PORT", flag: "0.0.0.0:9999", port: "8080", want: "0.0.0.0:9999"},
+		{name: "invalid PORT", port: "abc", wantErr: "invalid PORT"},
+		{name: "PORT zero", port: "0", wantErr: "invalid PORT"},
+		{name: "PORT too high", port: "70000", wantErr: "invalid PORT"},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := broker.ResolveListenAddr(tc.flag, tc.port)
+			if tc.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+					t.Fatalf("err=%v want substring %q", err, tc.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != tc.want {
+				t.Fatalf("got=%q want=%q", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestListenConfigValidate(t *testing.T) {
 	t.Parallel()
 	cases := []struct {

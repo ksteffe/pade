@@ -3,6 +3,7 @@ package broker
 import (
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 )
 
@@ -22,12 +23,34 @@ const (
 // TLSTerminationProxy is the only non-empty -tls-termination value.
 const TLSTerminationProxy = "proxy"
 
+// DefaultListenAddr is used when -listen is empty and PORT is unset.
+const DefaultListenAddr = "127.0.0.1:8787"
+
 // ListenConfig is the broker listener / TLS transport configuration.
 type ListenConfig struct {
 	Addr           string
 	CertFile       string
 	KeyFile        string
 	TLSTermination string // "" (default) or "proxy"
+}
+
+// ResolveListenAddr chooses the bind address for container-friendly deploys.
+// Explicit flagListen wins. Otherwise PORT (digits only) yields 0.0.0.0:PORT.
+// If both are empty, DefaultListenAddr is used. PORT alone does not opt into
+// trusted upstream TLS termination.
+func ResolveListenAddr(flagListen, portEnv string) (string, error) {
+	if addr := strings.TrimSpace(flagListen); addr != "" {
+		return addr, nil
+	}
+	port := strings.TrimSpace(portEnv)
+	if port == "" {
+		return DefaultListenAddr, nil
+	}
+	n, err := strconv.Atoi(port)
+	if err != nil || n < 1 || n > 65535 {
+		return "", fmt.Errorf("invalid PORT %q (want integer 1-65535)", portEnv)
+	}
+	return fmt.Sprintf("0.0.0.0:%d", n), nil
 }
 
 // Validate checks listen/TLS combinations before binding a socket.

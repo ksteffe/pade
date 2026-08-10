@@ -20,8 +20,8 @@ import (
 
 func main() {
 	var (
-		listen = flag.String("listen", "127.0.0.1:8787",
-			"listen address (default loopback). Non-loopback plaintext requires -tls-termination=proxy or -tls-cert/-tls-key")
+		listen = flag.String("listen", "",
+			"listen address. Empty: use PORT env as 0.0.0.0:PORT, else "+broker.DefaultListenAddr+". Non-loopback plaintext requires -tls-termination=proxy or -tls-cert/-tls-key")
 		policy   = flag.String("policy", "", "path to broker-policy.yaml (required)")
 		bindings = flag.String("bindings", "", "path to server-side bindings.yaml (required)")
 		certFile = flag.String("tls-cert", "", "TLS certificate file (broker-managed TLS; use with -tls-key)")
@@ -38,8 +38,13 @@ func main() {
 		os.Exit(2)
 	}
 
+	addr, err := broker.ResolveListenAddr(*listen, os.Getenv("PORT"))
+	if err != nil {
+		log.Fatalf("listen: %v", err)
+	}
+
 	listenCfg := broker.ListenConfig{
-		Addr:           *listen,
+		Addr:           addr,
 		CertFile:       *certFile,
 		KeyFile:        *keyFile,
 		TLSTermination: *tlsTerm,
@@ -83,7 +88,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	log.Printf("pade-broker listening on %s transport=%s (issuer=%s audience=%s)", *listen, mode, pol.OIDC.Issuer, pol.OIDC.Audience)
+	log.Printf("pade-broker listening on %s transport=%s (issuer=%s audience=%s)", addr, mode, pol.OIDC.Issuer, pol.OIDC.Audience)
 	if err := broker.ListenAndServe(ctx, listenCfg, srv.Handler()); err != nil && err != context.Canceled {
 		log.Fatal(err)
 	}

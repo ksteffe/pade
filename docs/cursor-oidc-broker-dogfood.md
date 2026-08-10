@@ -130,17 +130,43 @@ export KSM_CONFIG="$(base64 -w0 ksm-config.json)"
 **Trusted upstream TLS termination** (Cloud Run, Kubernetes ingress, HTTPS load balancer, etc.):
 
 ```bash
-# Expand PORT in the shell/entrypoint — pade-broker does not read PORT itself.
+# Container-friendly: omit -listen and set PORT (listens on 0.0.0.0:$PORT).
+# Still requires explicit -tls-termination=proxy — PORT alone is not a TLS opt-in.
+export PORT=8080
 ./bin/pade-broker \
   -policy /path/to/broker-policy.yaml \
   -bindings /path/to/broker-bindings.yaml \
-  -listen "0.0.0.0:${PORT:-8080}" \
   -tls-termination=proxy
 ```
 
 `-tls-termination=proxy` is an operator assertion that TLS is terminated by a trusted deployment boundary and that plaintext is not reachable outside it. PADE does not verify Cloud Run / ingress / LB wiring. Non-loopback plaintext without this flag or broker-managed cert/key is rejected. See [SECURITY.md](../SECURITY.md).
 
-Google Cloud Run is a planned composition example (container listens on `0.0.0.0:$PORT` with plaintext inside the platform; Cloud Run terminates external HTTPS). It is not a normative PADE dependency.
+### Container image (pade-broker)
+
+The repository root [`Dockerfile`](../Dockerfile) builds a production-oriented **pade-broker-only** image (distroless static, non-root). No secrets or policy are baked in.
+
+```bash
+docker build -t pade-broker:ci .
+make smoke-broker-container   # build + /healthz + unauthenticated /v1/resolve → 401
+```
+
+Example run (trusted upstream TLS termination; mounts are deployment-specific):
+
+```bash
+docker run --rm -p 8080:8080 -e PORT=8080 \
+  -v "$PWD/policy.yaml:/config/policy.yaml:ro" \
+  -v "$PWD/bindings.yaml:/config/bindings.yaml:ro" \
+  pade-broker:ci \
+  -tls-termination=proxy \
+  -policy /config/policy.yaml \
+  -bindings /config/bindings.yaml
+```
+
+Probe `GET /healthz` (no auth). There is no Docker `HEALTHCHECK` (distroless has no curl); Cloud Run / Kubernetes should use the HTTP probe.
+
+The same image is intended for Cloud Run, Kubernetes ingress, reverse proxies, or local Docker. Full Cloud Run deployment (registry, Secret Manager, custom domain) is a later milestone.
+
+Google Cloud Run is a planned composition example (container listens via `PORT` with plaintext inside the platform; Cloud Run terminates external HTTPS). It is not a normative PADE dependency.
 
 Reachability from a Cloud Agent (public HTTPS URL, SSH tunnel, Tailscale, etc.) is a **deployment concern**. Temporary tunnels are composition options, not PADE architecture.
 
@@ -174,11 +200,11 @@ Agent VM should **not** have `KSM_CONFIG` in this mode.
 Cursor Cloud Agent
   → Cursor OIDC
   → public HTTPS Cloud Run endpoint
-  → pade-broker (-listen 0.0.0.0:$PORT -tls-termination=proxy)
+  → pade-broker (PORT + -tls-termination=proxy)
   → broker-side Keeper Secrets Manager
 ```
 
-Remaining work for that milestone: Linux container image; deploy to Cloud Run; static policy/bindings; `KSM_CONFIG` via Secret Manager; external HTTPS URL as OIDC audience + agent broker endpoint; invoke from a real Cloud Agent with no agent `KSM_CONFIG`.
+Remaining work for that milestone: push the proven container image to a registry; deploy to Cloud Run; static policy/bindings; `KSM_CONFIG` via Secret Manager; external HTTPS URL as OIDC audience + agent broker endpoint; invoke from a real Cloud Agent with no agent `KSM_CONFIG`.
 
 ## Trust boundaries
 
