@@ -1,0 +1,7 @@
+# Narrative-only capability declaration for the Teleport ingress dogfood.
+# No secrets. Teleport owns authenticated ingress; PADE does not.
+version: "0.1"
+
+capabilities:
+  ingress.demo.read:
+    access: read

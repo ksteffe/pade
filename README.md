@@ -4,7 +4,7 @@
 
 PADE is an exploratory specification and Go reference CLI for declaring **portable agent workspace capabilities** beside existing development-environment standards (Dev Containers, DevPod), without embedding credentials or coupling to a single AI vendor.
 
-This repository is at **Milestone 7**: Keeper Commander CLI binding provider (fake-keeper CI path) beside env, Vault, and 1Password. Earlier milestones remain dogfoodable via `make dogfood*` targets.
+This repository is at **Milestone 8** (spike): local Teleport authenticated ingress beside the existing capability providers (env, Vault, 1Password, Keeper). Earlier milestones remain dogfoodable via `make dogfood*` targets.
 
 ## Quick start
 
@@ -42,6 +42,8 @@ make dogfood-onepassword-live  # local only: real 1Password + real GitHub API
 make dogfood-keeper       # Milestone 7: Keeper Commander adapter (fake-keeper shim in CI)
 make install-keeper-cli   # install real `keeper` (Homebrew or .tools/keeper-venv)
 make dogfood-keeper-live  # local only: real Keeper + real GitHub API
+make dogfood-ingress-teleport  # Milestone 8 spike: Teleport Application Access (host; Docker optional)
+make dogfood-ingress-teleport-down
 make dogfood-devpod  # optional: full DevPod proof (needs docker + devpod)
 ```
 
@@ -93,9 +95,11 @@ Earlier sections of [DESIGN.md](DESIGN.md) and [docs/go-reference.md](docs/go-re
 | [docs/vault-dogfood.md](docs/vault-dogfood.md) | Vault `-dev` capability resolution dogfood |
 | [docs/onepassword-dogfood.md](docs/onepassword-dogfood.md) | 1Password provider + `make dogfood-onepassword-live` |
 | [docs/keeper-dogfood.md](docs/keeper-dogfood.md) | Keeper Commander provider / Milestone 7 dogfood |
+| [docs/teleport-ingress.md](docs/teleport-ingress.md) | Teleport Application Access / Milestone 8 ingress spike |
 | [spec/pade.schema.json](spec/pade.schema.json) | Normative JSON Schema for `pade.yaml` (v0.1 stub) |
 | [spec/examples/](spec/examples/) | Example manifests |
 | [examples/demo-project](examples/demo-project) | DevPod-first dogfood project (+ `identities/`) |
+| [examples/ingress-demo](examples/ingress-demo) | Teleport ingress dogfood (tiny Go HTTP app) |
 | [cmd/pade](cmd/pade) | CLI entrypoint (`validate`, `plan`, `capabilities`, `exec`) |
 | [internal/manifest](internal/manifest) | Load + schema/semantic validation |
 | [internal/binding](internal/binding) | Local bindings config + env/vault/onepassword/keeper providers |
@@ -162,8 +166,9 @@ Workspace lifecycle: prefer `devpod up` / `devpod stop` directly. See [examples/
 | **5** | Identity separation (same repo, distinct credentials) |
 | **5b** | Vault `-dev` validation of bindings / identity paths |
 | **6** | Second credential provider (1Password CLI adapter) |
-| **7** (current) | Keeper Commander CLI binding provider (fake-keeper CI) |
-| **8+** | Review ingress / external validation / re-evaluate PADE |
+| **7** | Keeper Commander CLI binding provider (fake-keeper CI) |
+| **8** (current spike) | Local Teleport authenticated ingress (`examples/ingress-demo`) |
+| **8+** | External validation / re-evaluate PADE |
 | Later | External validation / re-evaluate standalone PADE |
 
 Details: [DESIGN.md](DESIGN.md) (including DevPod-first revisions) and [docs/go-reference.md](docs/go-reference.md).

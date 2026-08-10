@@ -9,6 +9,7 @@ ONEPASSWORD_DOGFOOD := $(CURDIR)/scripts/onepassword-dogfood.sh
 KEEPER_DOGFOOD := $(CURDIR)/scripts/keeper-dogfood.sh
 ONEPASSWORD_LIVE_DOGFOOD := $(CURDIR)/scripts/onepassword-live-dogfood.sh
 KEEPER_LIVE_DOGFOOD := $(CURDIR)/scripts/keeper-live-dogfood.sh
+TELEPORT_INGRESS_DOGFOOD := $(CURDIR)/scripts/teleport-ingress-dogfood.sh
 INSTALL_ONEPASSWORD_CLI := $(CURDIR)/scripts/install-onepassword-cli.sh
 INSTALL_KEEPER_CLI := $(CURDIR)/scripts/install-keeper-cli.sh
 
@@ -16,6 +17,7 @@ INSTALL_KEEPER_CLI := $(CURDIR)/scripts/install-keeper-cli.sh
 	dogfood-identity dogfood-vault dogfood-onepassword dogfood-keeper \
 	dogfood-onepassword-live dogfood-keeper-live dogfood-github-live \
 	install-onepassword-cli install-keeper-cli \
+	dogfood-ingress-teleport dogfood-ingress-teleport-down \
 	dogfood-devpod dogfood-devpod-check dogfood-devpod-provider dogfood-devpod-up \
 	dogfood-devpod-install dogfood-devpod-smoke dogfood-devpod-down dogfood-devpod-delete \
 	dogfood-devpod-ci \
@@ -127,6 +129,16 @@ dogfood-github-live: dogfood-onepassword-live
 dogfood-keeper-live: check-go build
 	@chmod +x "$(KEEPER_LIVE_DOGFOOD)" examples/demo-project/scripts/github-whoami
 	@PADE="$(CURDIR)/bin/pade" "$(KEEPER_LIVE_DOGFOOD)"
+
+# Milestone 8 spike: local Teleport Application Access in front of examples/ingress-demo.
+# Default host mode downloads Teleport into .tools/; set PADE_TELEPORT_MODE=compose for Docker.
+dogfood-ingress-teleport: check-go build
+	@chmod +x "$(TELEPORT_INGRESS_DOGFOOD)"
+	@"$(TELEPORT_INGRESS_DOGFOOD)" up
+
+dogfood-ingress-teleport-down:
+	@chmod +x "$(TELEPORT_INGRESS_DOGFOOD)"
+	@"$(TELEPORT_INGRESS_DOGFOOD)" down
 
 # --- DevPod dogfood (requires docker + devpod; separate DevPod GHA workflow) ---
 dogfood-devpod-check:

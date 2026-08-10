@@ -83,9 +83,11 @@ make dogfood-onepassword-live   # local real 1Password + GitHub API (not CI)
 make dogfood-keeper   # Milestone 7 Keeper Commander adapter (fake-keeper shim)
 make install-keeper-cli  # install real `keeper` for live demos
 make dogfood-keeper-live   # local real Keeper + GitHub API (not CI)
+make dogfood-ingress-teleport  # Milestone 8 Teleport Application Access (host; Docker optional)
+make dogfood-ingress-teleport-down
 ```
 
-DevPod lifecycle is documented in [docs/devpod-dogfood.md](docs/devpod-dogfood.md) and [examples/demo-project/README.md](examples/demo-project/README.md). Do not add a PADE wrapper that reimplements `devpod up`. Full DevPod proof runs locally via `make dogfood-devpod` and in CI via [`.github/workflows/devpod-dogfood.yml`](.github/workflows/devpod-dogfood.yml) (separate from the fast main CI).
+DevPod lifecycle is documented in [docs/devpod-dogfood.md](docs/devpod-dogfood.md) and [examples/demo-project/README.md](examples/demo-project/README.md). Do not add a PADE wrapper that reimplements `devpod up`. Full DevPod proof runs locally via `make dogfood-devpod` and in CI via [`.github/workflows/devpod-dogfood.yml`](.github/workflows/devpod-dogfood.yml) (separate from the fast main CI). Teleport ingress composition is documented in [docs/teleport-ingress.md](docs/teleport-ingress.md); do not add a PADE wrapper that reimplements Teleport Application Access.
 
 Treat [spec/pade.schema.json](spec/pade.schema.json) as the machine-readable contract. Update examples when the schema changes.
 
