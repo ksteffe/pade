@@ -112,3 +112,8 @@ jobs:
         run: |
           chmod +x scripts/keeper-dogfood.sh scripts/fake-keeper.sh
           PADE="$(pwd)/bin/pade" ./scripts/keeper-dogfood.sh
+
+      - name: Keeper Secrets Manager dogfood
+        run: |
+          chmod +x scripts/ksm-dogfood.sh examples/demo-project/scripts/github-whoami
+          PADE="$(pwd)/bin/pade" ./scripts/ksm-dogfood.sh

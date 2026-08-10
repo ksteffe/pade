@@ -13,7 +13,7 @@ The demo capability is **`github.user.read`** → env **`GITHUB_TOKEN`**.
 | Fake-keeper smoke (no account) | `make dogfood-keeper` | Yes (Smoke job) |
 | **Real Keeper + real GitHub API** | `make dogfood-keeper-live` | **No** (local only) |
 
-Live path uses a single Commander resolve during `pade exec` (Commander startup/sync dominates latency).
+Live path uses a single Commander resolve during `pade exec` (Commander startup/sync dominates latency). `ResolveMaterials` does not Probe after Resolve, so Commander is not contacted twice on the exec path.
 
 ## Realistic live demo (your laptop)
 
@@ -85,7 +85,9 @@ export PADE_KEEPER_BIN=/path/to/keeper   # or scripts/fake-keeper.sh
 
 ## Out of scope
 
-- Embedding the Keeper SDK in portable packages (CLI adapter only)
+- Embedding the Keeper SDK in portable packages (CLI adapter only for Commander)
 - Running the live GitHub path in CI (would need a shared PAT secret)
-- Non-password custom fields / Keeper Secrets Manager
+- Non-password custom fields via Commander (use `keeper-secrets-manager` for full Keeper Notation / KSM)
 - Claiming PADE replaces Keeper
+
+See [keeper-secrets-manager-dogfood.md](keeper-secrets-manager-dogfood.md) for the Secrets Manager provider.

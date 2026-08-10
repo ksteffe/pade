@@ -37,7 +37,7 @@ http_code="$(
 
 if [[ "$http_code" != "200" ]]; then
   echo "error: GitHub API /user returned HTTP ${http_code}" >&2
-  echo "hint: store a valid PAT (read:user) and re-run make dogfood-onepassword-live or make dogfood-keeper-live" >&2
+  echo "hint: store a valid PAT (read:user) and re-run make dogfood-onepassword-live, make dogfood-keeper-live, or make dogfood-ksm-live" >&2
   exit 1
 fi
 
