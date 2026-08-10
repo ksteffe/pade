@@ -1,0 +1,22 @@
+# Optional full-stack Compose path (Teleport image + demo).
+# Default dogfood uses host binaries — see scripts/teleport-ingress-dogfood.sh.
+# Usage: PADE_TELEPORT_MODE=compose make dogfood-ingress-teleport
+services:
+  ingress-demo:
+    build: .
+    container_name: pade-ingress-demo
+    ports:
+      - "8080:8080"
+
+  teleport:
+    image: public.ecr.aws/gravitational/teleport-distroless:18.10.0
+    container_name: pade-teleport
+    hostname: localhost
+    depends_on:
+      - ingress-demo
+    volumes:
+      - ./teleport/teleport.compose.yaml:/etc/teleport/teleport.yaml:ro
+      - ${PADE_TELEPORT_DATA}:/var/lib/teleport
+    ports:
+      - "3080:3080"
+      - "3025:3025"

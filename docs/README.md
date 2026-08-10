@@ -10,5 +10,6 @@
 | [vault-dogfood.md](vault-dogfood.md) | Vault `-dev` capability resolution dogfood |
 | [onepassword-dogfood.md](onepassword-dogfood.md) | 1Password provider / Milestone 6 dogfood |
 | [keeper-dogfood.md](keeper-dogfood.md) | Keeper Commander provider / Milestone 7 dogfood |
+| [teleport-ingress.md](teleport-ingress.md) | Teleport Application Access / Milestone 8 ingress spike |
 
 The README is the source of truth for the **current** v0.1 direction (DevPod-first). Longer docs retain revision history in place.
