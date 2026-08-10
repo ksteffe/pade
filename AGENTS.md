@@ -72,7 +72,10 @@ GA_PROPERTY_ID=demo GOOGLE_APPLICATION_CREDENTIALS=/tmp/x \
   --bindings spec/examples/bindings.example.yaml \
   --capability google-analytics.read -- /bin/sh -c 'test -n "$GA_PROPERTY_ID" && echo ok'
 make ci   # local mirror of GitHub Actions
+make dogfood   # examples/demo-project PADE smoke (no DevPod required)
 ```
+
+DevPod lifecycle is documented in [docs/devpod-dogfood.md](docs/devpod-dogfood.md) and [examples/demo-project/README.md](examples/demo-project/README.md). Do not add a PADE wrapper that reimplements `devpod up`. Full DevPod proof runs locally via `make dogfood-devpod` and in CI via [`.github/workflows/devpod-dogfood.yml`](.github/workflows/devpod-dogfood.yml) (separate from the fast main CI).
 
 Treat [spec/pade.schema.json](spec/pade.schema.json) as the machine-readable contract. Update examples when the schema changes.
 

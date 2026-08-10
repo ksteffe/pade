@@ -1,0 +1,20 @@
+# Example local bindings for the demo-project.
+# Copy to .pade/bindings.yaml (gitignored) or pass --bindings.
+# Do not commit real credentials.
+version: "0.1"
+
+capabilities:
+  google-analytics.read:
+    provider: env
+    env:
+      - GA_PROPERTY_ID
+      - GOOGLE_APPLICATION_CREDENTIALS
+
+  # Vault alternative (local -dev only; not production-safe):
+  # google-analytics.read:
+  #   provider: vault
+  #   vault:
+  #     path: secret/pade/google-analytics
+  #     fields:
+  #       property_id: GA_PROPERTY_ID
+  #       token: GA_ACCESS_TOKEN

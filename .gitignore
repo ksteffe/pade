@@ -9,12 +9,17 @@
 *.test
 *.out
 vendor/
+
+# Local toolchain (optional portable Go SDK)
+.tools/
+
 # Editor / OS
 .DS_Store
 .idea/
 .vscode/
 *.swp
 *~
+
 # Env and credentials (never commit)
 .env
 .env.*
@@ -23,18 +28,21 @@ vendor/
 *.key
 credentials.json
 service-account*.json
+
 # Node (example apps)
 node_modules/
 .next/
 out/
 .turbo/
+
 # Python (tooling extras)
 __pycache__/
 .venv/
 venv/
+
 # Vault / local secret demos
 .vault-token
 **/vault-data/
+
 # Logs
 *.log
-.tools/

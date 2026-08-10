@@ -4,7 +4,7 @@
 
 PADE is an exploratory specification and Go reference CLI for declaring **portable agent workspace capabilities** beside existing development-environment standards (Dev Containers, DevPod), without embedding credentials or coupling to a single AI vendor.
 
-This repository is at **Milestone 3**: process-scoped `pade exec --capability` injection. DevPod dogfood comes next.
+This repository is at **Milestone 4**: DevPod-first dogfood via [examples/demo-project](examples/demo-project). PADE does not own workspace lifecycle.
 
 ## Quick start
 
@@ -33,9 +33,13 @@ make test
 make validate
 make plan
 make ci          # local mirror of GitHub Actions checks
+make dogfood     # PADE smoke against examples/demo-project
+make dogfood-devpod  # optional: full DevPod proof (needs docker + devpod)
 ```
 
 CI runs on pushes to `main` and on pull requests via [`.github/workflows/ci.yml`](.github/workflows/ci.yml) (`gofmt`, `go vet`, tests, build, example validate/plan).
+
+A separate [DevPod dogfood](.github/workflows/devpod-dogfood.yml) workflow boots a real DevPod workspace and runs PADE inside it (path-filtered / manual `workflow_dispatch`).
 
 Dependabot keeps Go modules and GitHub Actions on a weekly cadence via [`.github/dependabot.yml`](.github/dependabot.yml).
 
@@ -73,9 +77,10 @@ Earlier sections of [DESIGN.md](DESIGN.md) and [docs/go-reference.md](docs/go-re
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute |
 | [SECURITY.md](SECURITY.md) | Secret-handling invariants and reporting |
 | [LICENSE](LICENSE) | Apache License 2.0 |
+| [docs/devpod-dogfood.md](docs/devpod-dogfood.md) | DevPod composition rules for Milestone 4 |
 | [spec/pade.schema.json](spec/pade.schema.json) | Normative JSON Schema for `pade.yaml` (v0.1 stub) |
 | [spec/examples/](spec/examples/) | Example manifests |
-| `examples/` | Dogfood apps (added as implementation proceeds) |
+| [examples/demo-project](examples/demo-project) | DevPod-first dogfood project |
 | [cmd/pade](cmd/pade) | CLI entrypoint (`validate`, `plan`, `capabilities`, `exec`) |
 | [internal/manifest](internal/manifest) | Load + schema/semantic validation |
 | [internal/binding](internal/binding) | Local bindings config + env/vault providers |
@@ -120,7 +125,7 @@ See [spec/examples/bindings.example.yaml](spec/examples/bindings.example.yaml). 
 
 Flags: `-f` / `--file`, `--bindings`, `--json` (validate/plan/capabilities), `--capability` / `-c` (exec, repeatable).
 
-Workspace lifecycle: prefer `devpod up` / `devpod stop` directly.
+Workspace lifecycle: prefer `devpod up` / `devpod stop` directly. See [examples/demo-project](examples/demo-project) and [docs/devpod-dogfood.md](docs/devpod-dogfood.md).
 
 ## Design principles
 
@@ -137,9 +142,10 @@ Workspace lifecycle: prefer `devpod up` / `devpod stop` directly.
 | **0** | Repo, docs, license, schema stub, examples |
 | **1** | `validate` / `plan` against schema |
 | **2** | Local bindings (`env`, `vault`) + `capabilities` |
-| **3** (current) | Scoped `pade exec --capability` |
-| **4+** | DevPod dogfood, identity separation, more providers |
-| Later | Authenticated review ingress, external validation |
+| **3** | Scoped `pade exec --capability` |
+| **4** (current) | DevPod dogfood (`examples/demo-project`) |
+| **5+** | Identity separation, more providers, review ingress |
+| Later | External validation / re-evaluate standalone PADE |
 
 Details: [DESIGN.md](DESIGN.md) (including DevPod-first revisions) and [docs/go-reference.md](docs/go-reference.md).
 

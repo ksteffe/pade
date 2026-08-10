@@ -1,0 +1,13 @@
+{
+  "name": "pade-demo-project",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "features": {},
+  "postCreateCommand": "echo 'PADE demo-project ready. Use DevPod for lifecycle; use pade for capabilities.'",
+  "customizations": {
+    "vscode": {
+      "extensions": []
+    }
+  },
+  "forwardPorts": [],
+  "remoteUser": "vscode"
+}
