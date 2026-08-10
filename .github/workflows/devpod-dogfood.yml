@@ -1,0 +1,73 @@
+name: DevPod dogfood
+
+# Separate from the fast unit/CLI CI workflow. This job boots a real DevPod
+# workspace with the docker provider and runs PADE inside it.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "examples/demo-project/**"
+      - "scripts/devpod-dogfood.sh"
+      - ".github/workflows/devpod-dogfood.yml"
+      - "cmd/**"
+      - "internal/**"
+      - "go.mod"
+      - "go.sum"
+      - "Makefile"
+  pull_request:
+    paths:
+      - "examples/demo-project/**"
+      - "scripts/devpod-dogfood.sh"
+      - ".github/workflows/devpod-dogfood.yml"
+      - "cmd/**"
+      - "internal/**"
+      - "go.mod"
+      - "go.sum"
+      - "Makefile"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: devpod-dogfood-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DEVPOD_VERSION: v0.6.15
+  DEVPOD_WORKSPACE: demo-project
+
+jobs:
+  dogfood:
+    name: DevPod + PADE smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install DevPod CLI
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/devpod \
+            "https://github.com/loft-sh/devpod/releases/download/${DEVPOD_VERSION}/devpod-linux-amd64"
+          sudo install -m 0755 /tmp/devpod /usr/local/bin/devpod
+          devpod version
+
+      - name: Verify Docker
+        run: |
+          docker version
+          docker info
+
+      - name: Run DevPod dogfood
+        run: make dogfood-devpod-ci
+
+      - name: Cleanup DevPod workspace
+        if: always()
+        run: make dogfood-devpod-delete || true

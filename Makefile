@@ -1,8 +1,13 @@
 # Prefer a repo-local Go toolchain when present (.tools/go from go.dev).
 # System Go 1.13 and similar cannot build this module (no embed stdlib, old modules).
 GO ?= $(shell if [ -x "$(CURDIR)/.tools/go/bin/go" ]; then echo "$(CURDIR)/.tools/go/bin/go"; else command -v go; fi)
+DEVPOD_DOGFOOD := $(CURDIR)/scripts/devpod-dogfood.sh
 
-.PHONY: check-go test build validate plan capabilities exec-demo vet fmt-check ci
+.PHONY: check-go test build build-linux validate plan capabilities exec-demo dogfood \
+	dogfood-devpod dogfood-devpod-check dogfood-devpod-provider dogfood-devpod-up \
+	dogfood-devpod-install dogfood-devpod-smoke dogfood-devpod-down dogfood-devpod-delete \
+	dogfood-devpod-ci \
+	vet fmt-check ci
 
 check-go:
 	@v="$$( $(GO) env GOVERSION 2>/dev/null || true )"; \
@@ -32,6 +37,11 @@ test: check-go
 build: check-go
 	$(GO) build -o bin/pade ./cmd/pade
 
+# Cross-compile for the local Docker VM (linux/amd64 or linux/arm64).
+build-linux:
+	@chmod +x "$(DEVPOD_DOGFOOD)"
+	@$(DEVPOD_DOGFOOD) build
+
 validate: check-go
 	$(GO) run ./cmd/pade validate -f spec/examples/web-app.yaml
 
@@ -51,8 +61,60 @@ exec-demo: check-go build
 	  --capability google-analytics.read \
 	  -- /bin/sh -c 'test -n "$$GA_PROPERTY_ID" && test -n "$$GOOGLE_APPLICATION_CREDENTIALS" && echo exec-ok'
 
+# Milestone 4: PADE smoke against examples/demo-project (DevPod not required).
+dogfood: check-go build
+	chmod +x examples/demo-project/scripts/ga-summary
+	./bin/pade validate -f examples/demo-project/pade.yaml
+	./bin/pade plan -f examples/demo-project/pade.yaml --bindings examples/demo-project/bindings.example.yaml
+	GA_PROPERTY_ID=demo-property \
+	GOOGLE_APPLICATION_CREDENTIALS=/tmp/fake-ga.json \
+	./bin/pade exec \
+	  -f examples/demo-project/pade.yaml \
+	  --bindings examples/demo-project/bindings.example.yaml \
+	  --capability google-analytics.read \
+	  -- ./scripts/ga-summary
+
+# --- DevPod dogfood (requires docker + devpod; separate DevPod GHA workflow) ---
+dogfood-devpod-check:
+	@chmod +x "$(DEVPOD_DOGFOOD)"
+	@$(DEVPOD_DOGFOOD) check
+
+dogfood-devpod-provider:
+	@chmod +x "$(DEVPOD_DOGFOOD)"
+	@$(DEVPOD_DOGFOOD) provider
+
+dogfood-devpod-up:
+	@chmod +x "$(DEVPOD_DOGFOOD)"
+	@$(DEVPOD_DOGFOOD) up
+
+dogfood-devpod-install:
+	@chmod +x "$(DEVPOD_DOGFOOD)"
+	@$(DEVPOD_DOGFOOD) install
+
+dogfood-devpod-smoke:
+	@chmod +x "$(DEVPOD_DOGFOOD)"
+	@$(DEVPOD_DOGFOOD) smoke
+
+dogfood-devpod-down:
+	@chmod +x "$(DEVPOD_DOGFOOD)"
+	@$(DEVPOD_DOGFOOD) down
+
+dogfood-devpod-delete:
+	@chmod +x "$(DEVPOD_DOGFOOD)"
+	@$(DEVPOD_DOGFOOD) delete
+
+# Full local proof: provider + up + linux pade install + in-workspace smoke.
+dogfood-devpod:
+	@chmod +x "$(DEVPOD_DOGFOOD)"
+	@$(DEVPOD_DOGFOOD) all
+
+# CI entrypoint used by .github/workflows/devpod-dogfood.yml
+dogfood-devpod-ci:
+	@chmod +x "$(DEVPOD_DOGFOOD)"
+	@$(DEVPOD_DOGFOOD) ci
+
 # Local mirror of .github/workflows/ci.yml
-ci: check-go fmt-check vet test build
+ci: check-go fmt-check vet test build dogfood
 	./bin/pade validate -f spec/examples/web-app.yaml
 	./bin/pade plan -f spec/examples/web-app.yaml --json > /tmp/pade-plan.json
 	./bin/pade capabilities -f spec/examples/web-app.yaml --bindings spec/examples/bindings.example.yaml --json > /tmp/pade-capabilities.json

@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Fake Google Analytics summary for PADE dogfood.
+# Requires process-scoped capability injection (pade exec --capability google-analytics.read).
+# Never prints credential file contents — only whether required env names are present.
+set -euo pipefail
+
+missing=0
+if [[ -z "${GA_PROPERTY_ID:-}" ]]; then
+  echo "error: GA_PROPERTY_ID is not set" >&2
+  missing=1
+fi
+if [[ -z "${GOOGLE_APPLICATION_CREDENTIALS:-}" ]]; then
+  echo "error: GOOGLE_APPLICATION_CREDENTIALS is not set" >&2
+  missing=1
+fi
+if [[ "$missing" -ne 0 ]]; then
+  echo "hint: run via: pade exec --capability google-analytics.read -- ./scripts/ga-summary" >&2
+  exit 1
+fi
+
+echo "ga-summary (demo)"
+echo "property_id: ${GA_PROPERTY_ID}"
+echo "credentials_path: ${GOOGLE_APPLICATION_CREDENTIALS}"
+echo "sessions_7d: 42"
+echo "top_path: /"
+echo "note: values are fake; capability injection succeeded"

@@ -1,0 +1,8 @@
+version: "0.1"
+
+environment:
+  devcontainer: ".devcontainer/devcontainer.json"
+
+capabilities:
+  google-analytics.read:
+    access: read
