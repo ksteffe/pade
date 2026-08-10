@@ -25,11 +25,12 @@ type Config struct {
 
 // CapabilityBinding maps a portable capability name to a credential provider.
 type CapabilityBinding struct {
-	Provider    string              `yaml:"provider" json:"provider"`
-	Env         []string            `yaml:"env,omitempty" json:"env,omitempty"`
-	Vault       *VaultBinding       `yaml:"vault,omitempty" json:"vault,omitempty"`
-	OnePassword *OnePasswordBinding `yaml:"onepassword,omitempty" json:"onepassword,omitempty"`
-	Keeper      *KeeperBinding      `yaml:"keeper,omitempty" json:"keeper,omitempty"`
+	Provider             string                        `yaml:"provider" json:"provider"`
+	Env                  []string                      `yaml:"env,omitempty" json:"env,omitempty"`
+	Vault                *VaultBinding                 `yaml:"vault,omitempty" json:"vault,omitempty"`
+	OnePassword          *OnePasswordBinding           `yaml:"onepassword,omitempty" json:"onepassword,omitempty"`
+	Keeper               *KeeperBinding                `yaml:"keeper,omitempty" json:"keeper,omitempty"`
+	KeeperSecretsManager *KeeperSecretsManagerBinding  `yaml:"keeperSecretsManager,omitempty" json:"keeperSecretsManager,omitempty"`
 }
 
 // VaultBinding configures a Vault KV lookup. Field values are Vault secret keys
@@ -50,6 +51,13 @@ type OnePasswordBinding struct {
 // v0.1 resolves the record password field via Keeper Commander.
 type KeeperBinding struct {
 	Refs map[string]string `yaml:"refs" json:"refs"` // ENV_NAME -> keeper://recordUID
+}
+
+// KeeperSecretsManagerBinding maps process env names to Keeper Notation refs.
+// Reference strings are handles only — never secret values or KSM config.
+// Bootstrap config comes from the ambient KSM_CONFIG environment variable.
+type KeeperSecretsManagerBinding struct {
+	Refs map[string]string `yaml:"refs" json:"refs"` // ENV_NAME -> keeper://... notation
 }
 
 // Load reads a bindings file from path.
@@ -154,6 +162,24 @@ func (c *Config) Validate() error {
 				}
 				if !strings.HasPrefix(ref, "keeper://") {
 					return fmt.Errorf("binding %q: keeper ref %q must start with keeper://", name, ref)
+				}
+			}
+		case "keeper-secrets-manager":
+			if b.KeeperSecretsManager == nil {
+				return fmt.Errorf("binding %q: keeper-secrets-manager provider requires keeperSecretsManager config", name)
+			}
+			if len(b.KeeperSecretsManager.Refs) == 0 {
+				return fmt.Errorf("binding %q: keeperSecretsManager.refs is required", name)
+			}
+			for envName, ref := range b.KeeperSecretsManager.Refs {
+				if strings.TrimSpace(envName) == "" || strings.TrimSpace(ref) == "" {
+					return fmt.Errorf("binding %q: keeperSecretsManager.refs entries must be non-empty", name)
+				}
+				if strings.Contains(envName, "=") {
+					return fmt.Errorf("binding %q: keeperSecretsManager env name %q looks like an assignment", name, envName)
+				}
+				if !strings.HasPrefix(ref, "keeper://") {
+					return fmt.Errorf("binding %q: keeperSecretsManager ref %q must start with keeper://", name, ref)
 				}
 			}
 		default:

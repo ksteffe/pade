@@ -41,6 +41,10 @@ type Runner struct {
 
 // Run resolves the named capabilities, injects their env only into the child
 // process, waits for completion, then discards resolved material.
+//
+// stdout/stderr are best-effort redacted for exact resolved secret values
+// before they reach the caller. Redaction is defense in depth, not a security
+// boundary: a process given a credential can still observe or exfiltrate it.
 func (r *Runner) Run(ctx context.Context, cfg *binding.Config, capabilityNames []string, opts Options) (*Result, error) {
 	if len(opts.Command) == 0 {
 		return nil, fmt.Errorf("command is required")
@@ -60,6 +64,9 @@ func (r *Runner) Run(ctx context.Context, cfg *binding.Config, capabilityNames [
 		base = os.Environ()
 	}
 	childEnv := binding.MergeEnv(base, results)
+	if usesKeeperSecretsManager(results) {
+		childEnv = stripEnvKeys(childEnv, "KSM_CONFIG")
+	}
 
 	stdout := opts.Stdout
 	if stdout == nil {
@@ -74,24 +81,32 @@ func (r *Runner) Run(ctx context.Context, cfg *binding.Config, capabilityNames [
 		stdin = os.Stdin
 	}
 
+	secretVals := collectSecretsFromResults(results)
+	outRedact := newSecretRedactor(stdout, secretVals)
+	errRedact := newSecretRedactor(stderr, secretVals)
+	defer func() {
+		_ = outRedact.Close()
+		_ = errRedact.Close()
+	}()
+
 	res := &Result{
 		Capabilities: make([]string, 0, len(results)),
 		Providers:    make([]string, 0, len(results)),
 	}
-	for _, r := range results {
-		res.Capabilities = append(res.Capabilities, r.Name)
-		res.Providers = append(res.Providers, r.Provider)
+	for _, rr := range results {
+		res.Capabilities = append(res.Capabilities, rr.Name)
+		res.Providers = append(res.Providers, rr.Provider)
 	}
 
 	if !opts.Quiet {
-		fmt.Fprintf(stderr, "Injecting capabilities: %s\n", formatInjectionNotice(results))
+		fmt.Fprintf(errRedact, "Injecting capabilities: %s\n", formatInjectionNotice(results))
 	}
 
 	cmd := exec.CommandContext(ctx, opts.Command[0], opts.Command[1:]...)
 	cmd.Dir = opts.Dir
 	cmd.Env = childEnv
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
+	cmd.Stdout = outRedact
+	cmd.Stderr = errRedact
 	cmd.Stdin = stdin
 
 	err = cmd.Run()
@@ -124,4 +139,42 @@ func formatInjectionNotice(results []binding.ResolveResult) string {
 		parts = append(parts, fmt.Sprintf("%s (%s)", r.Name, r.Provider))
 	}
 	return strings.Join(parts, ", ")
+}
+
+func collectSecretsFromResults(results []binding.ResolveResult) []string {
+	maps := make([]map[string]string, 0, len(results))
+	for _, r := range results {
+		if r.Material != nil {
+			maps = append(maps, r.Material.Env)
+		}
+	}
+	return collectSecrets(maps...)
+}
+
+func usesKeeperSecretsManager(results []binding.ResolveResult) bool {
+	for _, r := range results {
+		if r.Provider == "keeper-secrets-manager" {
+			return true
+		}
+	}
+	return false
+}
+
+func stripEnvKeys(env []string, keys ...string) []string {
+	drop := map[string]struct{}{}
+	for _, k := range keys {
+		drop[k] = struct{}{}
+	}
+	out := make([]string, 0, len(env))
+	for _, e := range env {
+		key := e
+		if i := strings.IndexByte(e, '='); i >= 0 {
+			key = e[:i]
+		}
+		if _, ok := drop[key]; ok {
+			continue
+		}
+		out = append(out, e)
+	}
+	return out
 }

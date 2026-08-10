@@ -52,16 +52,14 @@ func ResolveMaterials(ctx context.Context, reg *Registry, cfg *Config, names []s
 			// Do not wrap provider errors with secret-bearing context.
 			return nil, fmt.Errorf("capability %q: resolve failed: %w", name, err)
 		}
-		probe, err := p.Probe(ctx, name, b)
-		meta := map[string]string{}
-		if err == nil {
-			meta = probe.Meta
-		}
+		// Do not Probe after a successful Resolve: remote providers (vault,
+		// onepassword, keeper, keeper-secrets-manager) would re-fetch secrets
+		// just to build Meta. Plan/capabilities still use Probe via ResolveAll.
 		out = append(out, ResolveResult{
 			Name:     name,
 			Provider: b.Provider,
 			Material: mat,
-			Meta:     meta,
+			Meta:     map[string]string{"resolvedValues": "[hidden]"},
 		})
 	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].Name < out[j].Name })

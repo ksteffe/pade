@@ -13,7 +13,7 @@ The demo capability is **`github.user.read`** → env **`GITHUB_TOKEN`**.
 | Fake-keeper smoke (no account) | `make dogfood-keeper` | Yes (Smoke job) |
 | **Real Keeper + real GitHub API** | `make dogfood-keeper-live` | **No** (local only) |
 
-Live path uses a single Commander resolve during `pade exec` (Commander startup/sync dominates latency).
+Live path uses a single Commander resolve during `pade exec` (Commander startup/sync dominates latency). `ResolveMaterials` does not Probe after Resolve, so Commander is not contacted twice on the exec path.
 
 ## Realistic live demo (your laptop)
 
