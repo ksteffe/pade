@@ -2,7 +2,7 @@
 # System Go 1.13 and similar cannot build this module (no embed stdlib, old modules).
 GO ?= $(shell if [ -x "$(CURDIR)/.tools/go/bin/go" ]; then echo "$(CURDIR)/.tools/go/bin/go"; else command -v go; fi)
 
-.PHONY: check-go test build validate plan capabilities vet fmt-check ci
+.PHONY: check-go test build validate plan capabilities exec-demo vet fmt-check ci
 
 check-go:
 	@v="$$( $(GO) env GOVERSION 2>/dev/null || true )"; \
@@ -41,11 +41,28 @@ plan: check-go
 capabilities: check-go
 	$(GO) run ./cmd/pade capabilities -f spec/examples/web-app.yaml --bindings spec/examples/bindings.example.yaml
 
+# Demonstrates process-scoped injection without printing secret values.
+exec-demo: check-go build
+	GA_PROPERTY_ID=demo-property \
+	GOOGLE_APPLICATION_CREDENTIALS=/tmp/fake-ga.json \
+	./bin/pade exec \
+	  -f spec/examples/web-app.yaml \
+	  --bindings spec/examples/bindings.example.yaml \
+	  --capability google-analytics.read \
+	  -- /bin/sh -c 'test -n "$$GA_PROPERTY_ID" && test -n "$$GOOGLE_APPLICATION_CREDENTIALS" && echo exec-ok'
+
 # Local mirror of .github/workflows/ci.yml
 ci: check-go fmt-check vet test build
 	./bin/pade validate -f spec/examples/web-app.yaml
 	./bin/pade plan -f spec/examples/web-app.yaml --json > /tmp/pade-plan.json
 	./bin/pade capabilities -f spec/examples/web-app.yaml --bindings spec/examples/bindings.example.yaml --json > /tmp/pade-capabilities.json
+	GA_PROPERTY_ID=demo-property \
+	GOOGLE_APPLICATION_CREDENTIALS=/tmp/fake-ga.json \
+	./bin/pade exec \
+	  -f spec/examples/web-app.yaml \
+	  --bindings spec/examples/bindings.example.yaml \
+	  --capability google-analytics.read \
+	  -- /bin/sh -c 'test -n "$$GA_PROPERTY_ID" && test -n "$$GOOGLE_APPLICATION_CREDENTIALS" && printf exec-ok'
 	mkdir -p /tmp/pade-orch/.devcontainer
 	printf '{}\n' > /tmp/pade-orch/.devcontainer/devcontainer.json
 	cp spec/examples/web-app-orchestrated.yaml /tmp/pade-orch/pade.yaml

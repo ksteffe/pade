@@ -4,7 +4,7 @@
 
 PADE is an exploratory specification and Go reference CLI for declaring **portable agent workspace capabilities** beside existing development-environment standards (Dev Containers, DevPod), without embedding credentials or coupling to a single AI vendor.
 
-This repository is at **Milestone 2**: local capability bindings (`env` and `vault` providers) with `pade capabilities` / updated `pade plan`. Scoped `pade exec` comes next.
+This repository is at **Milestone 3**: process-scoped `pade exec --capability` injection. DevPod dogfood comes next.
 
 ## Quick start
 
@@ -20,6 +20,10 @@ go run ./cmd/pade validate -f spec/examples/web-app.yaml
 go run ./cmd/pade plan -f spec/examples/web-app.yaml
 go run ./cmd/pade plan -f spec/examples/web-app.yaml --json
 go run ./cmd/pade capabilities -f spec/examples/web-app.yaml --bindings spec/examples/bindings.example.yaml
+GA_PROPERTY_ID=demo GOOGLE_APPLICATION_CREDENTIALS=/tmp/x \
+  go run ./cmd/pade exec -f spec/examples/web-app.yaml \
+  --bindings spec/examples/bindings.example.yaml \
+  --capability google-analytics.read -- /bin/sh -c 'test -n "$GA_PROPERTY_ID" && echo ok'
 ```
 
 Or use Make (auto-selects `.tools/go` when present):
@@ -72,9 +76,10 @@ Earlier sections of [DESIGN.md](DESIGN.md) and [docs/go-reference.md](docs/go-re
 | [spec/pade.schema.json](spec/pade.schema.json) | Normative JSON Schema for `pade.yaml` (v0.1 stub) |
 | [spec/examples/](spec/examples/) | Example manifests |
 | `examples/` | Dogfood apps (added as implementation proceeds) |
-| [cmd/pade](cmd/pade) | CLI entrypoint (`validate`, `plan`, `capabilities`) |
+| [cmd/pade](cmd/pade) | CLI entrypoint (`validate`, `plan`, `capabilities`, `exec`) |
 | [internal/manifest](internal/manifest) | Load + schema/semantic validation |
 | [internal/binding](internal/binding) | Local bindings config + env/vault providers |
+| [internal/execution](internal/execution) | Process-scoped capability injection |
 | [internal/planner](internal/planner) | Side-effect-free plan model |
 | [internal/output](internal/output) | Human and JSON rendering |
 
@@ -111,9 +116,9 @@ See [spec/examples/bindings.example.yaml](spec/examples/bindings.example.yaml). 
 | `pade validate` | Implemented | Validate `pade.yaml` and referenced config |
 | `pade plan` | Implemented | Side-effect-free plan including binding status |
 | `pade capabilities` | Implemented | Show declared capabilities and binding probes |
-| `pade exec --capability … -- <cmd>` | Planned (M3) | Run a command with resolved capability injection |
+| `pade exec --capability … -- <cmd>` | Implemented | Run a command with process-scoped capability injection |
 
-Flags: `-f` / `--file`, `--bindings`, `--json`.
+Flags: `-f` / `--file`, `--bindings`, `--json` (validate/plan/capabilities), `--capability` / `-c` (exec, repeatable).
 
 Workspace lifecycle: prefer `devpod up` / `devpod stop` directly.
 
@@ -131,8 +136,9 @@ Workspace lifecycle: prefer `devpod up` / `devpod stop` directly.
 |-----------|--------|
 | **0** | Repo, docs, license, schema stub, examples |
 | **1** | `validate` / `plan` against schema |
-| **2** (current) | Local bindings (`env`, `vault`) + `capabilities` |
-| **3+** | Scoped `pade exec`, DevPod dogfood, more providers |
+| **2** | Local bindings (`env`, `vault`) + `capabilities` |
+| **3** (current) | Scoped `pade exec --capability` |
+| **4+** | DevPod dogfood, identity separation, more providers |
 | Later | Authenticated review ingress, external validation |
 
 Details: [DESIGN.md](DESIGN.md) (including DevPod-first revisions) and [docs/go-reference.md](docs/go-reference.md).

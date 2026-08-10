@@ -67,6 +67,10 @@ go test ./...
 go run ./cmd/pade validate -f spec/examples/web-app.yaml
 go run ./cmd/pade plan -f spec/examples/web-app.yaml --json
 go run ./cmd/pade capabilities -f spec/examples/web-app.yaml --bindings spec/examples/bindings.example.yaml
+GA_PROPERTY_ID=demo GOOGLE_APPLICATION_CREDENTIALS=/tmp/x \
+  go run ./cmd/pade exec -f spec/examples/web-app.yaml \
+  --bindings spec/examples/bindings.example.yaml \
+  --capability google-analytics.read -- /bin/sh -c 'test -n "$GA_PROPERTY_ID" && echo ok'
 make ci   # local mirror of GitHub Actions
 ```
 
