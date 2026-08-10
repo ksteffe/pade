@@ -107,3 +107,8 @@ jobs:
         run: |
           chmod +x scripts/onepassword-dogfood.sh scripts/fake-op.sh
           PADE="$(pwd)/bin/pade" ./scripts/onepassword-dogfood.sh
+
+      - name: Keeper dogfood
+        run: |
+          chmod +x scripts/keeper-dogfood.sh scripts/fake-keeper.sh
+          PADE="$(pwd)/bin/pade" ./scripts/keeper-dogfood.sh

@@ -17,7 +17,8 @@ Demo capability: **`github.user.read`** (env: **`GITHUB_TOKEN`**).
 | `bindings.example.yaml` | Example *local* env bindings (copy; do not commit secrets) |
 | `bindings.vault.example.yaml` | Example Vault `-dev` bindings (prototype only) |
 | `bindings.onepassword.example.yaml` | Example 1Password bindings (fake-op CI path) |
-| `identities/` | Alice/Bob env, Vault, and 1Password binding fixtures |
+| `bindings.keeper.example.yaml` | Example Keeper Commander bindings (fake-keeper CI path) |
+| `identities/` | Alice/Bob env, Vault, 1Password, and Keeper binding fixtures |
 | `scripts/github-whoami` | Calls GitHub `/user` (or stub for `pade-demo-*` tokens) |
 
 ## Easiest path (from repo root)
@@ -29,9 +30,10 @@ make dogfood-vault
 make dogfood-onepassword     # fake-op shim
 make install-onepassword-cli # real `op` CLI (Homebrew / .tools/op)
 make dogfood-github-live     # local only: real op + real GitHub API
+make dogfood-keeper          # fake-keeper shim
 ```
 
-See [docs/onepassword-dogfood.md](../../docs/onepassword-dogfood.md) for storing a real PAT in 1Password.
+See [docs/onepassword-dogfood.md](../../docs/onepassword-dogfood.md) for storing a real PAT in 1Password, and [docs/keeper-dogfood.md](../../docs/keeper-dogfood.md) for the Keeper Commander adapter.
 
 ## DevPod
 

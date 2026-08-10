@@ -1,0 +1,11 @@
+# Example Keeper Commander capability bindings. Copy pattern into .pade/bindings.yaml
+# or pass --bindings. Do not commit real credentials.
+# Ref format: keeper://<recordUID> (password field via `keeper get --format=password`).
+version: "0.1"
+
+capabilities:
+  github.user.read:
+    provider: keeper
+    keeper:
+      refs:
+        GITHUB_TOKEN: "keeper://YOUR_RECORD_UID"

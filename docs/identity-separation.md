@@ -27,7 +27,7 @@ Demo capability: **`github.user.read`** → **`GITHUB_TOKEN`**.
 make dogfood-identity
 ```
 
-Vault / 1Password variants: `make dogfood-vault`, `make dogfood-onepassword`. Realistic GitHub API path (local only): `make dogfood-github-live`.
+Vault / 1Password / Keeper variants: `make dogfood-vault`, `make dogfood-onepassword`, `make dogfood-keeper`. Realistic GitHub API path (local only): `make dogfood-github-live`.
 
 ## Out of scope for M5
 
@@ -35,4 +35,4 @@ Vault / 1Password variants: `make dogfood-vault`, `make dogfood-onepassword`. Re
 - Organization-wide binding distribution
 - Changing the v0.1 schema for an `identity` field (ambient + bindings are enough for the proof)
 
-Milestone 6 adds a second credential-manager product (1Password); see [onepassword-dogfood.md](onepassword-dogfood.md).
+Milestone 6 adds a second credential-manager product (1Password); see [onepassword-dogfood.md](onepassword-dogfood.md). Milestone 7 adds Keeper Commander; see [keeper-dogfood.md](keeper-dogfood.md).

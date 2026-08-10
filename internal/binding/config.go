@@ -29,6 +29,7 @@ type CapabilityBinding struct {
 	Env         []string            `yaml:"env,omitempty" json:"env,omitempty"`
 	Vault       *VaultBinding       `yaml:"vault,omitempty" json:"vault,omitempty"`
 	OnePassword *OnePasswordBinding `yaml:"onepassword,omitempty" json:"onepassword,omitempty"`
+	Keeper      *KeeperBinding      `yaml:"keeper,omitempty" json:"keeper,omitempty"`
 }
 
 // VaultBinding configures a Vault KV lookup. Field values are Vault secret keys
@@ -42,6 +43,13 @@ type VaultBinding struct {
 // Reference strings are handles only — never secret values.
 type OnePasswordBinding struct {
 	Refs map[string]string `yaml:"refs" json:"refs"` // ENV_NAME -> op://vault/item/field
+}
+
+// KeeperBinding maps process env names to keeper:// record references.
+// Reference strings are handles only — never secret values.
+// v0.1 resolves the record password field via Keeper Commander.
+type KeeperBinding struct {
+	Refs map[string]string `yaml:"refs" json:"refs"` // ENV_NAME -> keeper://recordUID
 }
 
 // Load reads a bindings file from path.
@@ -128,6 +136,24 @@ func (c *Config) Validate() error {
 				}
 				if !strings.HasPrefix(ref, "op://") {
 					return fmt.Errorf("binding %q: onepassword ref %q must start with op://", name, ref)
+				}
+			}
+		case "keeper":
+			if b.Keeper == nil {
+				return fmt.Errorf("binding %q: keeper provider requires keeper config", name)
+			}
+			if len(b.Keeper.Refs) == 0 {
+				return fmt.Errorf("binding %q: keeper.refs is required", name)
+			}
+			for envName, ref := range b.Keeper.Refs {
+				if strings.TrimSpace(envName) == "" || strings.TrimSpace(ref) == "" {
+					return fmt.Errorf("binding %q: keeper.refs entries must be non-empty", name)
+				}
+				if strings.Contains(envName, "=") {
+					return fmt.Errorf("binding %q: keeper env name %q looks like an assignment", name, envName)
+				}
+				if !strings.HasPrefix(ref, "keeper://") {
+					return fmt.Errorf("binding %q: keeper ref %q must start with keeper://", name, ref)
 				}
 			}
 		default:
