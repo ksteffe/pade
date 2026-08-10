@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Milestone 6: resolve capabilities via the onepassword provider.
-# Uses scripts/fake-op.sh by default so CI does not need a real 1Password account.
+# Milestone 6: resolve capabilities via the onepassword provider (fake-op / CI).
 # Secret values must not appear in PADE plan/capabilities output.
 set -euo pipefail
 
@@ -24,13 +23,13 @@ chmod +x "$FAKE_OP"
 
 assert_no_secret_leak() {
   local file="$1"
-  if grep -E 'op-demo-property|alice-op-property|bob-op-property|/tmp/op-ga\.json|/tmp/alice-op-ga\.json|/tmp/bob-op-ga\.json' "$file" >/dev/null; then
+  if grep -E 'pade-demo-op-token|pade-demo-alice-op-token|pade-demo-bob-op-token' "$file" >/dev/null; then
     die "PADE output appears to contain 1Password credential material: $file"
   fi
 }
 
 echo "=== 1Password shared binding (via PADE_OP_BIN) ==="
-unset GA_PROPERTY_ID GOOGLE_APPLICATION_CREDENTIALS GA_ACCESS_TOKEN || true
+unset GITHUB_TOKEN || true
 
 "$PADE" validate -f "$MANIFEST"
 "$PADE" plan -f "$MANIFEST" --bindings "$SHARED_BINDINGS" --json >/tmp/pade-op-plan.json
@@ -45,10 +44,9 @@ shared_out="$(
   "$PADE" exec \
     -f "$MANIFEST" \
     --bindings "$SHARED_BINDINGS" \
-    --capability google-analytics.read \
+    --capability github.user.read \
     -- /bin/sh -c '
-      test "$GA_PROPERTY_ID" = "op-demo-property" || exit 1
-      test "$GOOGLE_APPLICATION_CREDENTIALS" = "/tmp/op-ga.json" || exit 1
+      test "$GITHUB_TOKEN" = "pade-demo-op-token" || exit 1
       printf "onepassword-ok:shared\n"
     '
 )"
@@ -64,10 +62,9 @@ alice_out="$(
   "$PADE" exec \
     -f "$MANIFEST" \
     --bindings "$ALICE_BINDINGS" \
-    --capability google-analytics.read \
+    --capability github.user.read \
     -- /bin/sh -c '
-      test "$GA_PROPERTY_ID" = "alice-op-property" || exit 1
-      test "$GOOGLE_APPLICATION_CREDENTIALS" = "/tmp/alice-op-ga.json" || exit 1
+      test "$GITHUB_TOKEN" = "pade-demo-alice-op-token" || exit 1
       printf "onepassword-ok:alice\n"
     '
 )"
@@ -75,10 +72,9 @@ bob_out="$(
   "$PADE" exec \
     -f "$MANIFEST" \
     --bindings "$BOB_BINDINGS" \
-    --capability google-analytics.read \
+    --capability github.user.read \
     -- /bin/sh -c '
-      test "$GA_PROPERTY_ID" = "bob-op-property" || exit 1
-      test "$GOOGLE_APPLICATION_CREDENTIALS" = "/tmp/bob-op-ga.json" || exit 1
+      test "$GITHUB_TOKEN" = "pade-demo-bob-op-token" || exit 1
       printf "onepassword-ok:bob\n"
     '
 )"

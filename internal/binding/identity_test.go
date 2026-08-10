@@ -14,18 +14,18 @@ func TestResolveMaterialsSeparateIdentities(t *testing.T) {
 	aliceYAML := []byte(`
 version: "0.1"
 capabilities:
-  google-analytics.read:
+  github.user.read:
     provider: env
     env:
-      - GA_PROPERTY_ID
+      - GITHUB_TOKEN
 `)
 	bobYAML := []byte(`
 version: "0.1"
 capabilities:
-  google-analytics.read:
+  github.user.read:
     provider: env
     env:
-      - GA_PROPERTY_ID
+      - GITHUB_TOKEN
 `)
 
 	aliceCfg, err := binding.Parse(aliceYAML, "alice.bindings.yaml")
@@ -39,26 +39,26 @@ capabilities:
 
 	reg := binding.NewRegistry(envprovider.New())
 
-	t.Setenv("GA_PROPERTY_ID", "alice-material")
-	aliceResults, err := binding.ResolveMaterials(context.Background(), reg, aliceCfg, []string{"google-analytics.read"})
+	t.Setenv("GITHUB_TOKEN", "alice-material")
+	aliceResults, err := binding.ResolveMaterials(context.Background(), reg, aliceCfg, []string{"github.user.read"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer binding.ClearMaterials(aliceResults)
-	aliceVal := aliceResults[0].Material.Env["GA_PROPERTY_ID"]
+	aliceVal := aliceResults[0].Material.Env["GITHUB_TOKEN"]
 	if aliceVal != "alice-material" {
-		t.Fatalf("alice GA_PROPERTY_ID=%q", aliceVal)
+		t.Fatalf("alice GITHUB_TOKEN=%q", aliceVal)
 	}
 
-	t.Setenv("GA_PROPERTY_ID", "bob-material")
-	bobResults, err := binding.ResolveMaterials(context.Background(), reg, bobCfg, []string{"google-analytics.read"})
+	t.Setenv("GITHUB_TOKEN", "bob-material")
+	bobResults, err := binding.ResolveMaterials(context.Background(), reg, bobCfg, []string{"github.user.read"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer binding.ClearMaterials(bobResults)
-	bobVal := bobResults[0].Material.Env["GA_PROPERTY_ID"]
+	bobVal := bobResults[0].Material.Env["GITHUB_TOKEN"]
 	if bobVal != "bob-material" {
-		t.Fatalf("bob GA_PROPERTY_ID=%q", bobVal)
+		t.Fatalf("bob GITHUB_TOKEN=%q", bobVal)
 	}
 
 	if aliceVal == bobVal {

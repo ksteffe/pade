@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# Call the GitHub API as the authenticated user.
+# Requires process-scoped capability injection:
+#   pade exec --capability github.user.read -- ./scripts/github-whoami
+#
+# Never prints GITHUB_TOKEN. Tokens with prefix "pade-demo-" are CI/fake stubs
+# and skip the network call so make dogfood stays offline-friendly.
+set -euo pipefail
+
+if [[ -z "${GITHUB_TOKEN:-}" ]]; then
+  echo "error: GITHUB_TOKEN is not set" >&2
+  echo "hint: run via: pade exec --capability github.user.read -- ./scripts/github-whoami" >&2
+  exit 1
+fi
+
+API_URL="${GITHUB_API_URL:-https://api.github.com}"
+
+if [[ "$GITHUB_TOKEN" == pade-demo-* ]]; then
+  echo "github-whoami (stub)"
+  echo "login: stub-user"
+  echo "id: 0"
+  echo "note: GITHUB_TOKEN has pade-demo-* prefix; skipped real GitHub API"
+  exit 0
+fi
+
+tmp="$(mktemp)"
+trap 'rm -f "$tmp"' EXIT
+
+http_code="$(
+  curl -sS -o "$tmp" -w '%{http_code}' \
+    -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+    -H "Accept: application/vnd.github+json" \
+    -H "X-GitHub-Api-Version: 2022-11-28" \
+    -H "User-Agent: pade-demo-github-whoami" \
+    "${API_URL}/user"
+)"
+
+if [[ "$http_code" != "200" ]]; then
+  echo "error: GitHub API /user returned HTTP ${http_code}" >&2
+  echo "hint: store a valid PAT (read:user) in 1Password and re-run make dogfood-github-live" >&2
+  exit 1
+fi
+
+python3 - "$tmp" <<'PY'
+import json, sys
+data = json.load(open(sys.argv[1]))
+login = data.get("login") or ""
+uid = data.get("id", "")
+if not login:
+    raise SystemExit("error: GitHub response missing login")
+print("github-whoami")
+print(f"login: {login}")
+print(f"id: {uid}")
+print("note: authenticated via GITHUB_TOKEN from capability binding")
+PY
