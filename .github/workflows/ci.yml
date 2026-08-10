@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   test:
-    name: Test and validate
+    name: Unit tests
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -47,7 +47,24 @@ jobs:
       - name: Build
         run: go build -o bin/pade ./cmd/pade
 
-      - name: Validate example manifests
+  smoke:
+    name: Smoke
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build
+        run: go build -o bin/pade ./cmd/pade
+
+      - name: Validate examples and env dogfood
         run: |
           ./bin/pade validate -f spec/examples/web-app.yaml
           ./bin/pade plan -f spec/examples/web-app.yaml --json > /tmp/pade-plan.json
@@ -76,12 +93,13 @@ jobs:
           chmod +x scripts/identity-dogfood.sh
           PADE="$(pwd)/bin/pade" ./scripts/identity-dogfood.sh
 
-          # Vault -dev: resolve from Vault without ambient GA_* env (prototype only).
-          chmod +x scripts/vault-dogfood.sh
-          PADE="$(pwd)/bin/pade" ./scripts/vault-dogfood.sh
-
           mkdir -p /tmp/pade-orch/.devcontainer
           printf '{}\n' > /tmp/pade-orch/.devcontainer/devcontainer.json
           cp spec/examples/web-app-orchestrated.yaml /tmp/pade-orch/pade.yaml
           ./bin/pade validate -f /tmp/pade-orch/pade.yaml
           ./bin/pade plan -f /tmp/pade-orch/pade.yaml --json > /tmp/pade-orch-plan.json
+
+      - name: Vault dogfood
+        run: |
+          chmod +x scripts/vault-dogfood.sh
+          PADE="$(pwd)/bin/pade" ./scripts/vault-dogfood.sh

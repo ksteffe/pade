@@ -39,7 +39,10 @@ make dogfood-vault     # Vault -dev resolution (+ Alice/Bob KV paths; prototype 
 make dogfood-devpod  # optional: full DevPod proof (needs docker + devpod)
 ```
 
-CI runs on pushes to `main` and on pull requests via [`.github/workflows/ci.yml`](.github/workflows/ci.yml) (`gofmt`, `go vet`, tests, build, example validate/plan).
+CI runs on pushes to `main` and on pull requests via [`.github/workflows/ci.yml`](.github/workflows/ci.yml):
+
+- **Unit tests** — `gofmt`, `go vet`, `go test`, build (fast feedback)
+- **Smoke** — example validate/plan/exec, identity dogfood, Vault `-dev` dogfood (needs the unit job)
 
 A separate [DevPod dogfood](.github/workflows/devpod-dogfood.yml) workflow boots a real DevPod workspace and runs PADE inside it (path-filtered / manual `workflow_dispatch`).
 

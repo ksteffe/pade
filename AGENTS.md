@@ -71,7 +71,9 @@ GA_PROPERTY_ID=demo GOOGLE_APPLICATION_CREDENTIALS=/tmp/x \
   go run ./cmd/pade exec -f spec/examples/web-app.yaml \
   --bindings spec/examples/bindings.example.yaml \
   --capability google-analytics.read -- /bin/sh -c 'test -n "$GA_PROPERTY_ID" && echo ok'
-make ci   # local mirror of GitHub Actions
+make ci-unit   # fast: gofmt, vet, test, build
+make ci-smoke  # env/identity/Vault dogfood + example validate
+make ci   # local mirror of GitHub Actions (ci-unit then ci-smoke)
 make dogfood   # examples/demo-project PADE smoke (no DevPod required)
 make dogfood-identity   # Milestone 5 Alice/Bob identity separation smoke
 make dogfood-vault   # Vault -dev capability resolution (+ Alice/Bob KV paths)

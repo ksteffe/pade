@@ -62,7 +62,7 @@ unset GA_PROPERTY_ID GOOGLE_APPLICATION_CREDENTIALS
 
 ## CI
 
-GitHub Actions runs the same script in the main CI job after the env-based identity dogfood. Look for `dogfood-vault: ok` under **Validate example manifests**.
+GitHub Actions runs the same script in the **Smoke** job (after the fast **Unit tests** job). Look for the **Vault dogfood** step and `dogfood-vault: ok`.
 
 ## Out of scope
 

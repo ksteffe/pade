@@ -11,7 +11,7 @@ VAULT_DOGFOOD := $(CURDIR)/scripts/vault-dogfood.sh
 	dogfood-devpod dogfood-devpod-check dogfood-devpod-provider dogfood-devpod-up \
 	dogfood-devpod-install dogfood-devpod-smoke dogfood-devpod-down dogfood-devpod-delete \
 	dogfood-devpod-ci \
-	vet fmt-check ci
+	vet fmt-check ci-unit ci-smoke ci
 
 check-go:
 	@v="$$( $(GO) env GOVERSION 2>/dev/null || true )"; \
@@ -127,8 +127,11 @@ dogfood-devpod-ci:
 	@chmod +x "$(DEVPOD_DOGFOOD)"
 	@$(DEVPOD_DOGFOOD) ci
 
-# Local mirror of .github/workflows/ci.yml
-ci: check-go fmt-check vet test build dogfood dogfood-identity dogfood-vault
+# Fast path: mirrors the GitHub Actions "Unit tests" job.
+ci-unit: check-go fmt-check vet test build
+
+# Smoke path: mirrors the GitHub Actions "Smoke" job (env + Vault dogfood).
+ci-smoke: check-go build dogfood dogfood-identity dogfood-vault
 	./bin/pade validate -f spec/examples/web-app.yaml
 	./bin/pade plan -f spec/examples/web-app.yaml --json > /tmp/pade-plan.json
 	./bin/pade capabilities -f spec/examples/web-app.yaml --bindings spec/examples/bindings.example.yaml --json > /tmp/pade-capabilities.json
@@ -144,3 +147,6 @@ ci: check-go fmt-check vet test build dogfood dogfood-identity dogfood-vault
 	cp spec/examples/web-app-orchestrated.yaml /tmp/pade-orch/pade.yaml
 	./bin/pade validate -f /tmp/pade-orch/pade.yaml
 	./bin/pade plan -f /tmp/pade-orch/pade.yaml --json > /tmp/pade-orch-plan.json
+
+# Full local mirror of .github/workflows/ci.yml (unit then smoke).
+ci: ci-unit ci-smoke
