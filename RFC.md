@@ -677,3 +677,15 @@ Running code is the first target because the pain is concrete. The same pattern 
 The guiding phrase is:
 
 Humans should be able to review the executable together, not only the code that produced it.
+
+## 34. Milestone 9 learning: cloud agents and secret-manager composition
+
+A phone-driven Cursor Cloud Agent can use the same portable capability declaration as a laptop if:
+
+1. The cloud environment supplies a narrowly scoped secret-manager bootstrap (for Milestone 9, Keeper Secrets Manager via ambient `KSM_CONFIG`).
+2. Environment-specific bindings map capability names to secret-manager handles (Keeper Notation), not to secret values.
+3. PADE resolves at `pade exec` time into the child process only.
+
+This does not require Cursor-specific fields in `pade.yaml`. Cursor Runtime Secrets, environment install, and network allowlists remain Cursor’s concerns. PADE must not claim to sandbox a VM that already possesses the bootstrap credential.
+
+A later evolution can replace the long-lived KSM bootstrap in the VM with Cursor workload OIDC verified by an external capability broker that holds Keeper credentials. Portable capability intent stays the same; only the binding/provider changes.

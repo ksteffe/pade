@@ -25,12 +25,12 @@ type Config struct {
 
 // CapabilityBinding maps a portable capability name to a credential provider.
 type CapabilityBinding struct {
-	Provider             string                        `yaml:"provider" json:"provider"`
-	Env                  []string                      `yaml:"env,omitempty" json:"env,omitempty"`
-	Vault                *VaultBinding                 `yaml:"vault,omitempty" json:"vault,omitempty"`
-	OnePassword          *OnePasswordBinding           `yaml:"onepassword,omitempty" json:"onepassword,omitempty"`
-	Keeper               *KeeperBinding                `yaml:"keeper,omitempty" json:"keeper,omitempty"`
-	KeeperSecretsManager *KeeperSecretsManagerBinding  `yaml:"keeperSecretsManager,omitempty" json:"keeperSecretsManager,omitempty"`
+	Provider             string                       `yaml:"provider" json:"provider"`
+	Env                  []string                     `yaml:"env,omitempty" json:"env,omitempty"`
+	Vault                *VaultBinding                `yaml:"vault,omitempty" json:"vault,omitempty"`
+	OnePassword          *OnePasswordBinding          `yaml:"onepassword,omitempty" json:"onepassword,omitempty"`
+	Keeper               *KeeperBinding               `yaml:"keeper,omitempty" json:"keeper,omitempty"`
+	KeeperSecretsManager *KeeperSecretsManagerBinding `yaml:"keeperSecretsManager,omitempty" json:"keeperSecretsManager,omitempty"`
 }
 
 // VaultBinding configures a Vault KV lookup. Field values are Vault secret keys

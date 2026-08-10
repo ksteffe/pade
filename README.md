@@ -4,7 +4,7 @@
 
 PADE is an exploratory specification and Go reference CLI for declaring **portable agent workspace capabilities** beside existing development-environment standards (Dev Containers, DevPod), without embedding credentials or coupling to a single AI vendor.
 
-This repository is at **Milestone 8** (spike): local Teleport authenticated ingress beside the existing capability providers (env, Vault, 1Password, Keeper). Earlier milestones remain dogfoodable via `make dogfood*` targets.
+This repository is at **Milestone 9**: Cursor Cloud + Keeper Secrets Manager capability resolution (`keeper-secrets-manager` provider) beside existing adapters (env, Vault, 1Password, Keeper Commander) and the Milestone 8 Teleport ingress spike. Earlier milestones remain dogfoodable via `make dogfood*` targets.
 
 ## Quick start
 
@@ -42,6 +42,8 @@ make dogfood-onepassword-live  # local only: real 1Password + real GitHub API
 make dogfood-keeper       # Milestone 7: Keeper Commander adapter (fake-keeper shim in CI)
 make install-keeper-cli   # install real `keeper` (Homebrew or .tools/keeper-venv)
 make dogfood-keeper-live  # local only: real Keeper + real GitHub API
+make dogfood-ksm          # Milestone 9: Keeper Secrets Manager (PADE_KSM_FAKE=1 in CI)
+make dogfood-ksm-live     # local / Cursor Cloud: real KSM + real GitHub API
 make dogfood-ingress-teleport  # Milestone 8 spike: Teleport Application Access (host; Docker optional)
 make dogfood-ingress-teleport-down
 make dogfood-devpod  # optional: full DevPod proof (needs docker + devpod)
@@ -50,7 +52,7 @@ make dogfood-devpod  # optional: full DevPod proof (needs docker + devpod)
 CI runs on pushes to `main` and on pull requests via [`.github/workflows/ci.yml`](.github/workflows/ci.yml):
 
 - **Unit tests** — `gofmt`, `go vet`, `go test`, build (fast feedback)
-- **Smoke** — example validate/plan/exec, identity dogfood, Vault `-dev` dogfood, 1Password dogfood, Keeper dogfood (needs the unit job)
+- **Smoke** — example validate/plan/exec, identity dogfood, Vault `-dev` dogfood, 1Password dogfood, Keeper dogfood, KSM dogfood (needs the unit job)
 
 A separate [DevPod dogfood](.github/workflows/devpod-dogfood.yml) workflow boots a real DevPod workspace and runs PADE inside it (path-filtered / manual `workflow_dispatch`).
 
@@ -95,6 +97,8 @@ Earlier sections of [DESIGN.md](DESIGN.md) and [docs/go-reference.md](docs/go-re
 | [docs/vault-dogfood.md](docs/vault-dogfood.md) | Vault `-dev` capability resolution dogfood |
 | [docs/onepassword-dogfood.md](docs/onepassword-dogfood.md) | 1Password provider + `make dogfood-onepassword-live` |
 | [docs/keeper-dogfood.md](docs/keeper-dogfood.md) | Keeper Commander provider / Milestone 7 dogfood |
+| [docs/keeper-secrets-manager-dogfood.md](docs/keeper-secrets-manager-dogfood.md) | Keeper Secrets Manager provider / Milestone 9 |
+| [docs/cursor-cloud-dogfood.md](docs/cursor-cloud-dogfood.md) | Cursor Cloud Agent + KSM composition (vendor-specific) |
 | [docs/teleport-ingress.md](docs/teleport-ingress.md) | Teleport Application Access / Milestone 8 ingress spike |
 | [spec/pade.schema.json](spec/pade.schema.json) | Normative JSON Schema for `pade.yaml` (v0.1 stub) |
 | [spec/examples/](spec/examples/) | Example manifests |
@@ -102,8 +106,8 @@ Earlier sections of [DESIGN.md](DESIGN.md) and [docs/go-reference.md](docs/go-re
 | [examples/ingress-demo](examples/ingress-demo) | Teleport ingress dogfood (tiny Go HTTP app) |
 | [cmd/pade](cmd/pade) | CLI entrypoint (`validate`, `plan`, `capabilities`, `exec`) |
 | [internal/manifest](internal/manifest) | Load + schema/semantic validation |
-| [internal/binding](internal/binding) | Local bindings config + env/vault/onepassword/keeper providers |
-| [internal/execution](internal/execution) | Process-scoped capability injection |
+| [internal/binding](internal/binding) | Local bindings + env/vault/onepassword/keeper/keepersm providers |
+| [internal/execution](internal/execution) | Process-scoped capability injection + best-effort output redaction |
 | [internal/planner](internal/planner) | Side-effect-free plan model |
 | [internal/output](internal/output) | Human and JSON rendering |
 
@@ -167,8 +171,9 @@ Workspace lifecycle: prefer `devpod up` / `devpod stop` directly. See [examples/
 | **5b** | Vault `-dev` validation of bindings / identity paths |
 | **6** | Second credential provider (1Password CLI adapter) |
 | **7** | Keeper Commander CLI binding provider (fake-keeper CI) |
-| **8** (current spike) | Local Teleport authenticated ingress (`examples/ingress-demo`) |
-| **8+** | External validation / re-evaluate PADE |
+| **8** | Local Teleport authenticated ingress (`examples/ingress-demo`) |
+| **9** (current) | Keeper Secrets Manager + Cursor Cloud dogfood (`KSM_CONFIG`, exec redaction) |
+| **9+** | External validation / re-evaluate PADE; optional Cursor OIDC broker |
 | Later | External validation / re-evaluate standalone PADE |
 
 Details: [DESIGN.md](DESIGN.md) (including DevPod-first revisions) and [docs/go-reference.md](docs/go-reference.md).

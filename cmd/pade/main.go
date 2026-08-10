@@ -144,12 +144,15 @@ func newCapabilitiesCmd(file, bindings *string, jsonOut *bool) *cobra.Command {
 
 func newExecCmd(file, bindings *string) *cobra.Command {
 	var capabilities []string
+	var quiet bool
 	cmd := &cobra.Command{
 		Use:   "exec --capability NAME -- COMMAND [ARGS...]",
 		Short: "Run a command with process-scoped capability credentials",
 		Long: `Resolve one or more declared capabilities and inject their credentials only into the child process.
 
 Secret values are never printed. After the command exits, resolved material is discarded from PADE's memory maps (the child process may still have observed them while running).
+
+Exact resolved secret values are best-effort redacted from child stdout/stderr before they reach the caller. Redaction is defense in depth, not a security boundary.
 
 Example:
   pade exec --capability github.user.read -- ./scripts/github-whoami`,
@@ -187,11 +190,13 @@ Example:
 				Stdout:  cmd.OutOrStdout(),
 				Stderr:  cmd.ErrOrStderr(),
 				Stdin:   cmd.InOrStdin(),
+				Quiet:   quiet,
 			})
 			return err
 		},
 	}
 	cmd.Flags().StringArrayVarP(&capabilities, "capability", "c", nil, "capability to resolve into the child process (repeatable)")
+	cmd.Flags().BoolVar(&quiet, "quiet", false, "suppress the non-secret capability injection notice on stderr")
 	return cmd
 }
 

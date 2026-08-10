@@ -7,15 +7,17 @@ IDENTITY_DOGFOOD := $(CURDIR)/scripts/identity-dogfood.sh
 VAULT_DOGFOOD := $(CURDIR)/scripts/vault-dogfood.sh
 ONEPASSWORD_DOGFOOD := $(CURDIR)/scripts/onepassword-dogfood.sh
 KEEPER_DOGFOOD := $(CURDIR)/scripts/keeper-dogfood.sh
+KSM_DOGFOOD := $(CURDIR)/scripts/ksm-dogfood.sh
 ONEPASSWORD_LIVE_DOGFOOD := $(CURDIR)/scripts/onepassword-live-dogfood.sh
 KEEPER_LIVE_DOGFOOD := $(CURDIR)/scripts/keeper-live-dogfood.sh
+KSM_LIVE_DOGFOOD := $(CURDIR)/scripts/ksm-live-dogfood.sh
 TELEPORT_INGRESS_DOGFOOD := $(CURDIR)/scripts/teleport-ingress-dogfood.sh
 INSTALL_ONEPASSWORD_CLI := $(CURDIR)/scripts/install-onepassword-cli.sh
 INSTALL_KEEPER_CLI := $(CURDIR)/scripts/install-keeper-cli.sh
 
 .PHONY: check-go test build build-linux validate plan capabilities exec-demo dogfood \
-	dogfood-identity dogfood-vault dogfood-onepassword dogfood-keeper \
-	dogfood-onepassword-live dogfood-keeper-live dogfood-github-live \
+	dogfood-identity dogfood-vault dogfood-onepassword dogfood-keeper dogfood-ksm \
+	dogfood-onepassword-live dogfood-keeper-live dogfood-ksm-live dogfood-github-live \
 	install-onepassword-cli install-keeper-cli \
 	dogfood-ingress-teleport dogfood-ingress-teleport-down \
 	dogfood-devpod dogfood-devpod-check dogfood-devpod-provider dogfood-devpod-up \
@@ -107,6 +109,11 @@ dogfood-keeper: check-go build
 	@chmod +x "$(KEEPER_DOGFOOD)" scripts/fake-keeper.sh
 	@PADE="$(CURDIR)/bin/pade" "$(KEEPER_DOGFOOD)"
 
+# Milestone 9: resolve via Keeper Secrets Manager Go SDK (PADE_KSM_FAKE=1 in CI).
+dogfood-ksm: check-go build
+	@chmod +x "$(KSM_DOGFOOD)" examples/demo-project/scripts/github-whoami
+	@PADE="$(CURDIR)/bin/pade" "$(KSM_DOGFOOD)"
+
 # Install Keeper Commander (`keeper`) for local live demos (Homebrew or .tools/keeper-venv).
 install-keeper-cli:
 	@chmod +x "$(INSTALL_KEEPER_CLI)"
@@ -129,6 +136,12 @@ dogfood-github-live: dogfood-onepassword-live
 dogfood-keeper-live: check-go build
 	@chmod +x "$(KEEPER_LIVE_DOGFOOD)" examples/demo-project/scripts/github-whoami
 	@PADE="$(CURDIR)/bin/pade" "$(KEEPER_LIVE_DOGFOOD)"
+
+# Local / Cursor Cloud only (not CI): real Keeper Secrets Manager + real GitHub API.
+# Requires ambient KSM_CONFIG and KSM_RECORD_UID (or KSM_NOTATION).
+dogfood-ksm-live: check-go build
+	@chmod +x "$(KSM_LIVE_DOGFOOD)" examples/demo-project/scripts/github-whoami
+	@PADE="$(CURDIR)/bin/pade" "$(KSM_LIVE_DOGFOOD)"
 
 # Milestone 8 spike: local Teleport Application Access in front of examples/ingress-demo.
 # Default host mode downloads Teleport into .tools/; set PADE_TELEPORT_MODE=compose for Docker.
@@ -182,8 +195,8 @@ dogfood-devpod-ci:
 # Fast path: mirrors the GitHub Actions "Unit tests" job.
 ci-unit: check-go fmt-check vet test build
 
-# Smoke path: mirrors the GitHub Actions "Smoke" job (env + Vault + 1Password + Keeper dogfood).
-ci-smoke: check-go build dogfood dogfood-identity dogfood-vault dogfood-onepassword dogfood-keeper
+# Smoke path: mirrors the GitHub Actions "Smoke" job (env + Vault + 1Password + Keeper + KSM dogfood).
+ci-smoke: check-go build dogfood dogfood-identity dogfood-vault dogfood-onepassword dogfood-keeper dogfood-ksm
 	./bin/pade validate -f spec/examples/web-app.yaml
 	./bin/pade plan -f spec/examples/web-app.yaml --json > /tmp/pade-plan.json
 	./bin/pade capabilities -f spec/examples/web-app.yaml --bindings spec/examples/bindings.example.yaml --json > /tmp/pade-capabilities.json

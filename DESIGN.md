@@ -1070,3 +1070,25 @@ Code review remains necessary, but it is not sufficient. Many important defects 
 The prototype should therefore treat executable review as a first-class workflow:
 
 Humans review the running system together. Code, screenshots, docs, and diffs are supporting evidence, not the whole review surface.
+
+## 38. Milestone 9: Keeper Secrets Manager and Cursor Cloud
+
+Milestone 9 proves capability resolution inside an existing cloud-agent runtime without Cursor product integration:
+
+- Portable `pade.yaml` still declares only capability names.
+- Local bindings may use `provider: keeper-secrets-manager` with Keeper Notation refs (handles only).
+- Ambient `KSM_CONFIG` (Cursor Runtime Secret or local export) bootstraps the official Keeper Secrets Manager Go SDK inside the adapter package `internal/binding/keepersm`.
+- The existing Commander provider (`keeper`) is unchanged.
+- `pade exec` skips Probe after Resolve (avoids double remote fetches), strips `KSM_CONFIG` from the child env for this provider, and best-effort redacts exact secret values on stdout/stderr.
+
+Cursor Cloud / iOS dogfood is documented in `docs/cursor-cloud-dogfood.md`. It is vendor-specific documentation; Cursor config does not belong in the portable schema.
+
+### Evolutionary path (not implemented): Cursor OIDC broker
+
+Cursor Cloud Agents can mint short-lived OIDC JWTs from a local identity socket. A later architecture can keep KSM credentials entirely outside the VM:
+
+```
+Cloud Agent → mint Cursor OIDC JWT → PADE capability broker → verify identity/policy → Keeper SM → scoped material → workload
+```
+
+That path should use a new binding provider / remote broker adapter. Portable manifests remain capability-only; Cursor OIDC stays a runtime identity mechanism.
