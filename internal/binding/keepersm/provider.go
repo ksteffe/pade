@@ -32,6 +32,9 @@ func New() *Provider {
 
 func (p *Provider) Name() string { return providerName }
 
+// ChildEnvOmit keeps ambient KSM bootstrap out of the child process.
+func (p *Provider) ChildEnvOmit() []string { return []string{"KSM_CONFIG"} }
+
 func (p *Provider) defaultClient() (NotationClient, error) {
 	if fakeEnabled() {
 		return fakeClient{}, nil

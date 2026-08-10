@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/ksteffe/pade/internal/binding"
+	brokerprovider "github.com/ksteffe/pade/internal/binding/broker"
 	envprovider "github.com/ksteffe/pade/internal/binding/env"
 	keeperprovider "github.com/ksteffe/pade/internal/binding/keeper"
 	keepersmprovider "github.com/ksteffe/pade/internal/binding/keepersm"
@@ -43,6 +44,7 @@ func main() {
 	root.AddCommand(newPlanCmd(&file, &bindings, &jsonOut))
 	root.AddCommand(newCapabilitiesCmd(&file, &bindings, &jsonOut))
 	root.AddCommand(newExecCmd(&file, &bindings))
+	root.AddCommand(newIdentityCmd(&jsonOut))
 
 	if err := root.Execute(); err != nil {
 		var ee *execution.ExitError
@@ -243,5 +245,6 @@ func defaultRegistry() *binding.Registry {
 		onepasswordprovider.New(),
 		keeperprovider.New(),
 		keepersmprovider.New(),
+		brokerprovider.New(),
 	)
 }

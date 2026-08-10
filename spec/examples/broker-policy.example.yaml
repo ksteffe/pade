@@ -1,0 +1,16 @@
+# Example pade-broker policy (server-owned — not portable pade.yaml).
+# Authorize Cursor workload identity independently of repo capability declarations.
+version: "0.1"
+
+oidc:
+  issuer: https://api.cursor.com
+  audience: https://pade-broker.example
+  # jwksURL defaults to https://api.cursor.com/keys when omitted
+
+policies:
+  - subject: "user:YOUR_CURSOR_USER_ID"
+    requireRepoURLs: true
+    repositories:
+      - github.com/ksteffe/pade
+    capabilities:
+      - github.user.read

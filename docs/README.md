@@ -12,6 +12,7 @@
 | [keeper-dogfood.md](keeper-dogfood.md) | Keeper Commander provider / Milestone 7 dogfood |
 | [keeper-secrets-manager-dogfood.md](keeper-secrets-manager-dogfood.md) | Keeper Secrets Manager / Milestone 9 dogfood |
 | [cursor-cloud-dogfood.md](cursor-cloud-dogfood.md) | Cursor Cloud Agent + KSM composition (vendor-specific) |
+| [cursor-oidc-broker-dogfood.md](cursor-oidc-broker-dogfood.md) | Phase 2 Cursor OIDC broker spike |
 | [teleport-ingress.md](teleport-ingress.md) | Teleport Application Access / Milestone 8 ingress spike |
 
 The README is the source of truth for the **current** v0.1 direction (DevPod-first). Longer docs retain revision history in place.

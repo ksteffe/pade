@@ -689,3 +689,7 @@ A phone-driven Cursor Cloud Agent can use the same portable capability declarati
 This does not require Cursor-specific fields in `pade.yaml`. Cursor Runtime Secrets, environment install, and network allowlists remain Cursor’s concerns. PADE must not claim to sandbox a VM that already possesses the bootstrap credential.
 
 A later evolution can replace the long-lived KSM bootstrap in the VM with Cursor workload OIDC verified by an external capability broker that holds Keeper credentials. Portable capability intent stays the same; only the binding/provider changes.
+
+## 35. Phase 2 spike note
+
+A prototype `pade-broker` now demonstrates that server-side policy (subject + complete `repo_urls` + capability allowlist) can gate resolution while Keeper bootstrap remains off the agent VM. This is a learning spike: short-lived token + audience binding without JTI replay storage; localhost HTTP for tests only; TLS required off-loopback. See `docs/cursor-oidc-broker-dogfood.md` and `SECURITY.md`.

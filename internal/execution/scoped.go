@@ -64,8 +64,8 @@ func (r *Runner) Run(ctx context.Context, cfg *binding.Config, capabilityNames [
 		base = os.Environ()
 	}
 	childEnv := binding.MergeEnv(base, results)
-	if usesKeeperSecretsManager(results) {
-		childEnv = stripEnvKeys(childEnv, "KSM_CONFIG")
+	if omit := childEnvOmitKeys(r.Registry, results); len(omit) > 0 {
+		childEnv = stripEnvKeys(childEnv, omit...)
 	}
 
 	stdout := opts.Stdout
@@ -151,13 +151,30 @@ func collectSecretsFromResults(results []binding.ResolveResult) []string {
 	return collectSecrets(maps...)
 }
 
-func usesKeeperSecretsManager(results []binding.ResolveResult) bool {
+func childEnvOmitKeys(reg *binding.Registry, results []binding.ResolveResult) []string {
+	seen := map[string]struct{}{}
+	var out []string
 	for _, r := range results {
-		if r.Provider == "keeper-secrets-manager" {
-			return true
+		p, ok := reg.Get(r.Provider)
+		if !ok {
+			continue
+		}
+		omitter, ok := p.(binding.ChildEnvOmitter)
+		if !ok {
+			continue
+		}
+		for _, k := range omitter.ChildEnvOmit() {
+			if k == "" {
+				continue
+			}
+			if _, dup := seen[k]; dup {
+				continue
+			}
+			seen[k] = struct{}{}
+			out = append(out, k)
 		}
 	}
-	return false
+	return out
 }
 
 func stripEnvKeys(env []string, keys ...string) []string {

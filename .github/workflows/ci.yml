@@ -45,7 +45,9 @@ jobs:
         run: go test ./...
 
       - name: Build
-        run: go build -o bin/pade ./cmd/pade
+        run: |
+          go build -o bin/pade ./cmd/pade
+          go build -o bin/pade-broker ./cmd/pade-broker
 
   smoke:
     name: Smoke
@@ -62,7 +64,9 @@ jobs:
           cache: true
 
       - name: Build
-        run: go build -o bin/pade ./cmd/pade
+        run: |
+          go build -o bin/pade ./cmd/pade
+          go build -o bin/pade-broker ./cmd/pade-broker
 
       - name: Validate examples and env dogfood
         run: |
@@ -117,3 +121,8 @@ jobs:
         run: |
           chmod +x scripts/ksm-dogfood.sh examples/demo-project/scripts/github-whoami
           PADE="$(pwd)/bin/pade" ./scripts/ksm-dogfood.sh
+
+      - name: Broker OIDC dogfood
+        run: |
+          chmod +x scripts/broker-dogfood.sh
+          PADE="$(pwd)/bin/pade" ./scripts/broker-dogfood.sh

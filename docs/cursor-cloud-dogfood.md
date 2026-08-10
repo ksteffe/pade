@@ -84,6 +84,6 @@ Local equivalent: `make dogfood-ksm-live` with `KSM_CONFIG` + `KSM_RECORD_UID` s
 - Cursor Runtime Secret redaction does not hide values from users with Terminal access to the VM.
 - Do not bake `KSM_CONFIG` or resolved tokens into environment snapshots; use the Secrets tab.
 
-## Phase 2 (not implemented)
+## Phase 2 (spike implemented; live dogfood manual)
 
-Cursor Cloud Agents can mint short-lived OIDC JWTs from a local identity socket (`CURSOR_AGENT_SOCKET`). A future broker outside the VM could verify Cursor identity (`repo_urls`, `team_id`, …) and hold KSM credentials so the VM never stores `KSM_CONFIG`. Portable `pade.yaml` would stay capability-only; Cursor OIDC would remain a runtime adapter. See DESIGN.md / RFC.md notes.
+Cursor Cloud Agents can mint short-lived OIDC JWTs from a local identity socket (`CURSOR_AGENT_SOCKET`). A `pade-broker` spike can verify Cursor identity and keep Keeper credentials entirely outside the VM. Portable `pade.yaml` stays capability-only; Cursor OIDC remains a runtime identity mechanism. See [cursor-oidc-broker-dogfood.md](cursor-oidc-broker-dogfood.md).

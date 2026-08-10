@@ -1092,3 +1092,15 @@ Cloud Agent → mint Cursor OIDC JWT → PADE capability broker → verify ident
 ```
 
 That path should use a new binding provider / remote broker adapter. Portable manifests remain capability-only; Cursor OIDC stays a runtime identity mechanism.
+
+## 39. Phase 2 spike status (implemented as spike)
+
+A minimal `pade-broker` and `provider: broker` binding now exist as a **spike**, not a production service:
+
+- `pade identity` mints Cursor OIDC tokens and prints safe claims only.
+- `pade-broker` verifies JWTs against JWKS, applies server-owned subject/`repo_urls`/capability policy, and materializes via existing providers (including `keeper-secrets-manager`).
+- Agent bindings may point at the broker; `KSM_CONFIG` stays on the broker host in this mode.
+- Fake OIDC + fake KSM dogfood: `make dogfood-broker`.
+- Direct Milestone 9 KSM mode remains supported and unchanged in intent.
+
+Still deferred: multi-tenant hosting, DB policy, JTI replay store, release automation, and replacing direct KSM mode.

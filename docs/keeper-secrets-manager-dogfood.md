@@ -63,10 +63,10 @@ Overrides: `KSM_CONFIG`, `KSM_RECORD_UID`, `KSM_NOTATION`, `PADE_KSM_BINDINGS`.
 On `pade exec` with this provider:
 
 - Resolved material is injected only into the child process.
-- Ambient `KSM_CONFIG` is **stripped** from the child environment (capability material only).
-- Exact resolved secret values are best-effort redacted from child stdout/stderr.
+- Ambient `KSM_CONFIG` is **stripped** from the child environment (capability material only). This is provider-declared via `ChildEnvOmit`, not a sandbox around the VM.
+- Exact resolved secret values are best-effort redacted from child stdout/stderr (`[REDACTED]`). Encoded or transformed forms are not recognized.
 
-Redaction and stripping are **defense in depth**, not a sandbox. Any process in the VM that can read `KSM_CONFIG` can still call Keeper directly, bypassing PADE.
+Redaction and stripping are **defense in depth**, not a sandbox. Any process in the VM that can read `KSM_CONFIG` can still call Keeper directly, bypassing PADE. A child that possesses a credential can intentionally exfiltrate it.
 
 ## Trust model
 

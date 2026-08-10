@@ -1,0 +1,10 @@
+# Example server-side bindings for pade-broker (broker host only).
+# KSM_CONFIG must be ambient on the broker host — never in the agent VM for this mode.
+version: "0.1"
+
+capabilities:
+  github.user.read:
+    provider: keeper-secrets-manager
+    keeperSecretsManager:
+      refs:
+        GITHUB_TOKEN: "keeper://YOUR_RECORD_UID/field/password"
