@@ -32,6 +32,8 @@ make ci          # local mirror of GitHub Actions checks
 
 CI runs on pushes to `main` and on pull requests via [`.github/workflows/ci.yml`](.github/workflows/ci.yml) (`gofmt`, `go vet`, tests, build, example validate/plan).
 
+Dependabot keeps Go modules and GitHub Actions on a weekly cadence via [`.github/dependabot.yml`](.github/dependabot.yml).
+
 ## Current direction (v0.1)
 
 **DevPod-first, capability-focused.**
