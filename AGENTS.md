@@ -78,6 +78,7 @@ make dogfood   # examples/demo-project PADE smoke (no DevPod required)
 make dogfood-identity   # Milestone 5 Alice/Bob identity separation smoke
 make dogfood-vault   # Vault -dev capability resolution (+ Alice/Bob KV paths)
 make dogfood-onepassword   # Milestone 6 1Password CLI adapter (fake-op shim)
+make install-onepassword-cli  # install real `op` for live demos
 make dogfood-github-live   # local real 1Password + GitHub API (not CI)
 ```
 

@@ -25,13 +25,16 @@ This path only succeeds when:
 ### One-time setup
 
 ```bash
+# 0. Install the 1Password CLI if needed (Homebrew, else downloads into .tools/op/)
+make install-onepassword-cli
+
 # 1. Create a classic PAT: https://github.com/settings/tokens  (scope: read:user)
 # 2. Sign in
 op signin
 
 # 3. Store the PAT (replace YOUR_GITHUB_PAT)
 op vault create pade-demo   # once, if needed
-op item create --category=API_Credential --title=pade-github --vault=pade-demo \
+op item create --category='API Credential' --title=pade-github --vault=pade-demo \
   'credential[concealed]=YOUR_GITHUB_PAT'
 ```
 

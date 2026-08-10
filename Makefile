@@ -7,9 +7,11 @@ IDENTITY_DOGFOOD := $(CURDIR)/scripts/identity-dogfood.sh
 VAULT_DOGFOOD := $(CURDIR)/scripts/vault-dogfood.sh
 ONEPASSWORD_DOGFOOD := $(CURDIR)/scripts/onepassword-dogfood.sh
 GITHUB_LIVE_DOGFOOD := $(CURDIR)/scripts/github-live-dogfood.sh
+INSTALL_ONEPASSWORD_CLI := $(CURDIR)/scripts/install-onepassword-cli.sh
 
 .PHONY: check-go test build build-linux validate plan capabilities exec-demo dogfood \
 	dogfood-identity dogfood-vault dogfood-onepassword dogfood-github-live \
+	install-onepassword-cli \
 	dogfood-devpod dogfood-devpod-check dogfood-devpod-provider dogfood-devpod-up \
 	dogfood-devpod-install dogfood-devpod-smoke dogfood-devpod-down dogfood-devpod-delete \
 	dogfood-devpod-ci \
@@ -93,6 +95,11 @@ dogfood-vault: check-go build
 dogfood-onepassword: check-go build
 	@chmod +x "$(ONEPASSWORD_DOGFOOD)" scripts/fake-op.sh
 	@PADE="$(CURDIR)/bin/pade" "$(ONEPASSWORD_DOGFOOD)"
+
+# Install real 1Password CLI (`op`) for local live demos (Homebrew, else .tools/op).
+install-onepassword-cli:
+	@chmod +x "$(INSTALL_ONEPASSWORD_CLI)"
+	@"$(INSTALL_ONEPASSWORD_CLI)"
 
 # Local-only (not CI): real 1Password + real GitHub API. Requires op signin and a PAT in 1Password.
 dogfood-github-live: check-go build
