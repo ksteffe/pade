@@ -38,4 +38,5 @@ Vault simulation (local `-dev` only): `make dogfood-vault` seeds Alice/Bob KV pa
 - Real IdP / OAuth / workload identity exchange
 - Organization-wide binding distribution
 - Changing the v0.1 schema for an `identity` field (ambient + bindings are enough for the proof)
-- Second credential-manager *product* (that is Milestone 6)
+
+Milestone 6 adds a second credential-manager product (1Password); see [onepassword-dogfood.md](onepassword-dogfood.md).

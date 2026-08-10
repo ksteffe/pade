@@ -103,3 +103,8 @@ jobs:
         run: |
           chmod +x scripts/vault-dogfood.sh
           PADE="$(pwd)/bin/pade" ./scripts/vault-dogfood.sh
+
+      - name: 1Password dogfood
+        run: |
+          chmod +x scripts/onepassword-dogfood.sh scripts/fake-op.sh
+          PADE="$(pwd)/bin/pade" ./scripts/onepassword-dogfood.sh

@@ -25,9 +25,10 @@ type Config struct {
 
 // CapabilityBinding maps a portable capability name to a credential provider.
 type CapabilityBinding struct {
-	Provider string        `yaml:"provider" json:"provider"`
-	Env      []string      `yaml:"env,omitempty" json:"env,omitempty"`
-	Vault    *VaultBinding `yaml:"vault,omitempty" json:"vault,omitempty"`
+	Provider    string              `yaml:"provider" json:"provider"`
+	Env         []string            `yaml:"env,omitempty" json:"env,omitempty"`
+	Vault       *VaultBinding       `yaml:"vault,omitempty" json:"vault,omitempty"`
+	OnePassword *OnePasswordBinding `yaml:"onepassword,omitempty" json:"onepassword,omitempty"`
 }
 
 // VaultBinding configures a Vault KV lookup. Field values are Vault secret keys
@@ -35,6 +36,12 @@ type CapabilityBinding struct {
 type VaultBinding struct {
 	Path   string            `yaml:"path" json:"path"`
 	Fields map[string]string `yaml:"fields" json:"fields"` // vaultField -> ENV_NAME
+}
+
+// OnePasswordBinding maps process env names to op:// secret references.
+// Reference strings are handles only — never secret values.
+type OnePasswordBinding struct {
+	Refs map[string]string `yaml:"refs" json:"refs"` // ENV_NAME -> op://vault/item/field
 }
 
 // Load reads a bindings file from path.
@@ -103,6 +110,24 @@ func (c *Config) Validate() error {
 				}
 				if strings.Contains(envName, "=") {
 					return fmt.Errorf("binding %q: vault field env name %q looks like an assignment", name, envName)
+				}
+			}
+		case "onepassword":
+			if b.OnePassword == nil {
+				return fmt.Errorf("binding %q: onepassword provider requires onepassword config", name)
+			}
+			if len(b.OnePassword.Refs) == 0 {
+				return fmt.Errorf("binding %q: onepassword.refs is required", name)
+			}
+			for envName, ref := range b.OnePassword.Refs {
+				if strings.TrimSpace(envName) == "" || strings.TrimSpace(ref) == "" {
+					return fmt.Errorf("binding %q: onepassword.refs entries must be non-empty", name)
+				}
+				if strings.Contains(envName, "=") {
+					return fmt.Errorf("binding %q: onepassword env name %q looks like an assignment", name, envName)
+				}
+				if !strings.HasPrefix(ref, "op://") {
+					return fmt.Errorf("binding %q: onepassword ref %q must start with op://", name, ref)
 				}
 			}
 		default:
