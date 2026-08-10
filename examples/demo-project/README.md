@@ -33,7 +33,10 @@ make dogfood
 make dogfood-identity   # Milestone 5: Alice vs Bob env bindings
 make dogfood-vault      # Vault -dev shared + Alice/Bob KV paths
 make dogfood-onepassword # Milestone 6: 1Password refs (fake-op shim)
+make dogfood-onepassword-live # local: real 1Password CLI (`op signin`)
 ```
+
+See [docs/onepassword-dogfood.md](../../docs/onepassword-dogfood.md) for the live setup.
 
 Full DevPod proof (Docker running + `devpod` on PATH):
 

@@ -78,6 +78,7 @@ make dogfood   # examples/demo-project PADE smoke (no DevPod required)
 make dogfood-identity   # Milestone 5 Alice/Bob identity separation smoke
 make dogfood-vault   # Vault -dev capability resolution (+ Alice/Bob KV paths)
 make dogfood-onepassword   # Milestone 6 1Password CLI adapter (fake-op shim)
+make dogfood-onepassword-live   # local real `op` demo (requires op signin)
 ```
 
 DevPod lifecycle is documented in [docs/devpod-dogfood.md](docs/devpod-dogfood.md) and [examples/demo-project/README.md](examples/demo-project/README.md). Do not add a PADE wrapper that reimplements `devpod up`. Full DevPod proof runs locally via `make dogfood-devpod` and in CI via [`.github/workflows/devpod-dogfood.yml`](.github/workflows/devpod-dogfood.yml) (separate from the fast main CI).
