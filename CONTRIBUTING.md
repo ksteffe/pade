@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for interest in PADE. The project is early (Milestone 0: specification and scaffolding).
+Thanks for interest in PADE. The project is early (Milestone 5: identity separation; see [docs/identity-separation.md](docs/identity-separation.md)).
 
 ## Before you change code or schema
 

@@ -3,7 +3,10 @@
 GO ?= $(shell if [ -x "$(CURDIR)/.tools/go/bin/go" ]; then echo "$(CURDIR)/.tools/go/bin/go"; else command -v go; fi)
 DEVPOD_DOGFOOD := $(CURDIR)/scripts/devpod-dogfood.sh
 
+IDENTITY_DOGFOOD := $(CURDIR)/scripts/identity-dogfood.sh
+
 .PHONY: check-go test build build-linux validate plan capabilities exec-demo dogfood \
+	dogfood-identity \
 	dogfood-devpod dogfood-devpod-check dogfood-devpod-provider dogfood-devpod-up \
 	dogfood-devpod-install dogfood-devpod-smoke dogfood-devpod-down dogfood-devpod-delete \
 	dogfood-devpod-ci \
@@ -74,6 +77,11 @@ dogfood: check-go build
 	  --capability google-analytics.read \
 	  -- ./scripts/ga-summary
 
+# Milestone 5: same pade.yaml, two simulated identities, distinct resolved material.
+dogfood-identity: check-go build
+	@chmod +x "$(IDENTITY_DOGFOOD)"
+	@PADE="$(CURDIR)/bin/pade" "$(IDENTITY_DOGFOOD)"
+
 # --- DevPod dogfood (requires docker + devpod; separate DevPod GHA workflow) ---
 dogfood-devpod-check:
 	@chmod +x "$(DEVPOD_DOGFOOD)"
@@ -114,7 +122,7 @@ dogfood-devpod-ci:
 	@$(DEVPOD_DOGFOOD) ci
 
 # Local mirror of .github/workflows/ci.yml
-ci: check-go fmt-check vet test build dogfood
+ci: check-go fmt-check vet test build dogfood dogfood-identity
 	./bin/pade validate -f spec/examples/web-app.yaml
 	./bin/pade plan -f spec/examples/web-app.yaml --json > /tmp/pade-plan.json
 	./bin/pade capabilities -f spec/examples/web-app.yaml --bindings spec/examples/bindings.example.yaml --json > /tmp/pade-capabilities.json

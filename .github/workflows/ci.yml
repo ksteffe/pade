@@ -72,6 +72,10 @@ jobs:
             --capability google-analytics.read \
             -- ./scripts/ga-summary
 
+          # Milestone 5: same pade.yaml, Alice/Bob bindings, distinct material.
+          chmod +x scripts/identity-dogfood.sh
+          PADE="$(pwd)/bin/pade" ./scripts/identity-dogfood.sh
+
           mkdir -p /tmp/pade-orch/.devcontainer
           printf '{}\n' > /tmp/pade-orch/.devcontainer/devcontainer.json
           cp spec/examples/web-app-orchestrated.yaml /tmp/pade-orch/pade.yaml
