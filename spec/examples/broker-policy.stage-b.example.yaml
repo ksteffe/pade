@@ -1,0 +1,22 @@
+# Example Stage B broker policy for a Cursor Cloud Agent local proof.
+# Server-owned — not portable pade.yaml.
+#
+# Stage A on managed Cloud Agents observed `repo_url` without `repo_urls`.
+# Missing `repo_urls` means the complete repository set is unknown — not
+# single-repo. Do not set requireRepoURLs: true until Cursor attests the
+# complete set, and do not authorize from `repo_url` alone.
+#
+# Replace the subject with your attested Cursor workload subject
+# (`pade identity --audience https://pade-broker.local`).
+version: "0.1"
+
+oidc:
+  issuer: https://api.cursor.com
+  audience: https://pade-broker.local
+  # jwksURL defaults to https://api.cursor.com/keys when omitted
+
+policies:
+  - subject: "user:YOUR_CURSOR_USER_ID"
+    requireRepoURLs: false
+    capabilities:
+      - github.user.read

@@ -8,6 +8,7 @@ VAULT_DOGFOOD := $(CURDIR)/scripts/vault-dogfood.sh
 ONEPASSWORD_DOGFOOD := $(CURDIR)/scripts/onepassword-dogfood.sh
 KEEPER_DOGFOOD := $(CURDIR)/scripts/keeper-dogfood.sh
 BROKER_DOGFOOD := $(CURDIR)/scripts/broker-dogfood.sh
+BROKER_STAGE_B_DOGFOOD := $(CURDIR)/scripts/broker-stage-b-dogfood.sh
 KSM_DOGFOOD := $(CURDIR)/scripts/ksm-dogfood.sh
 ONEPASSWORD_LIVE_DOGFOOD := $(CURDIR)/scripts/onepassword-live-dogfood.sh
 KEEPER_LIVE_DOGFOOD := $(CURDIR)/scripts/keeper-live-dogfood.sh
@@ -18,6 +19,7 @@ INSTALL_KEEPER_CLI := $(CURDIR)/scripts/install-keeper-cli.sh
 
 .PHONY: check-go test build build-linux validate plan capabilities exec-demo dogfood \
 	dogfood-identity dogfood-vault dogfood-onepassword dogfood-keeper dogfood-ksm dogfood-broker \
+	dogfood-broker-stage-b \
 	dogfood-onepassword-live dogfood-keeper-live dogfood-ksm-live dogfood-github-live \
 	install-onepassword-cli install-keeper-cli \
 	dogfood-ingress-teleport dogfood-ingress-teleport-down \
@@ -120,6 +122,12 @@ dogfood-ksm: check-go build
 dogfood-broker: check-go build
 	@chmod +x "$(BROKER_DOGFOOD)"
 	@PADE="$(CURDIR)/bin/pade" "$(BROKER_DOGFOOD)"
+
+# Stage B (Cursor Cloud Agent only, not CI): real Cursor OIDC + local pade-broker + fake KSM.
+# Requires identity socket. Optional: PADE_STAGE_B_SUBJECT=user:<id> to pin allowlist.
+dogfood-broker-stage-b: check-go build
+	@chmod +x "$(BROKER_STAGE_B_DOGFOOD)"
+	@PADE="$(CURDIR)/bin/pade" BROKER="$(CURDIR)/bin/pade-broker" "$(BROKER_STAGE_B_DOGFOOD)"
 
 # Install Keeper Commander (`keeper`) for local live demos (Homebrew or .tools/keeper-venv).
 install-keeper-cli:

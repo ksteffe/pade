@@ -86,4 +86,4 @@ Local equivalent: `make dogfood-ksm-live` with `KSM_CONFIG` + `KSM_RECORD_UID` s
 
 ## Phase 2 (spike implemented; live dogfood manual)
 
-Cursor Cloud Agents can mint short-lived OIDC JWTs from a local identity socket (`CURSOR_AGENT_SOCKET`). A `pade-broker` spike can verify Cursor identity and keep Keeper credentials entirely outside the VM. Portable `pade.yaml` stays capability-only; Cursor OIDC remains a runtime identity mechanism. See [cursor-oidc-broker-dogfood.md](cursor-oidc-broker-dogfood.md).
+Cursor Cloud Agents can mint short-lived OIDC JWTs from a local identity socket (`CURSOR_AGENT_SOCKET`). A `pade-broker` spike can verify Cursor identity and keep Keeper credentials entirely outside the VM. Portable `pade.yaml` stays capability-only; Cursor OIDC remains a runtime identity mechanism. Stage B local proof: `make dogfood-broker-stage-b`. See [cursor-oidc-broker-dogfood.md](cursor-oidc-broker-dogfood.md).
