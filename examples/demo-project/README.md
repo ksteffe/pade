@@ -14,7 +14,8 @@ Minimal repository used to dogfood the DevPod-first PADE flow:
 | `.devcontainer/devcontainer.json` | Environment definition for DevPod / Dev Containers |
 | `bindings.example.yaml` | Example *local* env bindings (copy; do not commit secrets) |
 | `bindings.vault.example.yaml` | Example Vault `-dev` bindings (prototype only) |
-| `identities/` | Milestone 5 Alice/Bob env + Vault binding fixtures |
+| `bindings.onepassword.example.yaml` | Example 1Password bindings (Milestone 6) |
+| `identities/` | Alice/Bob env, Vault, and 1Password binding fixtures |
 | `scripts/ga-summary` | Demo command that requires `google-analytics.read` |
 
 ## Prerequisites
@@ -31,6 +32,7 @@ PADE-only smoke (no DevPod):
 make dogfood
 make dogfood-identity   # Milestone 5: Alice vs Bob env bindings
 make dogfood-vault      # Vault -dev shared + Alice/Bob KV paths
+make dogfood-onepassword # Milestone 6: 1Password refs (fake-op shim)
 ```
 
 Full DevPod proof (Docker running + `devpod` on PATH):

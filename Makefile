@@ -5,9 +5,10 @@ DEVPOD_DOGFOOD := $(CURDIR)/scripts/devpod-dogfood.sh
 
 IDENTITY_DOGFOOD := $(CURDIR)/scripts/identity-dogfood.sh
 VAULT_DOGFOOD := $(CURDIR)/scripts/vault-dogfood.sh
+ONEPASSWORD_DOGFOOD := $(CURDIR)/scripts/onepassword-dogfood.sh
 
 .PHONY: check-go test build build-linux validate plan capabilities exec-demo dogfood \
-	dogfood-identity dogfood-vault \
+	dogfood-identity dogfood-vault dogfood-onepassword \
 	dogfood-devpod dogfood-devpod-check dogfood-devpod-provider dogfood-devpod-up \
 	dogfood-devpod-install dogfood-devpod-smoke dogfood-devpod-down dogfood-devpod-delete \
 	dogfood-devpod-ci \
@@ -88,6 +89,11 @@ dogfood-vault: check-go build
 	@chmod +x "$(VAULT_DOGFOOD)"
 	@PADE="$(CURDIR)/bin/pade" "$(VAULT_DOGFOOD)"
 
+# Milestone 6: resolve via 1Password CLI adapter (uses scripts/fake-op.sh by default).
+dogfood-onepassword: check-go build
+	@chmod +x "$(ONEPASSWORD_DOGFOOD)" scripts/fake-op.sh
+	@PADE="$(CURDIR)/bin/pade" "$(ONEPASSWORD_DOGFOOD)"
+
 # --- DevPod dogfood (requires docker + devpod; separate DevPod GHA workflow) ---
 dogfood-devpod-check:
 	@chmod +x "$(DEVPOD_DOGFOOD)"
@@ -130,8 +136,8 @@ dogfood-devpod-ci:
 # Fast path: mirrors the GitHub Actions "Unit tests" job.
 ci-unit: check-go fmt-check vet test build
 
-# Smoke path: mirrors the GitHub Actions "Smoke" job (env + Vault dogfood).
-ci-smoke: check-go build dogfood dogfood-identity dogfood-vault
+# Smoke path: mirrors the GitHub Actions "Smoke" job (env + Vault + 1Password dogfood).
+ci-smoke: check-go build dogfood dogfood-identity dogfood-vault dogfood-onepassword
 	./bin/pade validate -f spec/examples/web-app.yaml
 	./bin/pade plan -f spec/examples/web-app.yaml --json > /tmp/pade-plan.json
 	./bin/pade capabilities -f spec/examples/web-app.yaml --bindings spec/examples/bindings.example.yaml --json > /tmp/pade-capabilities.json

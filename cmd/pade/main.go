@@ -9,6 +9,7 @@ import (
 
 	"github.com/ksteffe/pade/internal/binding"
 	envprovider "github.com/ksteffe/pade/internal/binding/env"
+	onepasswordprovider "github.com/ksteffe/pade/internal/binding/onepassword"
 	vaultprovider "github.com/ksteffe/pade/internal/binding/vault"
 	"github.com/ksteffe/pade/internal/execution"
 	"github.com/ksteffe/pade/internal/manifest"
@@ -229,5 +230,5 @@ func resolveBindings(ctx context.Context, m *manifest.Manifest, bindingsPath str
 }
 
 func defaultRegistry() *binding.Registry {
-	return binding.NewRegistry(envprovider.New(), vaultprovider.New())
+	return binding.NewRegistry(envprovider.New(), vaultprovider.New(), onepasswordprovider.New())
 }

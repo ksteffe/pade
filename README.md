@@ -4,7 +4,7 @@
 
 PADE is an exploratory specification and Go reference CLI for declaring **portable agent workspace capabilities** beside existing development-environment standards (Dev Containers, DevPod), without embedding credentials or coupling to a single AI vendor.
 
-This repository is at **Milestone 5**: identity separation — same repo/`pade.yaml`, distinct per-developer credential resolution. Milestone 4 DevPod dogfood remains in [examples/demo-project](examples/demo-project).
+This repository is at **Milestone 6**: second credential provider (1Password CLI adapter) beside env and Vault. Earlier milestones remain dogfoodable via `make dogfood*` targets.
 
 ## Quick start
 
@@ -36,13 +36,14 @@ make ci          # local mirror of GitHub Actions checks
 make dogfood     # PADE smoke against examples/demo-project
 make dogfood-identity  # Milestone 5: Alice/Bob bindings against the same pade.yaml
 make dogfood-vault     # Vault -dev resolution (+ Alice/Bob KV paths; prototype only)
+make dogfood-onepassword  # Milestone 6: 1Password CLI adapter (fake-op shim in CI)
 make dogfood-devpod  # optional: full DevPod proof (needs docker + devpod)
 ```
 
 CI runs on pushes to `main` and on pull requests via [`.github/workflows/ci.yml`](.github/workflows/ci.yml):
 
 - **Unit tests** — `gofmt`, `go vet`, `go test`, build (fast feedback)
-- **Smoke** — example validate/plan/exec, identity dogfood, Vault `-dev` dogfood (needs the unit job)
+- **Smoke** — example validate/plan/exec, identity dogfood, Vault `-dev` dogfood, 1Password dogfood (needs the unit job)
 
 A separate [DevPod dogfood](.github/workflows/devpod-dogfood.yml) workflow boots a real DevPod workspace and runs PADE inside it (path-filtered / manual `workflow_dispatch`).
 
@@ -85,12 +86,13 @@ Earlier sections of [DESIGN.md](DESIGN.md) and [docs/go-reference.md](docs/go-re
 | [docs/devpod-dogfood.md](docs/devpod-dogfood.md) | DevPod composition rules for Milestone 4 |
 | [docs/identity-separation.md](docs/identity-separation.md) | Milestone 5 identity-separation dogfood |
 | [docs/vault-dogfood.md](docs/vault-dogfood.md) | Vault `-dev` capability resolution dogfood |
+| [docs/onepassword-dogfood.md](docs/onepassword-dogfood.md) | Milestone 6 1Password provider dogfood |
 | [spec/pade.schema.json](spec/pade.schema.json) | Normative JSON Schema for `pade.yaml` (v0.1 stub) |
 | [spec/examples/](spec/examples/) | Example manifests |
 | [examples/demo-project](examples/demo-project) | DevPod-first dogfood project (+ `identities/`) |
 | [cmd/pade](cmd/pade) | CLI entrypoint (`validate`, `plan`, `capabilities`, `exec`) |
 | [internal/manifest](internal/manifest) | Load + schema/semantic validation |
-| [internal/binding](internal/binding) | Local bindings config + env/vault providers |
+| [internal/binding](internal/binding) | Local bindings config + env/vault/onepassword providers |
 | [internal/execution](internal/execution) | Process-scoped capability injection |
 | [internal/planner](internal/planner) | Side-effect-free plan model |
 | [internal/output](internal/output) | Human and JSON rendering |
@@ -119,7 +121,7 @@ Environment construction stays in `.devcontainer/devcontainer.json` and is start
 - `~/.config/pade/bindings.yaml`
 - `PADE_BINDINGS` or `--bindings`
 
-See [spec/examples/bindings.example.yaml](spec/examples/bindings.example.yaml). Plan/capabilities may show paths and env **names**, never secret values. Vault `-dev` is prototype-only.
+See [spec/examples/bindings.example.yaml](spec/examples/bindings.example.yaml). Plan/capabilities may show paths and env **names**, never secret values. Vault `-dev` and the 1Password dogfood shim are prototype-only.
 
 ## CLI (capability-focused v0.1)
 
@@ -152,8 +154,9 @@ Workspace lifecycle: prefer `devpod up` / `devpod stop` directly. See [examples/
 | **3** | Scoped `pade exec --capability` |
 | **4** | DevPod dogfood (`examples/demo-project`) |
 | **5** | Identity separation (same repo, distinct credentials) |
-| **5b** (current) | Vault `-dev` validation of bindings / identity paths |
-| **6+** | More credential providers, review ingress |
+| **5b** | Vault `-dev` validation of bindings / identity paths |
+| **6** (current) | Second credential provider (1Password CLI adapter) |
+| **7+** | Review ingress / external validation / re-evaluate PADE |
 | Later | External validation / re-evaluate standalone PADE |
 
 Details: [DESIGN.md](DESIGN.md) (including DevPod-first revisions) and [docs/go-reference.md](docs/go-reference.md).

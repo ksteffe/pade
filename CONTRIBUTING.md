@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for interest in PADE. The project is early (Milestone 5: identity separation; see [docs/identity-separation.md](docs/identity-separation.md)).
+Thanks for interest in PADE. The project is early (Milestone 6: second credential provider; see [docs/onepassword-dogfood.md](docs/onepassword-dogfood.md)).
 
 ## Before you change code or schema
 
