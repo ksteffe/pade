@@ -9,5 +9,6 @@
 | [identity-separation.md](identity-separation.md) | Identity separation / Milestone 5 dogfood |
 | [vault-dogfood.md](vault-dogfood.md) | Vault `-dev` capability resolution dogfood |
 | [onepassword-dogfood.md](onepassword-dogfood.md) | 1Password provider / Milestone 6 dogfood |
+| [keeper-dogfood.md](keeper-dogfood.md) | Keeper Commander provider / Milestone 7 dogfood |
 
 The README is the source of truth for the **current** v0.1 direction (DevPod-first). Longer docs retain revision history in place.

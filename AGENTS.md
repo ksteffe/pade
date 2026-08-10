@@ -80,6 +80,7 @@ make dogfood-vault   # Vault -dev capability resolution (+ Alice/Bob KV paths)
 make dogfood-onepassword   # Milestone 6 1Password CLI adapter (fake-op shim)
 make install-onepassword-cli  # install real `op` for live demos
 make dogfood-github-live   # local real 1Password + GitHub API (not CI)
+make dogfood-keeper   # Milestone 7 Keeper Commander adapter (fake-keeper shim)
 ```
 
 DevPod lifecycle is documented in [docs/devpod-dogfood.md](docs/devpod-dogfood.md) and [examples/demo-project/README.md](examples/demo-project/README.md). Do not add a PADE wrapper that reimplements `devpod up`. Full DevPod proof runs locally via `make dogfood-devpod` and in CI via [`.github/workflows/devpod-dogfood.yml`](.github/workflows/devpod-dogfood.yml) (separate from the fast main CI).
@@ -88,4 +89,4 @@ Treat [spec/pade.schema.json](spec/pade.schema.json) as the machine-readable con
 
 ## Adding a provider later
 
-Capability and runtime providers should be adapters behind small interfaces. Core code must not import Vault/Google/Cursor-specific SDKs directly into portable packages. See [docs/go-reference.md](docs/go-reference.md).
+Capability and runtime providers should be adapters behind small interfaces. Core code must not import Vault/Google/Cursor/Keeper-specific SDKs directly into portable packages. See [docs/go-reference.md](docs/go-reference.md).

@@ -23,3 +23,10 @@ capabilities:
   #   onepassword:
   #     refs:
   #       GITHUB_TOKEN: "op://pade-demo/pade-github/credential"
+
+  # Keeper Commander (see docs/keeper-dogfood.md / make dogfood-keeper):
+  # github.user.read:
+  #   provider: keeper
+  #   keeper:
+  #     refs:
+  #       GITHUB_TOKEN: "keeper://YOUR_RECORD_UID"

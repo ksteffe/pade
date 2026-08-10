@@ -4,7 +4,7 @@
 
 PADE is an exploratory specification and Go reference CLI for declaring **portable agent workspace capabilities** beside existing development-environment standards (Dev Containers, DevPod), without embedding credentials or coupling to a single AI vendor.
 
-This repository is at **Milestone 6**: second credential provider (1Password CLI adapter) beside env and Vault. Earlier milestones remain dogfoodable via `make dogfood*` targets.
+This repository is at **Milestone 7**: Keeper Commander CLI binding provider (fake-keeper CI path) beside env, Vault, and 1Password. Earlier milestones remain dogfoodable via `make dogfood*` targets.
 
 ## Quick start
 
@@ -39,13 +39,14 @@ make dogfood-vault     # Vault -dev resolution (+ Alice/Bob KV paths; prototype 
 make dogfood-onepassword  # Milestone 6: 1Password CLI adapter (fake-op shim in CI)
 make install-onepassword-cli  # install real `op` (Homebrew or .tools/op)
 make dogfood-github-live  # local only: real 1Password + real GitHub API
+make dogfood-keeper       # Milestone 7: Keeper Commander adapter (fake-keeper shim in CI)
 make dogfood-devpod  # optional: full DevPod proof (needs docker + devpod)
 ```
 
 CI runs on pushes to `main` and on pull requests via [`.github/workflows/ci.yml`](.github/workflows/ci.yml):
 
 - **Unit tests** — `gofmt`, `go vet`, `go test`, build (fast feedback)
-- **Smoke** — example validate/plan/exec, identity dogfood, Vault `-dev` dogfood, 1Password dogfood (needs the unit job)
+- **Smoke** — example validate/plan/exec, identity dogfood, Vault `-dev` dogfood, 1Password dogfood, Keeper dogfood (needs the unit job)
 
 A separate [DevPod dogfood](.github/workflows/devpod-dogfood.yml) workflow boots a real DevPod workspace and runs PADE inside it (path-filtered / manual `workflow_dispatch`).
 
@@ -89,12 +90,13 @@ Earlier sections of [DESIGN.md](DESIGN.md) and [docs/go-reference.md](docs/go-re
 | [docs/identity-separation.md](docs/identity-separation.md) | Milestone 5 identity-separation dogfood |
 | [docs/vault-dogfood.md](docs/vault-dogfood.md) | Vault `-dev` capability resolution dogfood |
 | [docs/onepassword-dogfood.md](docs/onepassword-dogfood.md) | 1Password provider + `make dogfood-github-live` |
+| [docs/keeper-dogfood.md](docs/keeper-dogfood.md) | Keeper Commander provider / Milestone 7 dogfood |
 | [spec/pade.schema.json](spec/pade.schema.json) | Normative JSON Schema for `pade.yaml` (v0.1 stub) |
 | [spec/examples/](spec/examples/) | Example manifests |
 | [examples/demo-project](examples/demo-project) | DevPod-first dogfood project (+ `identities/`) |
 | [cmd/pade](cmd/pade) | CLI entrypoint (`validate`, `plan`, `capabilities`, `exec`) |
 | [internal/manifest](internal/manifest) | Load + schema/semantic validation |
-| [internal/binding](internal/binding) | Local bindings config + env/vault/onepassword providers |
+| [internal/binding](internal/binding) | Local bindings config + env/vault/onepassword/keeper providers |
 | [internal/execution](internal/execution) | Process-scoped capability injection |
 | [internal/planner](internal/planner) | Side-effect-free plan model |
 | [internal/output](internal/output) | Human and JSON rendering |
@@ -157,8 +159,9 @@ Workspace lifecycle: prefer `devpod up` / `devpod stop` directly. See [examples/
 | **4** | DevPod dogfood (`examples/demo-project`) |
 | **5** | Identity separation (same repo, distinct credentials) |
 | **5b** | Vault `-dev` validation of bindings / identity paths |
-| **6** (current) | Second credential provider (1Password CLI adapter) |
-| **7+** | Review ingress / external validation / re-evaluate PADE |
+| **6** | Second credential provider (1Password CLI adapter) |
+| **7** (current) | Keeper Commander CLI binding provider (fake-keeper CI) |
+| **8+** | Review ingress / external validation / re-evaluate PADE |
 | Later | External validation / re-evaluate standalone PADE |
 
 Details: [DESIGN.md](DESIGN.md) (including DevPod-first revisions) and [docs/go-reference.md](docs/go-reference.md).

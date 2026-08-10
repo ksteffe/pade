@@ -1,0 +1,9 @@
+# Simulated developer Alice — Keeper bindings (fake-keeper CI path).
+version: "0.1"
+
+capabilities:
+  github.user.read:
+    provider: keeper
+    keeper:
+      refs:
+        GITHUB_TOKEN: "keeper://pade-demo-alice-github"

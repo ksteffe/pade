@@ -1,0 +1,10 @@
+# Local Keeper Commander bindings for the demo-project (Milestone 7 / fake-keeper CI path).
+# Refs are handles only — never secret values. v0.1 resolves the record password field.
+version: "0.1"
+
+capabilities:
+  github.user.read:
+    provider: keeper
+    keeper:
+      refs:
+        GITHUB_TOKEN: "keeper://pade-demo-github"

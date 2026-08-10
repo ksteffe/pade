@@ -6,11 +6,12 @@ DEVPOD_DOGFOOD := $(CURDIR)/scripts/devpod-dogfood.sh
 IDENTITY_DOGFOOD := $(CURDIR)/scripts/identity-dogfood.sh
 VAULT_DOGFOOD := $(CURDIR)/scripts/vault-dogfood.sh
 ONEPASSWORD_DOGFOOD := $(CURDIR)/scripts/onepassword-dogfood.sh
+KEEPER_DOGFOOD := $(CURDIR)/scripts/keeper-dogfood.sh
 GITHUB_LIVE_DOGFOOD := $(CURDIR)/scripts/github-live-dogfood.sh
 INSTALL_ONEPASSWORD_CLI := $(CURDIR)/scripts/install-onepassword-cli.sh
 
 .PHONY: check-go test build build-linux validate plan capabilities exec-demo dogfood \
-	dogfood-identity dogfood-vault dogfood-onepassword dogfood-github-live \
+	dogfood-identity dogfood-vault dogfood-onepassword dogfood-keeper dogfood-github-live \
 	install-onepassword-cli \
 	dogfood-devpod dogfood-devpod-check dogfood-devpod-provider dogfood-devpod-up \
 	dogfood-devpod-install dogfood-devpod-smoke dogfood-devpod-down dogfood-devpod-delete \
@@ -96,6 +97,11 @@ dogfood-onepassword: check-go build
 	@chmod +x "$(ONEPASSWORD_DOGFOOD)" scripts/fake-op.sh
 	@PADE="$(CURDIR)/bin/pade" "$(ONEPASSWORD_DOGFOOD)"
 
+# Milestone 7: resolve via Keeper Commander CLI adapter (uses scripts/fake-keeper.sh by default).
+dogfood-keeper: check-go build
+	@chmod +x "$(KEEPER_DOGFOOD)" scripts/fake-keeper.sh
+	@PADE="$(CURDIR)/bin/pade" "$(KEEPER_DOGFOOD)"
+
 # Install real 1Password CLI (`op`) for local live demos (Homebrew, else .tools/op).
 install-onepassword-cli:
 	@chmod +x "$(INSTALL_ONEPASSWORD_CLI)"
@@ -148,8 +154,8 @@ dogfood-devpod-ci:
 # Fast path: mirrors the GitHub Actions "Unit tests" job.
 ci-unit: check-go fmt-check vet test build
 
-# Smoke path: mirrors the GitHub Actions "Smoke" job (env + Vault + 1Password dogfood).
-ci-smoke: check-go build dogfood dogfood-identity dogfood-vault dogfood-onepassword
+# Smoke path: mirrors the GitHub Actions "Smoke" job (env + Vault + 1Password + Keeper dogfood).
+ci-smoke: check-go build dogfood dogfood-identity dogfood-vault dogfood-onepassword dogfood-keeper
 	./bin/pade validate -f spec/examples/web-app.yaml
 	./bin/pade plan -f spec/examples/web-app.yaml --json > /tmp/pade-plan.json
 	./bin/pade capabilities -f spec/examples/web-app.yaml --bindings spec/examples/bindings.example.yaml --json > /tmp/pade-capabilities.json
