@@ -19,11 +19,11 @@
 
 ## 0. Reference mapping to the three specifications
 
-| Spec | Reference code |
-|------|----------------|
-| **Intent** | [`spec/pade.schema.json`](../spec/pade.schema.json), [`internal/manifest`](../internal/manifest), [`internal/planner`](../internal/planner) |
-| **Consumer** | [`cmd/pade`](../cmd/pade) — reference Consumer CLI; [`internal/execution`](../internal/execution), [`internal/binding`](../internal/binding), [`internal/identity`](../internal/identity) |
-| **Broker** | [`cmd/pade-broker`](../cmd/pade-broker), [`internal/broker`](../internal/broker) — experimental spike |
+| Spec | Spec docs | Reference code |
+|------|-----------|----------------|
+| **Intent** | [`spec/intent.md`](../spec/intent.md), [`spec/pade.schema.json`](../spec/pade.schema.json) | [`internal/manifest`](../internal/manifest), [`internal/planner`](../internal/planner) |
+| **Consumer** | [`spec/consumer.md`](../spec/consumer.md) | [`cmd/pade`](../cmd/pade), [`internal/execution`](../internal/execution), [`internal/binding`](../internal/binding), [`internal/identity`](../internal/identity) |
+| **Broker** | [`spec/broker.md`](../spec/broker.md) | [`cmd/pade-broker`](../cmd/pade-broker), [`internal/broker`](../internal/broker) — experimental spike |
 
 Local bindings YAML and the Go `Provider` interface are **reference implementation mechanisms**. Third-party Consumers or Brokers need not use those Go interfaces; they interoperate through the draft specifications (and, for broker mode, the experimental wire protocol documented in [spec/broker.md](../spec/broker.md)).
 

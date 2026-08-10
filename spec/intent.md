@@ -95,7 +95,7 @@ Portable Intent MUST NOT contain:
 
 Those details belong to **reference implementation bindings**, broker policy, or other non-portable configuration—not the Intent document.
 
-Transitional note: optional `provider` / `env` fields on a capability request are prototype hints already present in the v0.1 schema. Prefer keeping resolution configuration in user/org bindings. Do not use Intent fields to smuggle vendor secrets or broker URLs.
+Transitional note: optional `provider` / `env` fields on a capability request are prototype hints already present in the v0.1 schema. Prefer keeping resolution configuration in user/org bindings. Do not use Intent fields to smuggle vendor secrets or broker URLs. A future manifest version *may* further separate pure portable intent from such runtime hints; that separation is not designed yet.
 
 ## Relationship to Dev Containers
 

@@ -2,52 +2,52 @@
 
 **Portable Agent Development Environments**
 
-PADE is an exploratory **interoperability specification** with a Go **reference implementation**. It defines how projects declare portable development **intent**, how **consumers** request capabilities, and how **brokers** authenticate workloads and materialize authorized authority—beside existing environment standards (Dev Containers, DevPod), without embedding credentials or coupling to a single AI vendor.
+PADE is an exploratory **interoperability contract** for portable development capability intent: declare what a project may need, consume that intent safely, and broker authorized capabilities through existing authority systems.
 
-These specs are **draft / exploratory (v0.1)**. They are not an industry standard, and no vendor is claimed to support PADE today.
+It currently defines three **draft** specification surfaces:
 
-## Specification surfaces
+| Spec | Core question | Document |
+|------|---------------|----------|
+| **Intent** | What capabilities does this project declare it may need? | [spec/intent.md](spec/intent.md) |
+| **Consumer** | How does a development workload interpret that intent and request/use authority? | [spec/consumer.md](spec/consumer.md) |
+| **Broker** | How does an authority boundary authenticate the workload, authorize the request, and materialize an approved capability? | [spec/broker.md](spec/broker.md) |
 
-| Spec | Role | Document |
-|------|------|----------|
-| **Intent** | Portable `pade.yaml`: what capabilities a project may need | [spec/intent.md](spec/intent.md) |
-| **Consumer** | Software that reads intent and requests/uses capabilities | [spec/consumer.md](spec/consumer.md) |
-| **Broker** | Authenticate workload, authorize, materialize | [spec/broker.md](spec/broker.md) |
-
-Entry point: [spec/README.md](spec/README.md).
+Specification entry point: [spec/README.md](spec/README.md).
 
 ```text
-pade.yaml (Intent)
+pade.yaml
    |
+   | portable intent
    v
 Consumer
    |
+   | authenticated capability request
    v
 Broker
    |
+   | authorization + materialization
    v
-existing authority / service systems
+Keeper / Vault / cloud IAM / preview provider /
+enterprise platform / other service
 ```
 
-A conforming ecosystem participant should not need to run binaries from this repository. Hypothetical future implementers (for example a Cursor-like Consumer or a Vercel-like Broker) would interoperate through the specifications—not by embedding the Go reference code.
+These specs are **draft / exploratory (v0.1)**—not an industry standard. No vendor is claimed to support PADE today.
 
-## This repository’s reference implementation
+This repository contains the Go **reference** Consumer ([`pade`](cmd/pade)) and Broker ([`pade-broker`](cmd/pade-broker)). Third parties can implement the contract without running binaries from this repository.
+
+## Reference implementation
 
 | Piece | Role | Maturity |
 |-------|------|----------|
-| [`pade`](cmd/pade) | Reference Consumer / CLI | v0.1 capability path implemented |
-| [`pade-broker`](cmd/pade-broker) | Reference Broker | **Experimental spike** (Phase 2) |
-| [`spec/pade.schema.json`](spec/pade.schema.json) | Intent schema (machine-readable) | v0.1 stub |
+| [`cmd/pade`](cmd/pade) | Reference Consumer (`validate`, `plan`, `capabilities`, `exec`, `identity`) | Implemented (v0.1 capability path) |
+| [`cmd/pade-broker`](cmd/pade-broker) | Reference Broker | **Experimental spike** |
+| [`spec/pade.schema.json`](spec/pade.schema.json) | Machine-readable Intent schema | v0.1 stub |
 
-Provider adapters (env, Vault, 1Password, Keeper, Keeper Secrets Manager, Cursor OIDC) are **reference implementation** integrations, not automatic parts of the PADE standard.
-
-This repository is at **Milestone 9** with a **Phase 2 broker spike**: Keeper Secrets Manager direct mode plus Cursor OIDC + `pade-broker` so `KSM_CONFIG` can stay off the agent VM. Teleport ingress remains a Milestone 8 spike (not a PADE dependency).
+Provider adapters (env, Vault, 1Password, Keeper, Keeper Secrets Manager, Cursor OIDC) are **reference implementation** integrations—not automatic parts of the PADE standard.
 
 ## Quick start
 
 Requires **Go 1.22+**. macOS Homebrew `go` 1.13 will fail with errors like `cannot load embed` — that toolchain predates the `embed` standard library.
-
-If you already have a local SDK under `.tools/go` (or after installing one from https://go.dev/dl/):
 
 ```bash
 export PATH="$(pwd)/.tools/go/bin:$PATH"
@@ -70,6 +70,18 @@ make test
 make validate
 make plan
 make ci          # local mirror of GitHub Actions checks
+```
+
+## Current status
+
+Dogfood and learning milestones (not the product definition):
+
+- **Milestone 9** — Keeper Secrets Manager direct mode + Cursor Cloud composition (`KSM_CONFIG` on the agent VM).
+- **Phase 2 spike** — Cursor OIDC + experimental `pade-broker` so `KSM_CONFIG` can stay off the agent VM.
+- **Milestone 8 spike** — Teleport Application Access composition (not a PADE dependency).
+- **Environment lifecycle** — DevPod (or equivalent) owns workspace create/SSH/ports/prebuilds; PADE does not reimplement that.
+
+```bash
 make dogfood     # PADE smoke against examples/demo-project
 make dogfood-identity  # Milestone 5: Alice/Bob bindings against the same pade.yaml
 make dogfood-vault     # Vault -dev resolution (+ Alice/Bob KV paths; prototype only)
@@ -94,68 +106,63 @@ CI runs on pushes to `main` and on pull requests via [`.github/workflows/ci.yml`
 - **Unit tests** — `gofmt`, `go vet`, `go test`, build (fast feedback)
 - **Smoke** — example validate/plan/exec, identity dogfood, Vault `-dev` dogfood, 1Password dogfood, Keeper dogfood, KSM dogfood, broker OIDC dogfood (needs the unit job)
 
-A separate [DevPod dogfood](.github/workflows/devpod-dogfood.yml) workflow boots a real DevPod workspace and runs PADE inside it (path-filtered / manual `workflow_dispatch`).
+A separate [DevPod dogfood](.github/workflows/devpod-dogfood.yml) workflow boots a real DevPod workspace and runs PADE inside it (path-filtered / manual `workflow_dispatch`). Dependabot keeps Go modules and GitHub Actions on a weekly cadence via [`.github/dependabot.yml`](.github/dependabot.yml).
 
-Dependabot keeps Go modules and GitHub Actions on a weekly cadence via [`.github/dependabot.yml`](.github/dependabot.yml).
+### How the pieces compose today
 
-## Current direction (v0.1)
-
-**DevPod-first environment lifecycle; PADE-owned capability interoperability.**
-
-Research captured in the RFC and design docs shows DevPod already covers much of the portable workspace/runtime layer (Dev Container consumption, local/remote providers, lifecycle, SSH, port forwarding, prebuilds). PADE should not reimplement that.
-
-The current target is:
-
-1. A repository declares **Intent** (required capability names), not secrets.
+1. A repository declares **Intent** (capability names), not secrets — see [spec/intent.md](spec/intent.md).
 2. A **Consumer** validates/plans and resolves capabilities for scoped executions (reference: `pade exec`).
 3. Resolution may use local provider bindings **or** a **Broker** with workload identity (reference spike: `pade-broker` + Cursor OIDC).
-4. **DevPod** (or an equivalent existing runtime) owns workspace creation and lifecycle.
-5. Longer-term hypotheses (authenticated review URLs, resource/lease-shaped capabilities) remain open—see [spec/README.md](spec/README.md).
+4. **DevPod** (or an equivalent runtime) owns workspace creation and lifecycle.
+5. Longer-term hypotheses (authenticated review URLs, resource/lease-shaped capabilities) remain open — see [spec/README.md](spec/README.md#open-specification-questions).
 
 ```text
 Dev Container spec → DevPod → local/remote workspace
 Intent (pade.yaml) → Consumer → [bindings | Broker] → authority systems → process-scoped use
 ```
 
+A future Intent manifest version *may* further separate pure portable intent from reference-implementation/runtime hints present in the v0.1 schema; that separation is not designed yet. Do not add fields anticipating it.
+
 ## Historical / alternate path
 
-Earlier sections of [DESIGN.md](DESIGN.md) and [docs/go-reference.md](docs/go-reference.md) describe a broader orchestration CLI (`pade up` / Dev Container provider, services, localhost ingress). That path remains documented as a learning artifact and fallback if a concrete gap appears that DevPod cannot cover. Prefer composition over reimplementation.
+Earlier sections of [DESIGN.md](DESIGN.md) and [docs/go-reference.md](docs/go-reference.md) describe a broader orchestration CLI (`pade up` / Dev Container provider, services, localhost ingress). That path remains a learning artifact. Prefer composition over reimplementation.
 
-## What's in this repository
+## Deeper documentation
 
 | Path | Purpose |
 |------|---------|
-| [spec/README.md](spec/README.md) | PADE specification entry (Intent / Consumer / Broker) |
+| [spec/README.md](spec/README.md) | Specification entry (Intent / Consumer / Broker) |
 | [spec/intent.md](spec/intent.md) | Intent Specification |
 | [spec/consumer.md](spec/consumer.md) | Consumer Specification |
 | [spec/broker.md](spec/broker.md) | Broker Specification (experimental protocol) |
 | [spec/pade.schema.json](spec/pade.schema.json) | Intent JSON Schema (v0.1 stub) |
 | [spec/examples/](spec/examples/) | Example manifests, bindings, broker policy |
-| [RFC.md](RFC.md) | Problem statement and architectural evolution |
+| [RFC.md](RFC.md) | Architectural history / evolving proposal |
 | [DESIGN.md](DESIGN.md) | Reference implementation design history |
+| [SECURITY.md](SECURITY.md) | Trust boundaries and secret-handling invariants |
+| [docs/README.md](docs/README.md) | Design + dogfood documentation index |
 | [docs/go-reference.md](docs/go-reference.md) | Go reference Consumer/Broker design notes |
 | [AGENTS.md](AGENTS.md) | Guidance for coding agents working in this repo |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute |
-| [SECURITY.md](SECURITY.md) | Trust boundaries and secret-handling invariants |
 | [LICENSE](LICENSE) | Apache License 2.0 |
-| [docs/devpod-dogfood.md](docs/devpod-dogfood.md) | DevPod composition rules for Milestone 4 |
+| [docs/devpod-dogfood.md](docs/devpod-dogfood.md) | DevPod composition / Milestone 4 |
 | [docs/identity-separation.md](docs/identity-separation.md) | Milestone 5 identity-separation dogfood |
 | [docs/vault-dogfood.md](docs/vault-dogfood.md) | Vault `-dev` capability resolution dogfood |
-| [docs/onepassword-dogfood.md](docs/onepassword-dogfood.md) | 1Password provider + `make dogfood-onepassword-live` |
-| [docs/keeper-dogfood.md](docs/keeper-dogfood.md) | Keeper Commander provider / Milestone 7 dogfood |
-| [docs/keeper-secrets-manager-dogfood.md](docs/keeper-secrets-manager-dogfood.md) | Keeper Secrets Manager provider / Milestone 9 |
-| [docs/cursor-cloud-dogfood.md](docs/cursor-cloud-dogfood.md) | Cursor Cloud Agent + KSM composition (vendor-specific) |
+| [docs/onepassword-dogfood.md](docs/onepassword-dogfood.md) | 1Password provider + live dogfood |
+| [docs/keeper-dogfood.md](docs/keeper-dogfood.md) | Keeper Commander provider / Milestone 7 |
+| [docs/keeper-secrets-manager-dogfood.md](docs/keeper-secrets-manager-dogfood.md) | Keeper Secrets Manager / Milestone 9 |
+| [docs/cursor-cloud-dogfood.md](docs/cursor-cloud-dogfood.md) | Cursor Cloud Agent + KSM (vendor-specific) |
 | [docs/cursor-oidc-broker-dogfood.md](docs/cursor-oidc-broker-dogfood.md) | Phase 2 Cursor OIDC broker spike |
-| [docs/teleport-ingress.md](docs/teleport-ingress.md) | Teleport Application Access / Milestone 8 ingress spike |
+| [docs/teleport-ingress.md](docs/teleport-ingress.md) | Teleport Application Access / Milestone 8 spike |
 | [examples/demo-project](examples/demo-project) | DevPod-first dogfood project (+ `identities/`) |
 | [examples/ingress-demo](examples/ingress-demo) | Teleport ingress dogfood (tiny Go HTTP app) |
-| [cmd/pade](cmd/pade) | Reference Consumer CLI (`validate`, `plan`, `capabilities`, `exec`, `identity`) |
-| [cmd/pade-broker](cmd/pade-broker) | Reference Broker spike (loopback / broker TLS / `-tls-termination=proxy`) |
+| [cmd/pade](cmd/pade) | Reference Consumer |
+| [cmd/pade-broker](cmd/pade-broker) | Reference Broker (experimental) |
 | [internal/manifest](internal/manifest) | Intent load + schema/semantic validation |
-| [internal/binding](internal/binding) | Local bindings + env/vault/onepassword/keeper/keepersm/broker providers |
+| [internal/binding](internal/binding) | Local bindings + provider adapters |
 | [internal/broker](internal/broker) | Broker policy, OIDC verify, resolve API |
 | [internal/identity](internal/identity) | Workload token source seam (+ Cursor adapter) |
-| [internal/execution](internal/execution) | Process-scoped capability injection + best-effort output redaction |
+| [internal/execution](internal/execution) | Process-scoped injection + best-effort redaction |
 | [internal/planner](internal/planner) | Side-effect-free plan model |
 | [internal/output](internal/output) | Human and JSON rendering |
 
@@ -224,7 +231,7 @@ Workspace lifecycle: prefer `devpod up` / `devpod stop` directly. See [examples/
 | **7** | Keeper Commander CLI binding provider (fake-keeper CI) |
 | **8** | Local Teleport authenticated ingress (`examples/ingress-demo`) |
 | **9** | Keeper Secrets Manager + Cursor Cloud dogfood (`KSM_CONFIG`, exec redaction) |
-| **9b** (spike) | Cursor OIDC token source + minimal `pade-broker` (server-side policy) — **implemented as experimental reference Broker** |
+| **9b** (spike) | Cursor OIDC token source + minimal `pade-broker` — **experimental reference Broker** |
 | **9+** | Further broker dogfood / deployment learning; optional release artifacts |
 | Later | External validation of the Intent/Consumer/Broker specs; re-evaluate standalone packaging |
 

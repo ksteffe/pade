@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for interest in PADE. The project is early and exploratory (**Milestone 9** with a Phase 2 `pade-broker` spike; see [README.md](README.md) and [docs/cursor-oidc-broker-dogfood.md](docs/cursor-oidc-broker-dogfood.md)).
+Thanks for interest in PADE. The project is exploratory (draft Intent / Consumer / Broker specs with a Go reference implementation; see [README.md](README.md) and [spec/README.md](spec/README.md)).
 
 PADE is a draft interoperability contract plus a Go reference implementation—not an industry standard or certification program.
 
