@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,6 +10,7 @@ import (
 	"github.com/ksteffe/pade/internal/binding"
 	envprovider "github.com/ksteffe/pade/internal/binding/env"
 	vaultprovider "github.com/ksteffe/pade/internal/binding/vault"
+	"github.com/ksteffe/pade/internal/execution"
 	"github.com/ksteffe/pade/internal/manifest"
 	"github.com/ksteffe/pade/internal/output"
 	"github.com/ksteffe/pade/internal/planner"
@@ -37,8 +39,13 @@ func main() {
 	root.AddCommand(newValidateCmd(&file, &jsonOut))
 	root.AddCommand(newPlanCmd(&file, &bindings, &jsonOut))
 	root.AddCommand(newCapabilitiesCmd(&file, &bindings, &jsonOut))
+	root.AddCommand(newExecCmd(&file, &bindings))
 
 	if err := root.Execute(); err != nil {
+		var ee *execution.ExitError
+		if errors.As(err, &ee) {
+			os.Exit(ee.Code)
+		}
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
@@ -132,6 +139,59 @@ func newCapabilitiesCmd(file, bindings *string, jsonOut *bool) *cobra.Command {
 	}
 }
 
+func newExecCmd(file, bindings *string) *cobra.Command {
+	var capabilities []string
+	cmd := &cobra.Command{
+		Use:   "exec --capability NAME -- COMMAND [ARGS...]",
+		Short: "Run a command with process-scoped capability credentials",
+		Long: `Resolve one or more declared capabilities and inject their credentials only into the child process.
+
+Secret values are never printed. After the command exits, resolved material is discarded from PADE's memory maps (the child process may still have observed them while running).
+
+Example:
+  pade exec --capability google-analytics.read -- ./scripts/ga-summary`,
+		DisableFlagsInUseLine: true,
+		Args:                  cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(capabilities) == 0 {
+				return fmt.Errorf("at least one --capability is required")
+			}
+			m, res, err := loadAndValidate(*file)
+			if err != nil {
+				return err
+			}
+			if !res.Valid {
+				output.WriteValidateHuman(cmd.ErrOrStderr(), res)
+				return fmt.Errorf("validation failed; fix the manifest before exec")
+			}
+			for _, name := range capabilities {
+				if _, ok := m.Capabilities[name]; !ok {
+					return fmt.Errorf("capability %q is not declared in the manifest", name)
+				}
+			}
+			cfg, err := binding.LoadOptional(filepath.Dir(m.SourcePath), *bindings)
+			if err != nil {
+				return err
+			}
+			if cfg.SourcePath == "" {
+				return fmt.Errorf("no bindings file found; configure --bindings, PADE_BINDINGS, .pade/bindings.yaml, or ~/.config/pade/bindings.yaml")
+			}
+			reg := defaultRegistry()
+			runner := &execution.Runner{Registry: reg}
+			_, err = runner.Run(cmd.Context(), cfg, capabilities, execution.Options{
+				Command: args,
+				Dir:     filepath.Dir(m.SourcePath),
+				Stdout:  cmd.OutOrStdout(),
+				Stderr:  cmd.ErrOrStderr(),
+				Stdin:   cmd.InOrStdin(),
+			})
+			return err
+		},
+	}
+	cmd.Flags().StringArrayVarP(&capabilities, "capability", "c", nil, "capability to resolve into the child process (repeatable)")
+	return cmd
+}
+
 func loadAndValidate(file string) (*manifest.Manifest, *manifest.Result, error) {
 	path, err := manifest.Find("", file)
 	if err != nil {
@@ -153,7 +213,7 @@ func resolveBindings(ctx context.Context, m *manifest.Manifest, bindingsPath str
 	if err != nil {
 		return nil, nil, err
 	}
-	reg := binding.NewRegistry(envprovider.New(), vaultprovider.New())
+	reg := defaultRegistry()
 	views := map[string]binding.CapabilityRequestView{}
 	for name, cap := range m.Capabilities {
 		views[name] = binding.CapabilityRequestView{
@@ -166,4 +226,8 @@ func resolveBindings(ctx context.Context, m *manifest.Manifest, bindingsPath str
 		return nil, nil, err
 	}
 	return cfg, statuses, nil
+}
+
+func defaultRegistry() *binding.Registry {
+	return binding.NewRegistry(envprovider.New(), vaultprovider.New())
 }
