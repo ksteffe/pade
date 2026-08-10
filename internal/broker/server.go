@@ -3,10 +3,8 @@ package broker
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log"
-	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -135,28 +133,24 @@ func (s *Server) logf(format string, args ...interface{}) {
 	log.Printf(format, args...)
 }
 
-// ListenAndServe starts the broker. Non-loopback addresses require TLS.
-func ListenAndServe(ctx context.Context, addr string, h http.Handler, certFile, keyFile string) error {
-	host, _, err := net.SplitHostPort(addr)
+// ListenAndServe starts the broker HTTP server after validating transport policy.
+// Non-loopback plaintext is allowed only when TLSTermination is "proxy".
+func ListenAndServe(ctx context.Context, cfg ListenConfig, h http.Handler) error {
+	mode, err := cfg.Validate()
 	if err != nil {
-		return fmt.Errorf("invalid listen address: %w", err)
-	}
-	ip := net.ParseIP(host)
-	loopback := host == "localhost" || (ip != nil && ip.IsLoopback())
-	useTLS := certFile != "" && keyFile != ""
-	if !loopback && !useTLS {
-		return fmt.Errorf("TLS cert/key required for non-loopback listen address %q", addr)
+		return err
 	}
 
 	srv := &http.Server{
-		Addr:              addr,
+		Addr:              strings.TrimSpace(cfg.Addr),
 		Handler:           h,
 		ReadHeaderTimeout: 5 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
 	errCh := make(chan error, 1)
 	go func() {
-		if useTLS {
-			errCh <- srv.ListenAndServeTLS(certFile, keyFile)
+		if mode == TransportTLS {
+			errCh <- srv.ListenAndServeTLS(strings.TrimSpace(cfg.CertFile), strings.TrimSpace(cfg.KeyFile))
 			return
 		}
 		errCh <- srv.ListenAndServe()

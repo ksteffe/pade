@@ -20,16 +20,33 @@ import (
 
 func main() {
 	var (
-		listen   = flag.String("listen", "127.0.0.1:8787", "listen address (non-loopback requires TLS)")
+		listen = flag.String("listen", "127.0.0.1:8787",
+			"listen address (default loopback). Non-loopback plaintext requires -tls-termination=proxy or -tls-cert/-tls-key")
 		policy   = flag.String("policy", "", "path to broker-policy.yaml (required)")
 		bindings = flag.String("bindings", "", "path to server-side bindings.yaml (required)")
-		certFile = flag.String("tls-cert", "", "TLS certificate file")
-		keyFile  = flag.String("tls-key", "", "TLS private key file")
+		certFile = flag.String("tls-cert", "", "TLS certificate file (broker-managed TLS; use with -tls-key)")
+		keyFile  = flag.String("tls-key", "", "TLS private key file (broker-managed TLS; use with -tls-cert)")
+		tlsTerm  = flag.String("tls-termination", "",
+			`TLS ownership model: empty (default safe auto) or "proxy". `+
+				`proxy asserts that a trusted upstream (Cloud Run, ingress, load balancer, etc.) terminates TLS `+
+				`and that this plaintext listener is reachable only inside that deployment boundary. `+
+				`PADE does not verify the proxy. Incompatible with -tls-cert/-tls-key.`)
 	)
 	flag.Parse()
 	if *policy == "" || *bindings == "" {
-		fmt.Fprintln(os.Stderr, "usage: pade-broker -policy FILE -bindings FILE [-listen ADDR] [-tls-cert FILE -tls-key FILE]")
+		fmt.Fprintln(os.Stderr, "usage: pade-broker -policy FILE -bindings FILE [-listen ADDR] [-tls-cert FILE -tls-key FILE | -tls-termination=proxy]")
 		os.Exit(2)
+	}
+
+	listenCfg := broker.ListenConfig{
+		Addr:           *listen,
+		CertFile:       *certFile,
+		KeyFile:        *keyFile,
+		TLSTermination: *tlsTerm,
+	}
+	mode, err := listenCfg.Validate()
+	if err != nil {
+		log.Fatalf("listen: %v", err)
 	}
 
 	pol, err := broker.LoadPolicy(*policy)
@@ -66,8 +83,8 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	log.Printf("pade-broker listening on %s (issuer=%s audience=%s)", *listen, pol.OIDC.Issuer, pol.OIDC.Audience)
-	if err := broker.ListenAndServe(ctx, *listen, srv.Handler(), *certFile, *keyFile); err != nil && err != context.Canceled {
+	log.Printf("pade-broker listening on %s transport=%s (issuer=%s audience=%s)", *listen, mode, pol.OIDC.Issuer, pol.OIDC.Audience)
+	if err := broker.ListenAndServe(ctx, listenCfg, srv.Handler()); err != nil && err != context.Canceled {
 		log.Fatal(err)
 	}
 }

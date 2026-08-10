@@ -60,7 +60,49 @@ Important distinctions:
 - JTI replay tracking is deferred; this spike relies on short-lived tokens and exact audience binding.
 - PADE still does not replace resource-level authorization (GitHub, IAM, databases, etc.).
 
-Plain HTTP to the broker is acceptable only on localhost for tests. Remote deployments must use TLS.
+### Broker transport modes
+
+`pade-broker` supports three listener models. Defaults stay fail-closed.
+
+**1. Local development (loopback)**
+
+Plain HTTP on a loopback bind (`127.0.0.1`, `localhost`, `::1`) is allowed. No TLS files required.
+
+**2. Broker-managed TLS (direct exposure)**
+
+If the broker process is directly reachable on a non-loopback interface, PADE must terminate TLS itself:
+
+```bash
+./bin/pade-broker -listen 0.0.0.0:8787 -tls-cert … -tls-key … -policy … -bindings …
+```
+
+**3. Trusted upstream TLS termination**
+
+PADE may serve plaintext HTTP on a non-loopback interface **only** when the operator explicitly opts in with `-tls-termination=proxy` and ensures the plaintext listener is reachable only inside the trusted deployment boundary (for example Cloud Run’s internal container network, Kubernetes behind an HTTPS ingress, or an HTTPS load balancer):
+
+```text
+Internet
+   |
+ HTTPS
+   v
+trusted reverse proxy / managed platform
+   |
+ internal platform transport
+   v
+pade-broker (plaintext on 0.0.0.0:$PORT)
+```
+
+```bash
+# PORT must be expanded by the shell/entrypoint — pade-broker does not read PORT itself.
+./bin/pade-broker \
+  -listen "0.0.0.0:${PORT}" \
+  -tls-termination=proxy \
+  -policy … -bindings …
+```
+
+`-tls-termination=proxy` is a **deployment assertion**, not cryptographic verification by PADE. PADE cannot prove that Cloud Run, Kubernetes, or a load balancer was configured correctly. Do not treat arbitrary plaintext non-loopback deployment as safe.
+
+TLS termination does **not** replace Cursor OIDC, broker policy, Keeper authorization, or downstream API authorization. Non-loopback plaintext without `-tls-termination=proxy` or broker-managed cert/key is still rejected.
 
 ## Scope
 

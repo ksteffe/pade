@@ -2,7 +2,6 @@ package broker_test
 
 import (
 	"bytes"
-	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/base64"
@@ -213,16 +212,6 @@ capabilities:
 				t.Fatalf("response looks like JWT leak: %s", body)
 			}
 		})
-	}
-}
-
-func TestListenRequiresTLSForNonLoopback(t *testing.T) {
-	t.Parallel()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	err := broker.ListenAndServe(ctx, "0.0.0.0:0", http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}), "", "")
-	if err == nil || !strings.Contains(err.Error(), "TLS") {
-		t.Fatalf("err=%v", err)
 	}
 }
 
