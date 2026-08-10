@@ -43,6 +43,7 @@ func main() {
 	root.AddCommand(newPlanCmd(&file, &bindings, &jsonOut))
 	root.AddCommand(newCapabilitiesCmd(&file, &bindings, &jsonOut))
 	root.AddCommand(newExecCmd(&file, &bindings))
+	root.AddCommand(newIdentityCmd(&jsonOut))
 
 	if err := root.Execute(); err != nil {
 		var ee *execution.ExitError
