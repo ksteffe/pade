@@ -9,6 +9,7 @@ ONEPASSWORD_DOGFOOD := $(CURDIR)/scripts/onepassword-dogfood.sh
 KEEPER_DOGFOOD := $(CURDIR)/scripts/keeper-dogfood.sh
 BROKER_DOGFOOD := $(CURDIR)/scripts/broker-dogfood.sh
 BROKER_STAGE_B_DOGFOOD := $(CURDIR)/scripts/broker-stage-b-dogfood.sh
+BROKER_CONTAINER_SMOKE := $(CURDIR)/scripts/broker-container-smoke.sh
 KSM_DOGFOOD := $(CURDIR)/scripts/ksm-dogfood.sh
 ONEPASSWORD_LIVE_DOGFOOD := $(CURDIR)/scripts/onepassword-live-dogfood.sh
 KEEPER_LIVE_DOGFOOD := $(CURDIR)/scripts/keeper-live-dogfood.sh
@@ -19,7 +20,7 @@ INSTALL_KEEPER_CLI := $(CURDIR)/scripts/install-keeper-cli.sh
 
 .PHONY: check-go test build build-linux validate plan capabilities exec-demo dogfood \
 	dogfood-identity dogfood-vault dogfood-onepassword dogfood-keeper dogfood-ksm dogfood-broker \
-	dogfood-broker-stage-b \
+	dogfood-broker-stage-b smoke-broker-container \
 	dogfood-onepassword-live dogfood-keeper-live dogfood-ksm-live dogfood-github-live \
 	install-onepassword-cli install-keeper-cli \
 	dogfood-ingress-teleport dogfood-ingress-teleport-down \
@@ -128,6 +129,12 @@ dogfood-broker: check-go build
 dogfood-broker-stage-b: check-go build
 	@chmod +x "$(BROKER_STAGE_B_DOGFOOD)"
 	@PADE="$(CURDIR)/bin/pade" BROKER="$(CURDIR)/bin/pade-broker" "$(BROKER_STAGE_B_DOGFOOD)"
+
+# Packaging smoke: docker build pade-broker:ci and prove /healthz + unauthenticated resolve deny.
+# Requires docker + curl. Not part of make ci (GitHub Actions runs container-smoke separately).
+smoke-broker-container:
+	@chmod +x "$(BROKER_CONTAINER_SMOKE)"
+	@"$(BROKER_CONTAINER_SMOKE)"
 
 # Install Keeper Commander (`keeper`) for local live demos (Homebrew or .tools/keeper-venv).
 install-keeper-cli:

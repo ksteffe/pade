@@ -126,3 +126,16 @@ jobs:
         run: |
           chmod +x scripts/broker-dogfood.sh
           PADE="$(pwd)/bin/pade" ./scripts/broker-dogfood.sh
+
+  container-smoke:
+    name: Container smoke
+    runs-on: ubuntu-latest
+    needs: [test, smoke]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Smoke pade-broker container image
+        run: |
+          chmod +x scripts/broker-container-smoke.sh
+          ./scripts/broker-container-smoke.sh

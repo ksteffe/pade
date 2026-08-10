@@ -93,16 +93,28 @@ pade-broker (plaintext on 0.0.0.0:$PORT)
 ```
 
 ```bash
-# PORT must be expanded by the shell/entrypoint — pade-broker does not read PORT itself.
+# Prefer explicit -listen, or omit it and set PORT (container platforms).
+# PORT alone does not enable proxy TLS mode — still pass -tls-termination=proxy.
 ./bin/pade-broker \
-  -listen "0.0.0.0:${PORT}" \
   -tls-termination=proxy \
   -policy … -bindings …
+# with PORT=8080 → listens on 0.0.0.0:8080
 ```
 
 `-tls-termination=proxy` is a **deployment assertion**, not cryptographic verification by PADE. PADE cannot prove that Cloud Run, Kubernetes, or a load balancer was configured correctly. Do not treat arbitrary plaintext non-loopback deployment as safe.
 
 TLS termination does **not** replace Cursor OIDC, broker policy, Keeper authorization, or downstream API authorization. Non-loopback plaintext without `-tls-termination=proxy` or broker-managed cert/key is still rejected.
+
+### Container image
+
+The repo-root `Dockerfile` builds a minimal `pade-broker` image (`gcr.io/distroless/static-debian12:nonroot`):
+
+- The image contains only the broker binary (and base CA certificates). It does **not** contain Go toolchains, shells, curl, source, policy, bindings, or secrets.
+- `KSM_CONFIG`, Cursor tokens, and deployment policy/bindings are **runtime** inputs (env / mounts / secret stores). Never bake them into the image or Docker build args.
+- The process runs as the distroless `nonroot` user. Non-root reduces container privileges; it is **not** a security sandbox.
+- Trusted-upstream-TLS mode (`-tls-termination=proxy` + `PORT`) assumes the operator has established a secure deployment boundary.
+- Cursor OIDC and broker authorization remain required regardless of container transport.
+- No Docker `HEALTHCHECK`: distroless has no HTTP client; platforms should probe `/healthz`.
 
 ## Scope
 
