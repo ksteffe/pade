@@ -38,8 +38,10 @@ make dogfood-identity  # Milestone 5: Alice/Bob bindings against the same pade.y
 make dogfood-vault     # Vault -dev resolution (+ Alice/Bob KV paths; prototype only)
 make dogfood-onepassword  # Milestone 6: 1Password CLI adapter (fake-op shim in CI)
 make install-onepassword-cli  # install real `op` (Homebrew or .tools/op)
-make dogfood-github-live  # local only: real 1Password + real GitHub API
+make dogfood-onepassword-live  # local only: real 1Password + real GitHub API
 make dogfood-keeper       # Milestone 7: Keeper Commander adapter (fake-keeper shim in CI)
+make install-keeper-cli   # install real `keeper` (Homebrew or .tools/keeper-venv)
+make dogfood-keeper-live  # local only: real Keeper + real GitHub API
 make dogfood-devpod  # optional: full DevPod proof (needs docker + devpod)
 ```
 
@@ -89,7 +91,7 @@ Earlier sections of [DESIGN.md](DESIGN.md) and [docs/go-reference.md](docs/go-re
 | [docs/devpod-dogfood.md](docs/devpod-dogfood.md) | DevPod composition rules for Milestone 4 |
 | [docs/identity-separation.md](docs/identity-separation.md) | Milestone 5 identity-separation dogfood |
 | [docs/vault-dogfood.md](docs/vault-dogfood.md) | Vault `-dev` capability resolution dogfood |
-| [docs/onepassword-dogfood.md](docs/onepassword-dogfood.md) | 1Password provider + `make dogfood-github-live` |
+| [docs/onepassword-dogfood.md](docs/onepassword-dogfood.md) | 1Password provider + `make dogfood-onepassword-live` |
 | [docs/keeper-dogfood.md](docs/keeper-dogfood.md) | Keeper Commander provider / Milestone 7 dogfood |
 | [spec/pade.schema.json](spec/pade.schema.json) | Normative JSON Schema for `pade.yaml` (v0.1 stub) |
 | [spec/examples/](spec/examples/) | Example manifests |

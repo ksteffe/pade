@@ -29,11 +29,13 @@ make dogfood-identity
 make dogfood-vault
 make dogfood-onepassword     # fake-op shim
 make install-onepassword-cli # real `op` CLI (Homebrew / .tools/op)
-make dogfood-github-live     # local only: real op + real GitHub API
+make dogfood-onepassword-live # local only: real op + real GitHub API
 make dogfood-keeper          # fake-keeper shim
+make install-keeper-cli      # real `keeper` CLI (Homebrew / .tools/keeper-venv)
+make dogfood-keeper-live     # local only: real Keeper + real GitHub API
 ```
 
-See [docs/onepassword-dogfood.md](../../docs/onepassword-dogfood.md) for storing a real PAT in 1Password, and [docs/keeper-dogfood.md](../../docs/keeper-dogfood.md) for the Keeper Commander adapter.
+See [docs/onepassword-dogfood.md](../../docs/onepassword-dogfood.md) for storing a real PAT in 1Password, and [docs/keeper-dogfood.md](../../docs/keeper-dogfood.md) for the Keeper Commander adapter (including live setup).
 
 ## DevPod
 

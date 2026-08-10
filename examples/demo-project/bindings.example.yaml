@@ -17,7 +17,7 @@ capabilities:
   #     fields:
   #       token: GITHUB_TOKEN
 
-  # 1Password (see docs/onepassword-dogfood.md / make dogfood-github-live):
+  # 1Password (see docs/onepassword-dogfood.md / make dogfood-onepassword-live):
   # github.user.read:
   #   provider: onepassword
   #   onepassword:

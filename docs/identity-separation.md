@@ -27,7 +27,7 @@ Demo capability: **`github.user.read`** → **`GITHUB_TOKEN`**.
 make dogfood-identity
 ```
 
-Vault / 1Password / Keeper variants: `make dogfood-vault`, `make dogfood-onepassword`, `make dogfood-keeper`. Realistic GitHub API path (local only): `make dogfood-github-live`.
+Vault / 1Password / Keeper variants: `make dogfood-vault`, `make dogfood-onepassword`, `make dogfood-keeper`. Realistic GitHub API paths (local only): `make dogfood-onepassword-live`, `make dogfood-keeper-live`.
 
 ## Out of scope for M5
 

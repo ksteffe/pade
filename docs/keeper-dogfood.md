@@ -11,8 +11,49 @@ The demo capability is **`github.user.read`** → env **`GITHUB_TOKEN`**.
 | Goal | Command | CI? |
 |------|---------|-----|
 | Fake-keeper smoke (no account) | `make dogfood-keeper` | Yes (Smoke job) |
+| **Real Keeper + real GitHub API** | `make dogfood-keeper-live` | **No** (local only) |
 
-Live Keeper login / real GitHub PAT paths are **out of scope** for Milestone 7 (mirror the 1Password fake-op CI path first).
+Live path uses a single Commander resolve during `pade exec` (Commander startup/sync dominates latency).
+
+## Realistic live demo (your laptop)
+
+This path only succeeds when:
+
+1. `keeper` is installed and you are logged in (persistent login recommended)
+2. A Keeper Login record holds a **valid GitHub PAT** in the **password** field (`read:user` is enough)
+3. `KEEPER_RECORD_UID` points at that record
+4. PADE injects `GITHUB_TOKEN` for `pade exec --capability github.user.read`
+5. `scripts/github-whoami` calls `GET https://api.github.com/user` and prints your login
+
+### One-time setup
+
+```bash
+# 0. Install Keeper Commander (Homebrew, official macOS .pkg, or repo-local Python venv)
+make install-keeper-cli
+
+# 1. Create a classic PAT: https://github.com/settings/tokens  (scope: read:user)
+
+# 2. Sign in (interactive)
+keeper shell
+login <you@example.com>
+# Recommended so non-interactive `keeper get` works:
+this-device persistent-login on
+this-device register
+
+# 3. Create a Login record whose **password** field is the PAT (not a notes/custom field).
+#    Copy the record UID (not the title):
+export KEEPER_RECORD_UID=<uid>
+```
+
+### Run
+
+```bash
+make dogfood-keeper-live
+```
+
+Expected ending: `dogfood-keeper-live: ok` and a real `login: <your-github-username>` line (not `stub-user`).
+
+Overrides: `KEEPER_RECORD_UID`, `PADE_KEEPER_BIN`, `PADE_KEEPER_BINDINGS`.
 
 ## Fake-keeper smoke (CI)
 
@@ -34,7 +75,7 @@ keeper:
 ```
 
 - Handles only: values must start with `keeper://`.
-- v0.1 resolves the **password** field of the record only.
+- v0.1 resolves the **password** field of the record (Commander `--unmask` / `clipboard-copy --output stdout`, with JSON fallback for `secret` / `credential` fields).
 
 ## Override binary
 
@@ -45,6 +86,6 @@ export PADE_KEEPER_BIN=/path/to/keeper   # or scripts/fake-keeper.sh
 ## Out of scope
 
 - Embedding the Keeper SDK in portable packages (CLI adapter only)
-- Live Commander install/login helpers and real GitHub API dogfood
+- Running the live GitHub path in CI (would need a shared PAT secret)
 - Non-password custom fields / Keeper Secrets Manager
 - Claiming PADE replaces Keeper
