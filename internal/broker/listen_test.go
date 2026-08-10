@@ -1,11 +1,14 @@
 package broker_test
 
 import (
+	"context"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ksteffe/pade/internal/broker"
 )
@@ -180,6 +183,63 @@ func TestListenProxyAllowsNonLoopbackPlaintext(t *testing.T) {
 	}
 	if mode != broker.TransportTLSProxy {
 		t.Fatalf("mode=%q", mode)
+	}
+}
+
+// TestListenAndServeProxyMode serves plaintext HTTP when TLSTermination=proxy
+// (Cloud Run / ingress style). Uses loopback bind so the test host can connect.
+func TestListenAndServeProxyMode(t *testing.T) {
+	t.Parallel()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr := ln.Addr().String()
+	_ = ln.Close()
+
+	cfg := broker.ListenConfig{
+		Addr:           addr,
+		TLSTermination: broker.TLSTerminationProxy,
+	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- broker.ListenAndServe(ctx, cfg, mux)
+	}()
+
+	var resp *http.Response
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		resp, err = http.Get("http://" + addr + "/healthz")
+		if err == nil {
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if err != nil {
+		t.Fatalf("GET /healthz: %v", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK || string(body) != "ok" {
+		t.Fatalf("status=%d body=%q", resp.StatusCode, body)
+	}
+
+	cancel()
+	select {
+	case err := <-errCh:
+		if err != nil && err != context.Canceled {
+			t.Fatalf("ListenAndServe: %v", err)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("ListenAndServe did not stop after cancel")
 	}
 }
 

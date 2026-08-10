@@ -20,7 +20,7 @@ INSTALL_KEEPER_CLI := $(CURDIR)/scripts/install-keeper-cli.sh
 
 .PHONY: check-go test build build-linux validate plan capabilities exec-demo dogfood \
 	dogfood-identity dogfood-vault dogfood-onepassword dogfood-keeper dogfood-ksm dogfood-broker \
-	dogfood-broker-stage-b smoke-broker-container \
+	dogfood-broker-stage-b smoke-broker-container ci-container \
 	dogfood-onepassword-live dogfood-keeper-live dogfood-ksm-live dogfood-github-live \
 	install-onepassword-cli install-keeper-cli \
 	dogfood-ingress-teleport dogfood-ingress-teleport-down \
@@ -131,10 +131,13 @@ dogfood-broker-stage-b: check-go build
 	@PADE="$(CURDIR)/bin/pade" BROKER="$(CURDIR)/bin/pade-broker" "$(BROKER_STAGE_B_DOGFOOD)"
 
 # Packaging smoke: docker build pade-broker:ci and prove /healthz + unauthenticated resolve deny.
-# Requires docker + curl. Not part of make ci (GitHub Actions runs container-smoke separately).
+# Requires docker + curl. GitHub Actions runs this as the separate "Container smoke" job.
 smoke-broker-container:
 	@chmod +x "$(BROKER_CONTAINER_SMOKE)"
 	@"$(BROKER_CONTAINER_SMOKE)"
+
+# Alias for discoverability (same as smoke-broker-container).
+ci-container: smoke-broker-container
 
 # Install Keeper Commander (`keeper`) for local live demos (Homebrew or .tools/keeper-venv).
 install-keeper-cli:
@@ -235,5 +238,7 @@ ci-smoke: check-go build dogfood dogfood-identity dogfood-vault dogfood-onepassw
 	./bin/pade validate -f /tmp/pade-orch/pade.yaml
 	./bin/pade plan -f /tmp/pade-orch/pade.yaml --json > /tmp/pade-orch-plan.json
 
-# Full local mirror of .github/workflows/ci.yml (unit then smoke).
+# Local mirror of the unit + smoke jobs in .github/workflows/ci.yml.
+# Container smoke (trusted-proxy Docker image) is separate: make smoke-broker-container / make ci-container
+# (requires Docker; GitHub Actions runs it as the "Container smoke" job after Smoke).
 ci: ci-unit ci-smoke

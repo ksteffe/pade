@@ -105,6 +105,25 @@ CI runs on pushes to `main` and on pull requests via [`.github/workflows/ci.yml`
 
 - **Unit tests** — `gofmt`, `go vet`, `go test`, build (fast feedback)
 - **Smoke** — example validate/plan/exec, identity dogfood, Vault `-dev` dogfood, 1Password dogfood, Keeper dogfood, KSM dogfood, broker OIDC dogfood (needs the unit job)
+- **Container smoke** — `docker build` the `pade-broker` image, start it with `-tls-termination=proxy` + `PORT`, require `GET /healthz` → 200 and unauthenticated `POST /v1/resolve` → 401 (logs dumped on failure; image is not pushed)
+
+Local mirrors: `make ci` (unit + smoke), `make smoke-broker-container` / `make ci-container` (Docker required).
+
+### Cloud Run–style container listen (reference Broker)
+
+Trusted upstream TLS termination (Cloud Run, ingress, or load balancer terminates HTTPS; container speaks plaintext on `PORT`):
+
+```bash
+docker run --rm -p 8080:8080 -e PORT=8080 \
+  -v "$PWD/policy.yaml:/config/policy.yaml:ro" \
+  -v "$PWD/bindings.yaml:/config/bindings.yaml:ro" \
+  pade-broker:ci \
+  -tls-termination=proxy \
+  -policy /config/policy.yaml \
+  -bindings /config/bindings.yaml
+```
+
+Or with an empty `-listen` and `PORT` set (same as Cloud Run injects): the broker binds `0.0.0.0:$PORT`. `PORT` alone does **not** opt into proxy mode — `-tls-termination=proxy` remains required for non-loopback plaintext. See [SECURITY.md](SECURITY.md) and [docs/cursor-oidc-broker-dogfood.md](docs/cursor-oidc-broker-dogfood.md).
 
 A separate [DevPod dogfood](.github/workflows/devpod-dogfood.yml) workflow boots a real DevPod workspace and runs PADE inside it (path-filtered / manual `workflow_dispatch`). Dependabot keeps Go modules and GitHub Actions on a weekly cadence via [`.github/dependabot.yml`](.github/dependabot.yml).
 
