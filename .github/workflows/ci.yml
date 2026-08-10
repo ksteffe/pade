@@ -125,5 +125,4 @@ jobs:
       - name: Broker OIDC dogfood
         run: |
           chmod +x scripts/broker-dogfood.sh
-          go build -o bin/pade-broker ./cmd/pade-broker
           PADE="$(pwd)/bin/pade" ./scripts/broker-dogfood.sh
