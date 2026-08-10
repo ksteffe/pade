@@ -1,0 +1,13 @@
+# Local Vault -dev bindings for the demo-project (prototype only; not production-safe).
+# Same portable capability names as pade.yaml — Vault is a binding, not part of the manifest.
+# Requires VAULT_ADDR + VAULT_TOKEN (see docs/vault-dogfood.md / make dogfood-vault).
+version: "0.1"
+
+capabilities:
+  google-analytics.read:
+    provider: vault
+    vault:
+      path: secret/pade/google-analytics
+      fields:
+        property_id: GA_PROPERTY_ID
+        credentials_path: GOOGLE_APPLICATION_CREDENTIALS

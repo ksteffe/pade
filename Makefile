@@ -4,13 +4,14 @@ GO ?= $(shell if [ -x "$(CURDIR)/.tools/go/bin/go" ]; then echo "$(CURDIR)/.tool
 DEVPOD_DOGFOOD := $(CURDIR)/scripts/devpod-dogfood.sh
 
 IDENTITY_DOGFOOD := $(CURDIR)/scripts/identity-dogfood.sh
+VAULT_DOGFOOD := $(CURDIR)/scripts/vault-dogfood.sh
 
 .PHONY: check-go test build build-linux validate plan capabilities exec-demo dogfood \
-	dogfood-identity \
+	dogfood-identity dogfood-vault \
 	dogfood-devpod dogfood-devpod-check dogfood-devpod-provider dogfood-devpod-up \
 	dogfood-devpod-install dogfood-devpod-smoke dogfood-devpod-down dogfood-devpod-delete \
 	dogfood-devpod-ci \
-	vet fmt-check ci
+	vet fmt-check ci-unit ci-smoke ci
 
 check-go:
 	@v="$$( $(GO) env GOVERSION 2>/dev/null || true )"; \
@@ -82,6 +83,11 @@ dogfood-identity: check-go build
 	@chmod +x "$(IDENTITY_DOGFOOD)"
 	@PADE="$(CURDIR)/bin/pade" "$(IDENTITY_DOGFOOD)"
 
+# Vault -dev dogfood: resolve capabilities from Vault (prototype only; downloads Vault if needed).
+dogfood-vault: check-go build
+	@chmod +x "$(VAULT_DOGFOOD)"
+	@PADE="$(CURDIR)/bin/pade" "$(VAULT_DOGFOOD)"
+
 # --- DevPod dogfood (requires docker + devpod; separate DevPod GHA workflow) ---
 dogfood-devpod-check:
 	@chmod +x "$(DEVPOD_DOGFOOD)"
@@ -121,8 +127,11 @@ dogfood-devpod-ci:
 	@chmod +x "$(DEVPOD_DOGFOOD)"
 	@$(DEVPOD_DOGFOOD) ci
 
-# Local mirror of .github/workflows/ci.yml
-ci: check-go fmt-check vet test build dogfood dogfood-identity
+# Fast path: mirrors the GitHub Actions "Unit tests" job.
+ci-unit: check-go fmt-check vet test build
+
+# Smoke path: mirrors the GitHub Actions "Smoke" job (env + Vault dogfood).
+ci-smoke: check-go build dogfood dogfood-identity dogfood-vault
 	./bin/pade validate -f spec/examples/web-app.yaml
 	./bin/pade plan -f spec/examples/web-app.yaml --json > /tmp/pade-plan.json
 	./bin/pade capabilities -f spec/examples/web-app.yaml --bindings spec/examples/bindings.example.yaml --json > /tmp/pade-capabilities.json
@@ -138,3 +147,6 @@ ci: check-go fmt-check vet test build dogfood dogfood-identity
 	cp spec/examples/web-app-orchestrated.yaml /tmp/pade-orch/pade.yaml
 	./bin/pade validate -f /tmp/pade-orch/pade.yaml
 	./bin/pade plan -f /tmp/pade-orch/pade.yaml --json > /tmp/pade-orch-plan.json
+
+# Full local mirror of .github/workflows/ci.yml (unit then smoke).
+ci: ci-unit ci-smoke

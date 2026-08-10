@@ -31,7 +31,7 @@ make dogfood-identity
 
 This runs [scripts/identity-dogfood.sh](../scripts/identity-dogfood.sh): same `examples/demo-project/pade.yaml`, Alice then Bob bindings + ambient env, child process asserts the expected identity label without echoing secret material into PADE logs.
 
-Optional Vault simulation (local `-dev` only): use the commented vault paths in the identity binding examples so Alice and Bob point at different KV paths for the same capability name.
+Vault simulation (local `-dev` only): `make dogfood-vault` seeds Alice/Bob KV paths and runs the same portable `pade.yaml` through [alice.vault.bindings.yaml](../examples/demo-project/identities/alice.vault.bindings.yaml) / [bob.vault.bindings.yaml](../examples/demo-project/identities/bob.vault.bindings.yaml). See [vault-dogfood.md](vault-dogfood.md).
 
 ## Out of scope for M5
 

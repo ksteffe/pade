@@ -1,0 +1,12 @@
+# Simulated developer Bob — Vault -dev bindings (prototype only).
+# Same capability name as the shared pade.yaml; Bob-specific KV path.
+version: "0.1"
+
+capabilities:
+  google-analytics.read:
+    provider: vault
+    vault:
+      path: secret/pade/developers/bob/google-analytics
+      fields:
+        property_id: GA_PROPERTY_ID
+        credentials_path: GOOGLE_APPLICATION_CREDENTIALS
