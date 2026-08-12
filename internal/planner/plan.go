@@ -11,13 +11,14 @@ import (
 // Plan is a side-effect-free description of what PADE intends to do.
 // It must never include secret values.
 type Plan struct {
-	ManifestPath string              `json:"manifestPath"`
-	BindingsPath string              `json:"bindingsPath,omitempty"`
-	Workspace    WorkspacePlan       `json:"workspace"`
-	Capabilities []CapabilityPlan    `json:"capabilities"`
-	Services     []ServicePlan       `json:"services,omitempty"`
-	Lifecycle    *manifest.Lifecycle `json:"lifecycle,omitempty"`
-	Notes        []string            `json:"notes,omitempty"`
+	APIVersion   string           `json:"apiVersion"`
+	Kind         string           `json:"kind"`
+	Name         string           `json:"name"`
+	ManifestPath string           `json:"manifestPath"`
+	BindingsPath string           `json:"bindingsPath,omitempty"`
+	Workspace    WorkspacePlan    `json:"workspace"`
+	Capabilities []CapabilityPlan `json:"capabilities"`
+	Notes        []string         `json:"notes,omitempty"`
 }
 
 // WorkspacePlan describes environment ownership for the plan.
@@ -41,15 +42,6 @@ type CapabilityPlan struct {
 	Meta     map[string]string `json:"meta,omitempty"`
 }
 
-// ServicePlan is an optional declared service from the manifest.
-type ServicePlan struct {
-	Name    string `json:"name"`
-	Command string `json:"command"`
-	Port    int    `json:"port"`
-	Ingress string `json:"ingress,omitempty"`
-	Note    string `json:"note,omitempty"`
-}
-
 // BuildOptions configures plan construction.
 type BuildOptions struct {
 	Bindings *binding.Config
@@ -59,6 +51,9 @@ type BuildOptions struct {
 // Build constructs a plan from a validated manifest and optional binding statuses.
 func Build(m *manifest.Manifest, opts BuildOptions) *Plan {
 	p := &Plan{
+		APIVersion:   m.APIVersion,
+		Kind:         m.Kind,
+		Name:         m.Metadata.Name,
 		ManifestPath: m.SourcePath,
 		Workspace: WorkspacePlan{
 			Runtime: "devpod",
@@ -74,23 +69,19 @@ func Build(m *manifest.Manifest, opts BuildOptions) *Plan {
 		p.BindingsPath = opts.Bindings.SourcePath
 	}
 
-	if m.Environment != nil && m.Environment.DevContainer != "" {
-		p.Workspace.DevContainer = m.Environment.DevContainer
-		p.Workspace.Config = m.Environment.DevContainer
-	}
-
 	statusByName := map[string]binding.Status{}
 	for _, st := range opts.Statuses {
 		statusByName[st.Name] = st
 	}
 
-	names := make([]string, 0, len(m.Capabilities))
-	for name := range m.Capabilities {
+	caps := m.Spec.Capabilities
+	names := make([]string, 0, len(caps))
+	for name := range caps {
 		names = append(names, name)
 	}
 	sort.Strings(names)
 	for _, name := range names {
-		cap := m.Capabilities[name]
+		cap := caps[name]
 		cp := CapabilityPlan{
 			Name:     name,
 			Access:   cap.Access,
@@ -114,27 +105,6 @@ func Build(m *manifest.Manifest, opts BuildOptions) *Plan {
 			cp.Status = "unbound"
 		}
 		p.Capabilities = append(p.Capabilities, cp)
-	}
-
-	svcNames := make([]string, 0, len(m.Services))
-	for name := range m.Services {
-		svcNames = append(svcNames, name)
-	}
-	sort.Strings(svcNames)
-	for _, name := range svcNames {
-		svc := m.Services[name]
-		p.Services = append(p.Services, ServicePlan{
-			Name:    name,
-			Command: svc.Command,
-			Port:    svc.Port,
-			Ingress: svc.Ingress,
-			Note:    "Service lifecycle is outside capability-first v0.1; shown for manifest compatibility",
-		})
-	}
-
-	if m.Lifecycle != nil {
-		p.Lifecycle = m.Lifecycle
-		p.Notes = append(p.Notes, "Lifecycle fields are accepted but not enforced by PADE in v0.1.")
 	}
 
 	return p
@@ -167,5 +137,5 @@ func splitCSV(s string) []string {
 
 // SummaryLine is a short human-readable one-liner.
 func (p *Plan) SummaryLine() string {
-	return fmt.Sprintf("%d capabilities, %d services", len(p.Capabilities), len(p.Services))
+	return fmt.Sprintf("%s/%s (%d capabilities)", p.Kind, p.Name, len(p.Capabilities))
 }

@@ -1,76 +1,75 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://pade.dev/schema/v0.1/pade.schema.json",
-  "title": "PADE Intent Manifest",
-  "description": "v0.1 stub schema for the PADE Intent Specification (portable pade.yaml). Deliberately small; prefer Dev Containers for environment definition. Capability-focused fields are the primary v0.1 surface; environment/services remain optional for compatibility with earlier design drafts. See spec/intent.md.",
+  "$id": "https://pade.local/schema/v1alpha1/development-session.schema.json",
+  "title": "PADE DevelopmentSession",
+  "description": "v1alpha1 Intent document for a portable DevelopmentSession (conventionally pade.yaml). Uses Kubernetes-style apiVersion/kind/metadata/spec grammar without requiring Kubernetes. The apiVersion group pade.local and this $id are exploratory identifiers (not hosted URLs); .local avoids claiming a public DNS domain. Portable intent only — no provider bindings, secrets, broker URLs, or status. See spec/intent.md and docs/manifest-conventions.md.",
   "type": "object",
-  "required": ["version"],
+  "required": ["apiVersion", "kind", "metadata", "spec"],
   "additionalProperties": false,
   "properties": {
-    "version": {
-      "const": "0.1",
-      "description": "PADE manifest version. Fixed to 0.1 for the prototype."
+    "apiVersion": {
+      "const": "pade.local/v1alpha1",
+      "description": "Provisional API group/version for the Intent wire format."
     },
-    "environment": {
+    "kind": {
+      "const": "DevelopmentSession",
+      "description": "Resource kind. DevelopmentSession declares portable development-session intent."
+    },
+    "metadata": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 253,
+          "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$",
+          "description": "DNS-1123 subdomain-ish identifier for this Intent document. Not Kubernetes ObjectMeta."
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Optional portable labels. Not API-server metadata."
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Optional portable annotations. Not API-server metadata."
+        }
+      }
+    },
+    "spec": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "devcontainer": {
-          "type": "string",
-          "description": "Path to a Dev Container config. Prefer DevPod/Dev Containers to own lifecycle; this field is optional in the capability-first direction."
-        }
-      }
-    },
-    "services": {
-      "type": "object",
-      "additionalProperties": {
-        "type": "object",
-        "required": ["command", "port"],
-        "additionalProperties": false,
-        "properties": {
-          "command": { "type": "string" },
-          "port": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 65535
-          },
-          "ingress": { "type": "string" }
-        }
-      }
-    },
-    "capabilities": {
-      "type": "object",
-      "description": "Named capability requests. Values describe required authority, never credentials.",
-      "additionalProperties": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "access": {
-            "type": "string",
-            "description": "Access intent such as read or write."
-          },
-          "provider": {
-            "type": "string",
-            "description": "Optional binding hint for prototypes (e.g. env, vault). Prefer user/org-level bindings long term."
-          },
-          "env": {
-            "type": "array",
-            "items": { "type": "string" },
-            "description": "For provider=env demos: required environment variable names (not values)."
-          },
-          "required": {
-            "type": "boolean",
-            "default": true
+        "capabilities": {
+          "type": "object",
+          "description": "Named capability requests. Values describe required authority, never credentials.",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "access": {
+                "type": "string",
+                "description": "Access intent such as read or write."
+              },
+              "provider": {
+                "type": "string",
+                "description": "Optional binding hint for prototypes (e.g. env, vault). Prefer user/org-level bindings long term."
+              },
+              "env": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "For provider=env demos: required environment variable names (not values)."
+              },
+              "required": {
+                "type": "boolean",
+                "default": true
+              }
+            }
           }
         }
-      }
-    },
-    "lifecycle": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "idleTimeout": { "type": "string" },
-        "maximumLifetime": { "type": "string" }
       }
     }
   }

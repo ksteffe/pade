@@ -1,7 +1,7 @@
 # PADE Consumer Specification
 
 **Status:** Draft / Exploratory  
-**Version:** 0.1  
+**Version:** 0.1 (Consumer behaviors; Intent documents use `pade.local/v1alpha1`)  
 **Reference implementation:** [`cmd/pade`](../cmd/pade)
 
 ## Purpose
@@ -20,8 +20,8 @@ This document does **not** claim that any vendor currently implements a PADE Con
 
 A Consumer SHOULD:
 
-1. Locate and read the PADE Intent declaration (`pade.yaml` or equivalent).
-2. Validate it against the Intent schema / semantic rules.
+1. Locate and read the PADE Intent declaration (`pade.yaml` / `DevelopmentSession` or equivalent).
+2. Validate it against the Intent schema / semantic rules (`pade.local/v1alpha1`).
 3. Determine which declared capability is needed for a particular operation.
 4. Select and configure an implementation-specific resolution mechanism (local bindings and/or broker).
 5. Authenticate the workload when the resolution path requires it.
@@ -33,7 +33,7 @@ A Consumer SHOULD:
 
 Distinguish:
 
-- **Current requirements** — behaviors the reference Consumer implements and that draft interoperability expects when using Intent v0.1 and/or the experimental broker protocol.
+- **Current requirements** — behaviors the reference Consumer implements and that draft interoperability expects when using Intent `pade.local/v1alpha1` and/or the experimental broker protocol.
 - **Future protocol ideas** — discovery, grant/lease shapes, multi-identity catalogs — not yet specified.
 
 ## Declared ≠ authorized

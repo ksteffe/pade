@@ -3,13 +3,18 @@ package manifest
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/ksteffe/pade/spec"
 	"github.com/santhosh-tekuri/jsonschema/v6"
+	"gopkg.in/yaml.v3"
 )
+
+// SchemaResourceURI is the provisional JSON Schema $id used for local compilation.
+// It is an identifier, not a guarantee that the URL is hosted.
+const SchemaResourceURI = "https://pade.local/schema/v1alpha1/development-session.schema.json"
 
 // Result is the outcome of validating a manifest.
 type Result struct {
@@ -18,9 +23,10 @@ type Result struct {
 	Errors []string `json:"errors,omitempty"`
 }
 
+var metadataNamePattern = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$`)
+
 // Validate checks the manifest against the embedded JSON Schema and performs
-// lightweight semantic checks (referenced files, ports). It never inspects
-// secret values.
+// lightweight semantic checks. It never inspects secret values.
 func Validate(m *Manifest) (*Result, error) {
 	res := &Result{Valid: true}
 
@@ -28,48 +34,21 @@ func Validate(m *Manifest) (*Result, error) {
 		return nil, err
 	}
 
-	if m.Version == "0.1" {
-		res.Checks = append(res.Checks, Check{OK: true, Message: fmt.Sprintf("%s is valid", displayName(m.SourcePath))})
-	}
-
-	baseDir := filepath.Dir(m.SourcePath)
-	if m.Environment != nil && m.Environment.DevContainer != "" {
-		dcPath := m.Environment.DevContainer
-		if !filepath.IsAbs(dcPath) {
-			dcPath = filepath.Join(baseDir, dcPath)
-		}
-		if _, err := os.Stat(dcPath); err != nil {
-			res.Valid = false
-			msg := fmt.Sprintf("%s does not exist", m.Environment.DevContainer)
-			res.Checks = append(res.Checks, Check{OK: false, Message: msg})
-			res.Errors = append(res.Errors, msg)
-		} else {
-			res.Checks = append(res.Checks, Check{OK: true, Message: fmt.Sprintf("%s exists", m.Environment.DevContainer)})
-		}
-	}
-
-	for name, svc := range m.Services {
-		if svc.Port < 1 || svc.Port > 65535 {
-			res.Valid = false
-			msg := fmt.Sprintf("service %q has invalid port %d", name, svc.Port)
-			res.Checks = append(res.Checks, Check{OK: false, Message: msg})
-			res.Errors = append(res.Errors, msg)
-			continue
-		}
-		if strings.TrimSpace(svc.Command) == "" {
-			res.Valid = false
-			msg := fmt.Sprintf("service %q has empty command", name)
-			res.Checks = append(res.Checks, Check{OK: false, Message: msg})
-			res.Errors = append(res.Errors, msg)
-			continue
-		}
+	if res.Valid && m.APIVersion == APIVersionV1Alpha1 && m.Kind == KindDevelopmentSession && m.Metadata.Name != "" {
 		res.Checks = append(res.Checks, Check{
-			OK:      true,
-			Message: fmt.Sprintf("service %q uses valid port %d", name, svc.Port),
+			OK: true,
+			Message: fmt.Sprintf("%s %s/%s is valid",
+				displayName(m.SourcePath), KindDevelopmentSession, m.Metadata.Name),
 		})
 	}
 
-	for name, cap := range m.Capabilities {
+	if err := validateMetadataName(m.Metadata.Name); err != nil {
+		res.Valid = false
+		res.Checks = append(res.Checks, Check{OK: false, Message: err.Error()})
+		res.Errors = append(res.Errors, err.Error())
+	}
+
+	for name, cap := range m.Spec.Capabilities {
 		if err := validateCapability(name, cap); err != nil {
 			res.Valid = false
 			res.Checks = append(res.Checks, Check{OK: false, Message: err.Error()})
@@ -83,6 +62,20 @@ func Validate(m *Manifest) (*Result, error) {
 	}
 
 	return res, nil
+}
+
+func validateMetadataName(name string) error {
+	if strings.TrimSpace(name) == "" {
+		// Schema usually catches this; keep a clear semantic message.
+		return fmt.Errorf("metadata.name is required")
+	}
+	if len(name) > 253 {
+		return fmt.Errorf("metadata.name %q is longer than 253 characters", name)
+	}
+	if !metadataNamePattern.MatchString(name) {
+		return fmt.Errorf("metadata.name %q is not a valid DNS-1123 subdomain-ish identifier", name)
+	}
+	return nil
 }
 
 func validateCapability(name string, cap CapabilityRequest) error {
@@ -110,10 +103,10 @@ func validateSchema(m *Manifest, res *Result) error {
 	if err != nil {
 		return fmt.Errorf("parse embedded schema: %w", err)
 	}
-	if err := compiler.AddResource("https://pade.dev/schema/v0.1/pade.schema.json", schemaDoc); err != nil {
+	if err := compiler.AddResource(SchemaResourceURI, schemaDoc); err != nil {
 		return fmt.Errorf("add schema resource: %w", err)
 	}
-	sch, err := compiler.Compile("https://pade.dev/schema/v0.1/pade.schema.json")
+	sch, err := compiler.Compile(SchemaResourceURI)
 	if err != nil {
 		return fmt.Errorf("compile schema: %w", err)
 	}
@@ -131,21 +124,37 @@ func validateSchema(m *Manifest, res *Result) error {
 	return nil
 }
 
-// yamlToJSONDocument converts the typed manifest into a generic JSON value for schema validation.
+// yamlToJSONDocument converts the manifest into a generic JSON value for schema validation.
+// Prefer the original YAML so unknown fields (e.g. status, secretRef) are still visible.
 func yamlToJSONDocument(m *Manifest) (any, error) {
-	// Re-marshal through JSON so numbers/bools match JSON Schema expectations.
+	if len(m.rawYAML) > 0 {
+		var yamlDoc any
+		if err := yaml.Unmarshal(m.rawYAML, &yamlDoc); err != nil {
+			return nil, fmt.Errorf("parse manifest YAML for schema: %w", err)
+		}
+		b, err := json.Marshal(yamlDoc)
+		if err != nil {
+			return nil, fmt.Errorf("marshal YAML doc for schema: %w", err)
+		}
+		var doc any
+		if err := json.Unmarshal(b, &doc); err != nil {
+			return nil, fmt.Errorf("unmarshal manifest JSON: %w", err)
+		}
+		return doc, nil
+	}
+
 	b, err := json.Marshal(struct {
-		Version      string                       `json:"version"`
-		Environment  *Environment                 `json:"environment,omitempty"`
-		Services     map[string]Service           `json:"services,omitempty"`
-		Capabilities map[string]CapabilityRequest `json:"capabilities,omitempty"`
-		Lifecycle    *Lifecycle                   `json:"lifecycle,omitempty"`
+		APIVersion string   `json:"apiVersion"`
+		Kind       string   `json:"kind"`
+		Metadata   Metadata `json:"metadata"`
+		Spec       Spec     `json:"spec"`
 	}{
-		Version:      m.Version,
-		Environment:  m.Environment,
-		Services:     omitEmptyServices(m.Services),
-		Capabilities: omitEmptyCapabilities(m.Capabilities),
-		Lifecycle:    m.Lifecycle,
+		APIVersion: m.APIVersion,
+		Kind:       m.Kind,
+		Metadata:   m.Metadata,
+		Spec: Spec{
+			Capabilities: omitEmptyCapabilities(m.Spec.Capabilities),
+		},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("marshal manifest for schema: %w", err)
@@ -155,13 +164,6 @@ func yamlToJSONDocument(m *Manifest) (any, error) {
 		return nil, fmt.Errorf("unmarshal manifest JSON: %w", err)
 	}
 	return doc, nil
-}
-
-func omitEmptyServices(in map[string]Service) map[string]Service {
-	if len(in) == 0 {
-		return nil
-	}
-	return in
 }
 
 func omitEmptyCapabilities(in map[string]CapabilityRequest) map[string]CapabilityRequest {

@@ -1,8 +1,10 @@
-version: "0.1"
-
-environment:
-  devcontainer: ".devcontainer/devcontainer.json"
-
-capabilities:
-  github.user.read:
-    access: read
+# Portable Intent for the demo project. No secrets.
+# Start the workspace with DevPod (see .devcontainer/).
+apiVersion: pade.local/v1alpha1
+kind: DevelopmentSession
+metadata:
+  name: demo
+spec:
+  capabilities:
+    github.user.read:
+      access: read

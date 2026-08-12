@@ -1,12 +1,15 @@
 # PADE Intent Specification
 
 **Status:** Draft / Exploratory  
-**Version:** 0.1  
-**Machine-readable shape:** [pade.schema.json](pade.schema.json)
+**Version:** v1alpha1 (`apiVersion: pade.local/v1alpha1`)  
+**Machine-readable shape:** [pade.schema.json](pade.schema.json)  
+**Conventions:** [../docs/manifest-conventions.md](../docs/manifest-conventions.md)
 
 ## Purpose
 
 The Intent Specification defines **portable project metadata**: what external capabilities a development workload for this repository *may need*.
+
+**The portable thing is the intent.**
 
 It answers:
 
@@ -26,27 +29,40 @@ Intent is repository-scoped declaration. Authorization and materialization happe
 
 ## Current representation
 
-The current Intent document is conventionally named `pade.yaml` (or passed via consumer flags such as `pade validate -f …`).
+The current Intent document is a Kubernetes-style declarative API object, conventionally named `pade.yaml` (or passed via consumer flags such as `pade validate -f …`).
 
-The JSON Schema at [pade.schema.json](pade.schema.json) is the **machine-readable definition** of the v0.1 manifest shape. Implementations that claim Intent v0.1 support MUST validate against that schema (or an equivalent encoding of the same constraints).
+PADE uses this grammar for familiarity (`apiVersion`, `kind`, `metadata`, `spec`) but **does not require Kubernetes**. `DevelopmentSession` is **not** currently a Kubernetes CRD.
+
+The JSON Schema at [pade.schema.json](pade.schema.json) is the **machine-readable definition** of the v1alpha1 manifest shape. Implementations that claim Intent v1alpha1 support MUST validate against that schema (or an equivalent encoding of the same constraints).
 
 Do not invent fields that the schema does not define.
 
-### Root fields (v0.1)
+The `apiVersion` group `pade.local` and the schema `$id` are **exploratory identifiers** (not hosted URLs). The `.local` suffix intentionally avoids claiming a public DNS domain.
+
+### Root fields (v1alpha1)
 
 | Field | Required | Role |
 |-------|----------|------|
-| `version` | yes | MUST be the string `"0.1"`. |
-| `capabilities` | no | Map of capability id → request object. Primary v0.1 surface. |
-| `environment` | no | Optional pointer to a Dev Container config (`devcontainer` path). Lifecycle remains Dev Containers / DevPod. |
-| `services` | no | Optional legacy/compatibility service map (`command`, `port`, optional `ingress`). |
-| `lifecycle` | no | Optional idle/max duration strings from earlier drafts. |
+| `apiVersion` | yes | MUST be `pade.local/v1alpha1`. |
+| `kind` | yes | MUST be `DevelopmentSession`. |
+| `metadata` | yes | Portable identity. `metadata.name` is required (DNS-1123 subdomain-ish). Optional `labels` / `annotations` maps of strings. |
+| `spec` | yes | Desired portable intent. |
 
-`additionalProperties` is false at the root: unknown top-level keys are rejected.
+`additionalProperties` is false at the root: unknown top-level keys (including a checked-in `status`) are rejected.
+
+Do **not** pull Kubernetes ObjectMeta into Intent (`uid`, `resourceVersion`, `generation`, `managedFields`, timestamps, `ownerReferences`, `finalizers`, …).
+
+### `spec` fields
+
+| Field | Required | Role |
+|-------|----------|------|
+| `capabilities` | no | Map of capability id → request object. Primary Intent surface. |
+
+Environment construction, services, and lifecycle remain owned by Dev Containers / DevPod (or peers). They are **not** part of normative v1alpha1 Intent input.
 
 ### Capability request object
 
-Each entry under `capabilities` is a **request** object. Allowed properties:
+Each entry under `spec.capabilities` is a **request** object. Allowed properties:
 
 | Field | Role |
 |-------|------|
@@ -55,9 +71,26 @@ Each entry under `capabilities` is a **request** object. Allowed properties:
 | `env` | Optional list of **environment variable names** (not values), mainly for `provider: env` demos. |
 | `required` | Optional boolean (schema default `true`). |
 
-Capability **names** (map keys) are opaque strings in v0.1. Vocabulary is exploratory (see below).
+Capability **names** (map keys) are opaque strings. Vocabulary is exploratory (see below).
 
 ### Simplest useful example
+
+```yaml
+apiVersion: pade.local/v1alpha1
+kind: DevelopmentSession
+metadata:
+  name: demo
+spec:
+  capabilities:
+    github.user.read:
+      access: read
+```
+
+A document with empty `spec: {}` (or empty `capabilities`) is schema-valid but declares no capabilities. Examples live under [examples/](examples/) (for example [examples/web-app.yaml](examples/web-app.yaml)).
+
+### Legacy `version: "0.1"` manifests
+
+The historical flat shape:
 
 ```yaml
 version: "0.1"
@@ -66,7 +99,7 @@ capabilities:
     access: read
 ```
 
-A document with only `version: "0.1"` is schema-valid but declares no capabilities. Capability-first examples live under [examples/](examples/) (for example [examples/web-app.yaml](examples/web-app.yaml)).
+is **not** accepted. Conforming Consumers SHOULD reject it with an explicit migration error pointing at `apiVersion: pade.local/v1alpha1` / `kind: DevelopmentSession`. Do not silently reinterpret legacy documents.
 
 ## Intent is not authorization
 
@@ -95,7 +128,26 @@ Portable Intent MUST NOT contain:
 
 Those details belong to **reference implementation bindings**, broker policy, or other non-portable configuration—not the Intent document.
 
-Transitional note: optional `provider` / `env` fields on a capability request are prototype hints already present in the v0.1 schema. Prefer keeping resolution configuration in user/org bindings. Do not use Intent fields to smuggle vendor secrets or broker URLs. A future manifest version *may* further separate pure portable intent from such runtime hints; that separation is not designed yet.
+Transitional note: optional `provider` / `env` fields on a capability request are prototype hints already present in the schema. Prefer keeping resolution configuration in user/org bindings. Do not use Intent fields to smuggle vendor secrets or broker URLs.
+
+## `status` (future, non-input)
+
+Kubernetes-style `spec` / `status` semantics are useful conceptually:
+
+- `spec` = desired portable intent
+- `status` = how a particular implementation satisfied it
+
+PADE does **not** yet define a persisted session/status model. Checked-in Intent documents MUST NOT include `status`. Reference Consumers continue to expose satisfaction via `plan` and `capabilities` output.
+
+A non-normative future illustration (runtime-produced, not authoring input):
+
+```yaml
+# NON-NORMATIVE — future direction only; not v1alpha1 input
+status:
+  conditions:
+    - type: CapabilitiesResolved
+      status: "True"
+```
 
 ## Relationship to Dev Containers
 
@@ -104,7 +156,7 @@ Transitional note: optional `provider` / `env` fields on a capability request ar
 | What software / toolchain / image is available? | Dev Containers (`devcontainer.json`) |
 | What external authority / capability might be required? | PADE Intent (`pade.yaml`) |
 
-PADE does **not** replace Dev Containers. Workspace lifecycle (create, SSH, ports, prebuilds) should remain with DevPod or an equivalent runtime. Optional `environment.devcontainer` may point at a Dev Container path; it does not make PADE an orchestrator of that lifecycle.
+PADE does **not** replace Dev Containers. Workspace lifecycle (create, SSH, ports, prebuilds) should remain with DevPod or an equivalent runtime.
 
 ## Capability vocabulary
 
@@ -133,7 +185,7 @@ Future capabilities might represent resources or leases such as:
 - service lease
 - temporary queue / storage / cloud role
 
-These ideas are **not** part of the normative v0.1 schema and have no standardized result model yet. See [Open specification questions](README.md#open-specification-questions) in the spec overview. Do not add them to Intent documents expecting interoperability.
+These ideas are **not** part of the normative v1alpha1 schema and have no standardized result model yet. See [Open specification questions](README.md#open-specification-questions) in the spec overview. Do not add them to Intent documents expecting interoperability.
 
 ## Normative vs reference
 
@@ -142,11 +194,12 @@ These ideas are **not** part of the normative v0.1 schema and have no standardiz
 | Intent Spec (this document + schema) | `spec/` |
 | Reference parser / validator | `internal/manifest` (and planner output in `internal/planner`) |
 
-Third-party Intent validators need not use this repository’s Go packages; they MUST respect the same schema constraints if they claim v0.1 compatibility.
+Third-party Intent validators need not use this repository’s Go packages; they MUST respect the same schema constraints if they claim v1alpha1 compatibility.
 
 ## Related documents
 
 - [README.md](README.md) — specification overview
 - [consumer.md](consumer.md) — consuming Intent
 - [broker.md](broker.md) — authorizing and materializing capabilities
+- [../docs/manifest-conventions.md](../docs/manifest-conventions.md) — apiVersion/kind/metadata/spec conventions
 - [../SECURITY.md](../SECURITY.md) — trust boundaries
