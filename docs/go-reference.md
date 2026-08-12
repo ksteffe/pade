@@ -628,17 +628,20 @@ Rust remains a reasonable choice for future components requiring lower-level sys
 
 ## 24. Distribution
 
+> **Near-term release scope** is defined in [ROADMAP.md](../ROADMAP.md) Milestone A
+> (`v0.1.0`, GitHub Releases + checksums, Linux amd64/arm64 + macOS arm64 CLI,
+> GHCR `pade-broker` with digest/OCI labels, explicit `workflow_dispatch` release).
+> The broader list below remains aspirational / deferred.
+
 The Go CLI should eventually support common installation paths:
 
-- GitHub Releases with signed binaries and checksums;
-- Homebrew;
-- package managers where demand exists;
-- container image for CI usage;
-- go install for developers.
+- GitHub Releases with signed binaries and checksums (**near-term:** checksums; signing later);
+- Homebrew (**deferred**);
+- package managers where demand exists (**deferred**);
+- container image for CI / broker deployment (**near-term:** versioned GHCR `pade-broker`);
+- go install for developers (still fine for contributors; external consumers should prefer release tags).
 
-Release automation should build at minimum macOS arm64/amd64, Linux arm64/amd64, and Windows amd64 if the implementation is compatible.
-
-Supply-chain signing and provenance should be introduced before recommending PADE for sensitive enterprise environments.
+Near-term release automation targets Linux amd64/arm64 and macOS arm64. macOS amd64, Windows, Homebrew, and supply-chain signing/provenance beyond checksums remain deferred unless a consumer requires them—see [ROADMAP.md](../ROADMAP.md).
 
 ## 25. Agent-Friendly Repository Design
 

@@ -1130,7 +1130,7 @@ A minimal `pade-broker` and `provider: broker` binding now exist as a **spike**,
 - Container image: repo-root `Dockerfile` (distroless nonroot); smoke with `make smoke-broker-container`.
 - Direct Milestone 9 KSM mode remains supported and unchanged in intent.
 
-Still deferred: multi-tenant hosting, DB policy, JTI replay store, release automation, and replacing direct KSM mode.
+Still deferred in the spike itself: multi-tenant hosting, DB policy, JTI replay store, and replacing direct KSM mode. **Release automation** is planned under [ROADMAP.md](ROADMAP.md) Milestone A (not implemented in this document).
 
 ## 40. Specification architecture vs reference implementation
 
@@ -1164,7 +1164,7 @@ Future providers (preview services, ephemeral databases, temporary queues/storag
 Capability → resource / lease → URL + connection info + expiration
 ```
 
-There is **no** general Grant type in the Go code or schema yet. Do not standardize leasing, renewal, revocation, or preview tunnel protocols here. Let dogfood drive any future Grant Specification. See [spec/README.md](spec/README.md#open-specification-questions).
+There is **no** general Grant type in the Go code or schema yet. Do not standardize leasing, renewal, revocation, or preview tunnel protocols here. Let dogfood drive any future Grant Specification. Sequencing, ownership, and the related **endpoint declaration** decision gate are in [ROADMAP.md](ROADMAP.md). See also [spec/README.md](spec/README.md#open-specification-questions).
 
 ## 41. DevelopmentSession v1alpha1 Intent
 

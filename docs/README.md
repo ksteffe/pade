@@ -1,9 +1,10 @@
 # Design documents
 
-Navigation roots: [../README.md](../README.md) (current direction) and [../spec/README.md](../spec/README.md) (draft Intent / Consumer / Broker specifications). Longer docs retain revision history in place.
+Navigation roots: [../README.md](../README.md) (current direction), [../ROADMAP.md](../ROADMAP.md) (planned work), and [../spec/README.md](../spec/README.md) (draft Intent / Consumer / Broker specifications). Longer docs retain revision history in place.
 
 | Document | Description |
 |----------|-------------|
+| [../ROADMAP.md](../ROADMAP.md) | Authoritative planned work (releases, external dogfood, open decisions) |
 | [../spec/README.md](../spec/README.md) | PADE specification entry (Intent / Consumer / Broker) |
 | [../spec/intent.md](../spec/intent.md) | Intent Specification |
 | [../spec/consumer.md](../spec/consumer.md) | Consumer Specification |
