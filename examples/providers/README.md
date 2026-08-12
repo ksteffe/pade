@@ -9,7 +9,7 @@ Prefer this `examples/providers/` layout over an `extensions/` name (avoids coll
 | Path | Role |
 |------|------|
 | [stub/](stub/) | Minimal contract dogfood |
-| [github/](github/) | First reference provider skeleton (fake mode now; real GitHub App next) |
+| [github/](github/) | First reference provider (GitHub App → installation token; fake mode for CI) |
 | `google-analytics/` | Planned second reference provider (not created yet) |
 
 Bindings use `provider: exec` with opaque `exec.config`. See ROADMAP Milestones B–G.

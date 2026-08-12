@@ -116,7 +116,7 @@ make dogfood-ksm-live   # local / Cursor Cloud: real KSM + GitHub API (not CI)
 make dogfood-broker   # Phase 2 spike: fake OIDC + pade-broker + fake KSM
 make dogfood-broker-stage-b   # Stage B: real Cursor OIDC + local broker (Cloud Agent; not CI)
 make dogfood-exec-provider   # Milestone B–C: provider: exec stub contract dogfood
-make dogfood-exec-provider-github   # Toward D: GitHub reference provider (PADE_PROVIDER_FAKE=1)
+make dogfood-exec-provider-github   # Milestone D–E: GitHub App provider (fake + httptest + repo-meta)
 make smoke-broker-container   # Docker pade-broker image smoke (requires docker)
 make dogfood-ingress-teleport  # Milestone 8 Teleport Application Access (host; Docker optional)
 make dogfood-ingress-teleport-down

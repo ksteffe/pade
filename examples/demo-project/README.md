@@ -6,7 +6,9 @@ Minimal repository used to dogfood the DevPod-first PADE flow:
 2. **PADE** owns capability declaration, binding probes, and process-scoped `exec`.
 3. This repo never embeds secrets in the portable `DevelopmentSession` (`pade.yaml`).
 
-Demo capability: **`github.user.read`** (env: **`GITHUB_TOKEN`**).
+Demo capability (stage-1 PAT baseline): **`github.user.read`** (env: **`GITHUB_TOKEN`**).
+
+Preferred pre-release GitHub dogfood (Milestone E): derived **installation token** via [`examples/providers/github`](../providers/github/) and **`scripts/github-repo-meta`** (repo-scoped; not `/user` whoami). See `make dogfood-exec-provider-github`.
 
 ## Layout
 
@@ -19,7 +21,8 @@ Demo capability: **`github.user.read`** (env: **`GITHUB_TOKEN`**).
 | `bindings.onepassword.example.yaml` | Example 1Password bindings (fake-op CI path) |
 | `bindings.keeper.example.yaml` | Example Keeper Commander bindings (fake-keeper CI path) |
 | `identities/` | Alice/Bob env, Vault, 1Password, and Keeper binding fixtures |
-| `scripts/github-whoami` | Calls GitHub `/user` (or stub for `pade-demo-*` tokens) |
+| `scripts/github-whoami` | Stage-1: GitHub `/user` (or stub for `pade-demo-*` tokens) |
+| `scripts/github-repo-meta` | Preferred: GET `/repos/{owner}/{repo}` for installation tokens |
 
 ## Easiest path (from repo root)
 

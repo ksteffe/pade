@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# Repository-scoped GitHub API check for installation-token dogfood (Milestone E).
+# Prefer this over /user whoami — App installation tokens are not personal users.
+#
+# Requires:
+#   GITHUB_TOKEN   — process-scoped Material from pade exec
+#   GITHUB_REPOSITORY — owner/name (e.g. ksteffe/pade)
+#
+# Never prints GITHUB_TOKEN. Tokens with prefix "ghs_pade_fake_" or "pade-demo-"
+# skip the network call so CI stays offline-friendly.
+set -euo pipefail
+
+if [[ -z "${GITHUB_TOKEN:-}" ]]; then
+  echo "error: GITHUB_TOKEN is not set" >&2
+  echo "hint: run via: pade exec --capability github.repo.read -- ./scripts/github-repo-meta" >&2
+  exit 1
+fi
+
+REPO="${GITHUB_REPOSITORY:-}"
+if [[ -z "$REPO" || "$REPO" != */* ]]; then
+  echo "error: GITHUB_REPOSITORY must be set to owner/name" >&2
+  exit 1
+fi
+
+API_URL="${GITHUB_API_URL:-https://api.github.com}"
+
+if [[ "$GITHUB_TOKEN" == ghs_pade_fake_* || "$GITHUB_TOKEN" == pade-demo-* ]]; then
+  echo "github-repo-meta (stub)"
+  echo "repository: ${REPO}"
+  echo "note: fake/demo token prefix; skipped real GitHub API"
+  exit 0
+fi
+
+tmp="$(mktemp)"
+trap 'rm -f "$tmp"' EXIT
+
+http_code="$(
+  curl -sS -o "$tmp" -w '%{http_code}' \
+    -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+    -H "Accept: application/vnd.github+json" \
+    -H "X-GitHub-Api-Version: 2022-11-28" \
+    -H "User-Agent: pade-demo-github-repo-meta" \
+    "${API_URL}/repos/${REPO}"
+)"
+
+if [[ "$http_code" != "200" ]]; then
+  echo "error: GitHub API /repos/${REPO} returned HTTP ${http_code}" >&2
+  echo "hint: ensure the App installation can read metadata for this repository" >&2
+  exit 1
+fi
+
+python3 - "$tmp" "$REPO" <<'PY'
+import json, sys
+data = json.load(open(sys.argv[1]))
+want = sys.argv[2]
+full = data.get("full_name") or ""
+if full.lower() != want.lower():
+    raise SystemExit(f"error: unexpected full_name {full!r} (want {want!r})")
+print("github-repo-meta")
+print(f"repository: {full}")
+print(f"private: {data.get('private')}")
+print("note: authenticated via installation token from capability binding")
+PY

@@ -131,9 +131,9 @@ dogfood-exec-provider: check-go build
 	@chmod +x "$(EXEC_PROVIDER_DOGFOOD)"
 	@PADE="$(CURDIR)/bin/pade" GO="$(GO)" "$(EXEC_PROVIDER_DOGFOOD)" stub
 
-# Toward Milestone D: GitHub reference provider fake mode on the same exec seam.
+# Milestone D–E: GitHub App reference provider (unit + fake resolve + repo-meta).
 dogfood-exec-provider-github: check-go build
-	@chmod +x "$(EXEC_PROVIDER_DOGFOOD)"
+	@chmod +x "$(EXEC_PROVIDER_DOGFOOD)" examples/demo-project/scripts/github-repo-meta
 	@PADE="$(CURDIR)/bin/pade" GO="$(GO)" "$(EXEC_PROVIDER_DOGFOOD)" github
 
 # Stage B (Cursor Cloud Agent only, not CI): real Cursor OIDC + local pade-broker + fake KSM.
