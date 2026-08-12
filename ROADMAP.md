@@ -15,6 +15,8 @@ Governing principles:
 3. Treat `apiVersion: pade.local/v1alpha1` / `kind: DevelopmentSession` and the Intent / Consumer / Broker specs as authoritative.
 4. Prefer dogfood evidence before extending Intent or inventing Grant/Lease protocols.
 5. Do not reclaim responsibility for starting and orchestrating development environments unless real dogfood proves that necessary.
+6. PADE standardizes the **seam**, not every provider implementation. Vendor-specific business logic (Google Analytics, GitHub Apps, Keeper, 1Password, cloud IAM exchanges, …) belongs in external providers or deployment configs—not in PADE core.
+7. Brokers **SHOULD** prefer session-scoped, short-lived, or otherwise **derived** credentials over delivering durable source credentials when the configured provider supports such derivation. Direct durable-secret **materialization** remains a valid interoperability mechanism where necessary; PADE must not pretend every external system supports ephemeral credentials.
 
 Document roles:
 
@@ -120,6 +122,71 @@ possibly future Endpoint declaration (only if dogfood requires it)
 
 Do **not** implement Grant/Lease in the near term.
 
+### Fulfillment maturity (Material path)
+
+Near-term dogfood (Milestones D–G) intentionally uses **direct materialization**. A later hardening step (Milestone I) improves how brokers fulfill the same portable capability request without changing DevelopmentSession Intent.
+
+| Stage | What happens | Status |
+|-------|----------------|--------|
+| **1. Direct materialization** | Broker retrieves a secret from a source store and safely delivers it as `Material` to the DevelopmentSession. | **Today** — required for current dogfood and legacy systems |
+| **2. Derived / session-scoped credentials** | Durable authority remains broker-side. A configurable provider **derives** or **issues** a temporary credential; the Consumer receives only that derived `Material`, with expiry/lifecycle associated with the session where possible. | **Milestone I** — planned hardening |
+| **3. Mediated capabilities** | Consumer exercises a capability through the broker/provider **without** receiving the underlying credential at all. | **Future direction** — not near-term |
+
+#### DevelopmentSession relationship
+
+Preserve the current DevelopmentSession direction:
+
+- **Durable authority** belongs to an external identity / provider / secret system.
+- A **capability** is authorized for a particular **DevelopmentSession**.
+- The **Consumer** exercises that capability.
+- The **Broker** / **Provider** determines the safest available **materialization** (or mediation) mechanism.
+
+The DevelopmentSession Intent **must not** need to know whether fulfillment ultimately came from a static secret, a derived access token, an OIDC exchange, an external credential issuer, or a broker-mediated service. That remains a fulfillment concern.
+
+#### Conceptual fulfillment pipeline (illustrative names)
+
+Stage labels such as SOURCE / DERIVATION / DELIVERY are **illustrative only**—not normative API terms. Prefer existing PADE vocabulary (`Provider`, **materialization**, `Material`) until naming is decided (see [Open design questions](#open-design-questions)).
+
+```text
+Source
+  Where durable authority originates
+  (Keeper, 1Password, Vault, cloud secret manager, …)
+        ↓
+Provider materialization / optional derivation-issuance
+  Optional broker-side transformation
+  durable credential → short-lived credential
+  OIDC identity → temporary cloud credential
+  private key → installation/session token
+  static secret → unchanged secret (direct materialization)
+        ↓
+Delivery
+  How the resulting capability is made usable
+  Material.env (today)
+  file / credential helper / mediated operation (possible later)
+```
+
+Non-normative examples (do **not** imply PADE core knows these vendors):
+
+```text
+Keeper-held Google service-account credential
+    ↓
+external PADE provider (derivation)
+    ↓
+short-lived OAuth access token
+    ↓
+DevelopmentSession (Material)
+
+GitHub App private key
+    ↓
+external PADE provider (derivation)
+    ↓
+short-lived installation token
+    ↓
+DevelopmentSession (Material)
+```
+
+PADE standardizes the seam so independent provider implementations can plug in. It does **not** contain Google Analytics–, GitHub–, Keeper–, or other vendor-specific business logic for these flows.
+
 ## Ownership boundaries
 
 ### PADE repository (this repo)
@@ -131,11 +198,16 @@ Near-term:
 - External dogfood validation criteria (documented here)
 - Endpoint-declaration **decision** after dogfood (schema only if warranted)
 
+Later (after dogfood priorities):
+
+- Derived / session-scoped fulfillment and a provider-neutral extension seam ([Milestone I](#milestone-i--derived--session-scoped-fulfillment-hardening))
+
 PADE should **not** implement:
 
 - Google Analytics client code, GA providers, GA capability-registry entries, or GA examples beyond generic Material behavior already covered
 - Cloudflare-specific APIs or tunnel provisioning
 - Application start/stop orchestration (DevPod / repo tooling owns lifecycle)
+- Vendor-specific credential derivation logic in PADE core (that belongs in external providers)
 
 ### `pade-broker-deployment` (external)
 
@@ -179,11 +251,12 @@ Completed learning dogfood (0–9 / 9b) is summarized under [Historical dogfood 
 | **A — Release foundation** | Versioned CLI + broker artifacts | PADE repo |
 | **B — Released broker deployment** | Private deploy consumes released broker image | `pade-broker-deployment` |
 | **C — Released Consumer dogfood** | Cursor Cloud uses released `pade` against real broker | External + PADE artifacts |
-| **D — External credential dogfood** | after-certainty uses GA via generic Material | External (`after-certainty` + broker deployment) |
+| **D — External credential dogfood** | after-certainty uses GA via generic Material (**direct materialization** OK) | External (`after-certainty` + broker deployment) |
 | **E — External preview dogfood** | App + Cloudflare Tunnel via generic Material; evaluate long-running `pade exec` | External + possible generic exec fix in PADE |
 | **F — Endpoint decision** | Decide whether portable endpoint declaration is warranted | Architecture decision (PADE Intent only if yes) |
 | **G — Full Cursor iOS workflow** | End-to-end acceptance story | External acceptance |
 | **H — Post-dogfood protocol evaluation** | Only generic deficiencies return to PADE | Conditional |
+| **I — Derived / session-scoped fulfillment** | Provider-side derivation seam; prefer short-lived Material | PADE repo (hardening) + external providers |
 
 ### Milestone A — Release foundation
 
@@ -284,6 +357,8 @@ repo-owned GA tooling
 ```
 
 **PADE acceptance criterion:** Neither Google Analytics nor any other downstream API requires PADE to know what that API is. Capability names such as `analytics.google.read` remain free-form exploratory strings—not a registry entry in this repo.
+
+Near-term fulfillment may use **direct materialization** of a durable credential into the DevelopmentSession. Preferring derived/session-scoped credentials is **Milestone I** hardening—not a blocker for this dogfood.
 
 ### Milestone E — External preview dogfood
 
@@ -394,6 +469,61 @@ PADE itself remains unaware of the downstream vendors.
 
 Only **generic** deficiencies discovered during real use return to the PADE repository (Intent, Consumer, Broker, or reference execution behavior). Vendor-specific work stays in external repos.
 
+### Milestone I — Derived / session-scoped fulfillment (hardening)
+
+**When:** After basic broker/provider interoperability works (Milestones A–C) and preferably after the full Cursor iOS acceptance story (Milestone G). Do **not** block near-term dogfood (D–G) on this milestone—those may continue to use direct materialization.
+
+**Goal:** A broker can satisfy a requested capability by **deriving** a short-lived or session-scoped credential from durable authority, without exposing the durable credential to the DevelopmentSession or Consumer—when a configured provider supports that path.
+
+```text
+durable authority
+    ↓
+source / secret store
+    ↓
+broker-side provider (materialization + optional derivation/issuance)
+    ↓
+short-lived / session-scoped Material
+    ↓
+Consumer / DevelopmentSession
+```
+
+Eventually (mediated direction, not required for Milestone I completion):
+
+```text
+durable authority
+    ↓
+broker-side provider
+    ↓
+broker-mediated capability
+    ↓
+Consumer never receives credential Material
+```
+
+**PADE-side focus (generic seam only):**
+
+- Define a **provider extension seam** so independent implementations can fulfill/derive capabilities without vendor-specific code in PADE core.
+- Distinguish the **semantic abstraction** (fulfill / derive a capability) from **implementation bindings**. Candidate bindings (not a final design choice in this roadmap):
+  - subprocess / exec
+  - local plugin
+  - HTTP
+  - gRPC
+  - separately packaged provider implementation
+- An exec-style binding may be an attractive **first experiment** later (providers in any language), but the abstraction must not collapse into “a generic shell hook.”
+- Prefer derived Material when the configured provider supports it (principle 7); keep direct materialization valid.
+
+**Dependencies / design questions** (not committed requirements yet):
+
+- DevelopmentSession lifecycle semantics (what “session-scoped” means in practice)
+- Capability / provider matching
+- Broker policy evaluation relative to derived fulfillment
+- Provider extension contract
+- Credential expiry metadata (overlap with Grant/Lease open question)
+- Revocation / lifecycle behavior
+- Secure provider execution / isolation
+- Delivery bindings beyond today’s env `Material`
+
+**Out of scope for PADE core:** Google Analytics–, GitHub–, Keeper–, 1Password–, or other vendor-specific derivation logic. Those live in external provider packages or deployment-side configuration (`pade-broker-deployment` and peers).
+
 ## Capability naming (exploratory)
 
 External dogfood may use names resembling `analytics.google.read` or `preview.http`.
@@ -407,12 +537,27 @@ Post-dogfood questions (track only):
 - Does `access` add useful semantics?
 - Should common capabilities eventually have standardized meanings?
 
+## Open design questions
+
+Track these without freezing Intent or Broker wire formats prematurely. Sequencing ownership: [Milestone I](#milestone-i--derived--session-scoped-fulfillment-hardening) for derivation; Milestone F for endpoints; Grant/Lease remains deferred.
+
+1. **Fulfillment pipeline naming** — Are illustrative labels (source / derivation / delivery) useful long-term, or should the specs stick to existing **Provider** / **materialization** / `Material` vocabulary?
+2. **Provider extension contract** — What is the minimal portable seam for independent fulfill/derive implementations? Which implementation binding (exec, plugin, HTTP, gRPC, separate package) should the reference broker explore first?
+3. **Expiry / revocation metadata** — Does derived Material need explicit expiry fields, or does that belong to a future Grant/Lease result model?
+4. **Mediated capabilities** — Does credential-less, broker-mediated exercise of a capability require Consumer protocol changes beyond today’s resolve → Material path?
+5. **Runtime Conditions (CNCF)** — Could Runtime Conditions eventually describe some of the portable *demand* while PADE focuses on creating and fulfilling an identity-bound DevelopmentSession? This remains under discussion with Runtime Conditions maintainers. **Do not** claim that PADE will adopt, extend, replace, or integrate Runtime Conditions yet.
+6. **Endpoint declaration** — See Milestone F.
+7. **Capability vocabulary** — See [Capability naming](#capability-naming-exploratory).
+
 ## Deferred until after the full workflow works
 
 Explicitly deferred:
 
 - Endpoint schema implementation **unless** Milestone F decides it is required
 - Grant / Lease model
+- **Derived / session-scoped fulfillment and the provider extension seam** — planned as **Milestone I** (after A–G dogfood priorities); not a near-term blocker
+- **Mediated capabilities** (Consumer never receives credential Material) — future direction beyond Milestone I’s derived-Material focus
+- Provider packaging / plugin distribution choices (which binding wins; how operators install external providers)
 - Dynamic preview provisioning by the broker
 - Multiple simultaneous previews
 - Branch-specific preview URLs
@@ -426,6 +571,7 @@ Explicitly deferred:
 - Automatic release versioning
 - Supply-chain signing / provenance beyond checksums (revisit before sensitive enterprise recommendations)
 - Standards / governance work
+- Runtime Conditions adoption or integration (open question only)
 - JTI replay store, multi-tenant broker hosting, DB-backed policy (still deferred spike hardening)
 
 ## Historical dogfood milestones
@@ -447,4 +593,4 @@ The following learning milestones are **complete or spiked** and are not the liv
 | **9** | Keeper Secrets Manager + Cursor Cloud dogfood |
 | **9b** | Cursor OIDC + minimal `pade-broker` — **experimental reference Broker** |
 
-Earlier README “9+ / Later” rows (optional release artifacts, external validation) are **superseded** by Milestones A–H in this document.
+Earlier README “9+ / Later” rows (optional release artifacts, external validation) are **superseded** by Milestones A–I in this document.
