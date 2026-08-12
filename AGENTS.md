@@ -6,7 +6,7 @@ Guidance for coding agents and humans working on PADE.
 
 PADE explores a portable **interoperability contract** for agent development environments: declare Intent, consume it, and broker authorized capabilities. It sits beside Dev Containers and DevPod. It is not a new container runtime, IAM platform, secrets manager, MCP replacement, or AI agent framework.
 
-Draft specifications: [spec/README.md](spec/README.md) ([Intent](spec/intent.md), [Consumer](spec/consumer.md), [Broker](spec/broker.md)).
+Draft specifications: [spec/README.md](spec/README.md) ([Intent](spec/intent.md), [Consumer](spec/consumer.md), [Broker](spec/broker.md)). Planned work: [ROADMAP.md](ROADMAP.md).
 
 ## Specification vs reference implementation
 
@@ -83,7 +83,7 @@ Before adding a feature, ask:
 - When behavior changes, update `spec/`, examples, and design docs in the same change when practical.
 - Keep Intent schemas small (`pade.local/v1alpha1`); every field creates compatibility pressure.
 - Prefer clear package boundaries over speculative abstractions.
-- Do not invent grant/lease/preview protocols in schema without dogfood evidence.
+- Do not invent grant/lease/preview protocols in schema without dogfood evidence. Endpoint declaration and Grant/Lease remain decision/deferred items in [ROADMAP.md](ROADMAP.md)—do not implement them preemptively.
 
 ## Tests and commands
 

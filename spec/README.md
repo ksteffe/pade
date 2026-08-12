@@ -132,13 +132,14 @@ Historical flat `version: "0.1"` Intent manifests are rejected with an explicit 
 
 ## Open specification questions
 
-Dogfood should drive these; do not freeze them prematurely:
+Dogfood should drive these; do not freeze them prematurely. Sequencing and ownership for near-term external dogfood, releases, and the endpoint-declaration decision gate live in [ROADMAP.md](../ROADMAP.md)—do not duplicate that plan here.
 
-1. **Grant / lease model** — Today results are largely credential **material** (env maps). Future capabilities (preview URLs, ephemeral databases, temporary queues/storage, cloud roles) may need a broader grant/lease result model. There is no Grant Specification yet.
-2. **Capability vocabulary** — Naming, namespaces, registration, and third-party extension rules remain exploratory. There is no global capability registry in v0.1.
-3. **Broker discovery / configuration** — Today the reference consumer configures broker endpoint and audience via local bindings. Universal discovery is unspecified.
-4. **Workload identity catalog** — Cursor OIDC is the first reference adapter. GitHub Actions OIDC, SPIFFE, cloud workload identity, and enterprise mechanisms are possible later adapters, not standardized here.
-5. **Version negotiation** — Schema/protocol version fields and compatibility rules beyond fixed `pade.local/v1alpha1` remain future work. Legacy flat `version: "0.1"` Intent is not accepted.
+1. **Grant / lease model** — Today results are largely credential **material** (env maps). Future capabilities (preview URLs, ephemeral databases, temporary queues/storage, cloud roles) may need a broader grant/lease result model. There is no Grant Specification yet. See [ROADMAP.md](../ROADMAP.md) (Material vs Endpoint vs Grant; deferred until after full workflow dogfood).
+2. **Endpoint declaration** — Whether a `DevelopmentSession` should declare local services/ports that capabilities may act upon is an open architecture question with an explicit post-preview dogfood decision gate. Not in v1alpha1. See [ROADMAP.md](../ROADMAP.md) Milestone F.
+3. **Capability vocabulary** — Naming, namespaces, registration, and third-party extension rules remain exploratory. There is no global capability registry in v0.1.
+4. **Broker discovery / configuration** — Today the reference consumer configures broker endpoint and audience via local bindings. Universal discovery is unspecified.
+5. **Workload identity catalog** — Cursor OIDC is the first reference adapter. GitHub Actions OIDC, SPIFFE, cloud workload identity, and enterprise mechanisms are possible later adapters, not standardized here.
+6. **Version negotiation** — Schema/protocol version fields and compatibility rules beyond fixed `pade.local/v1alpha1` remain future work. Legacy flat `version: "0.1"` Intent is not accepted.
 
 ## Normative language
 
@@ -154,4 +155,4 @@ Where useful, these drafts use RFC-style **MUST** / **MUST NOT** / **SHOULD** / 
 | [pade.schema.json](pade.schema.json) | Machine-readable Intent shape (v0.1) |
 | [examples/](examples/) | Example manifests, bindings, and broker policy fixtures |
 
-Related repository docs: [../README.md](../README.md), [../RFC.md](../RFC.md), [../DESIGN.md](../DESIGN.md), [../SECURITY.md](../SECURITY.md), [../docs/go-reference.md](../docs/go-reference.md).
+Related repository docs: [../README.md](../README.md), [../ROADMAP.md](../ROADMAP.md), [../RFC.md](../RFC.md), [../DESIGN.md](../DESIGN.md), [../SECURITY.md](../SECURITY.md), [../docs/go-reference.md](../docs/go-reference.md).

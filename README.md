@@ -157,7 +157,7 @@ A separate [DevPod dogfood](.github/workflows/devpod-dogfood.yml) workflow boots
 2. A **Consumer** validates/plans and resolves capabilities for scoped executions (reference: `pade exec`).
 3. Resolution may use local provider bindings **or** a **Broker** with workload identity (reference spike: `pade-broker` + Cursor OIDC).
 4. **DevPod** (or an equivalent runtime) owns workspace creation and lifecycle.
-5. Longer-term hypotheses (authenticated review URLs, resource/lease-shaped capabilities) remain open — see [spec/README.md](spec/README.md#open-specification-questions).
+5. Longer-term hypotheses (authenticated review URLs, resource/lease-shaped capabilities) remain open — see [spec/README.md](spec/README.md#open-specification-questions) and sequencing in [ROADMAP.md](ROADMAP.md).
 
 ```text
 Dev Container spec → DevPod → local/remote workspace
@@ -174,6 +174,7 @@ Earlier sections of [DESIGN.md](DESIGN.md) and [docs/go-reference.md](docs/go-re
 
 | Path | Purpose |
 |------|---------|
+| [ROADMAP.md](ROADMAP.md) | Authoritative planned work (releases, external dogfood, open decisions) |
 | [spec/README.md](spec/README.md) | Specification entry (Intent / Consumer / Broker) |
 | [spec/intent.md](spec/intent.md) | Intent Specification |
 | [spec/consumer.md](spec/consumer.md) | Consumer Specification |
@@ -263,7 +264,13 @@ Workspace lifecycle: prefer `devpod up` / `devpod stop` directly. See [examples/
 - Downstream systems remain authoritative for authorization.
 - If an existing tool already owns a concern, PADE should delegate or drop the abstraction.
 
-## Roadmap (high level)
+## Roadmap
+
+**Authoritative forward plan:** [ROADMAP.md](ROADMAP.md) (release foundation, released artifact dogfood, external GA/preview validation, endpoint decision gate).
+
+### Historical dogfood milestones
+
+Completed learning milestones (not the live plan; see [ROADMAP.md](ROADMAP.md#historical-dogfood-milestones)):
 
 | Milestone | Focus |
 |-----------|--------|
@@ -279,10 +286,8 @@ Workspace lifecycle: prefer `devpod up` / `devpod stop` directly. See [examples/
 | **8** | Local Teleport authenticated ingress (`examples/ingress-demo`) |
 | **9** | Keeper Secrets Manager + Cursor Cloud dogfood (`KSM_CONFIG`, exec redaction) |
 | **9b** (spike) | Cursor OIDC token source + minimal `pade-broker` — **experimental reference Broker** |
-| **9+** | Further broker dogfood / deployment learning; optional release artifacts |
-| Later | External validation of the Intent/Consumer/Broker specs; re-evaluate standalone packaging |
 
-Details: [DESIGN.md](DESIGN.md), [spec/README.md](spec/README.md), and [docs/go-reference.md](docs/go-reference.md).
+Earlier “9+ / Later” rows in this README are superseded by [ROADMAP.md](ROADMAP.md) Milestones A–H.
 
 ## License
 
