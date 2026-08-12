@@ -3,7 +3,7 @@
 PADE composes with DevPod instead of replacing it.
 
 ```text
-Repository (pade.yaml + .devcontainer)
+Repository (DevelopmentSession in pade.yaml + .devcontainer)
         │
         ▼
      DevPod up / stop / SSH / ports

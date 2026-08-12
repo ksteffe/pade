@@ -1,7 +1,7 @@
 # PADE Consumer Specification
 
 **Status:** Draft / Exploratory  
-**Version:** 0.1 (Consumer behaviors; Intent documents use `pade.local/v1alpha1`)  
+**Version:** 0.1 (Consumer behaviors; Intent documents use `pade.local/v1alpha1` / `kind: DevelopmentSession`)  
 **Reference implementation:** [`cmd/pade`](../cmd/pade)
 
 ## Purpose
@@ -41,7 +41,7 @@ Distinguish:
 Intent is a **request**, not a grant.
 
 ```text
-Declared in pade.yaml
+Declared in DevelopmentSession (pade.yaml)
         ≠
 Authorized for this workload
 ```
@@ -53,13 +53,13 @@ The Consumer MAY request authority. It MUST NOT treat presence of a capability n
 Conceptually:
 
 ```text
-pade.yaml
+DevelopmentSession (pade.yaml)
    |
 validate declared capability
    |
 runtime / local binding
    |
-provider OR broker
+provider adapter OR broker (+ workload identity)
    |
 resolved material
    |

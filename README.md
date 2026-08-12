@@ -231,7 +231,7 @@ Environment construction stays in `.devcontainer/devcontainer.json` and is start
 
 ## Local bindings (reference Consumer)
 
-`pade.yaml` declares capability names only. Bindings are local to the reference Consumer (or broker host), not portable Intent:
+`pade.yaml` is the conventional filename for a `DevelopmentSession` Intent document. It declares capability names under `spec.capabilities` only. Bindings are local to the reference Consumer (or broker host), not portable Intent:
 
 - `.pade/bindings.yaml` (gitignored via `.pade/`)
 - `~/.config/pade/bindings.yaml`
@@ -243,7 +243,7 @@ See [spec/examples/bindings.example.yaml](spec/examples/bindings.example.yaml). 
 
 | Command | Status | Role |
 |---------|--------|------|
-| `pade validate` | Implemented | Validate Intent (`pade.yaml`) and referenced config |
+| `pade validate` | Implemented | Validate Intent (`DevelopmentSession` in `pade.yaml`) and referenced config |
 | `pade plan` | Implemented | Side-effect-free plan including binding status |
 | `pade capabilities` | Implemented | Show declared capabilities and binding probes |
 | `pade exec --capability … -- <cmd>` | Implemented | Run a command with process-scoped capability injection |

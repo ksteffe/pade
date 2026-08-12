@@ -1,7 +1,7 @@
 # PADE Broker Specification
 
 **Status:** Draft / Exploratory  
-**Version:** 0.1  
+**Version:** 0.1 (Broker protocol; Intent documents use `pade.local/v1alpha1`)  
 **Protocol status:** Experimental  
 **Reference implementation:** [`cmd/pade-broker`](../cmd/pade-broker), [`internal/broker`](../internal/broker)
 

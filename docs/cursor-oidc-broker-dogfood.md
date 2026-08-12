@@ -10,9 +10,11 @@ Cursor Cloud Agent
   → process-scoped material via pade exec
 ```
 
-> **Spec context:** Cursor OIDC is one **workload identity** adapter used by the reference Consumer/Broker dogfood. It is **not** required by the PADE specification. `pade-broker` is an experimental reference Broker; the draft wire protocol is documented in [../spec/broker.md](../spec/broker.md). See also [../spec/consumer.md](../spec/consumer.md).
+> **Spec context:** Cursor OIDC is one **workload identity** adapter used by the reference Consumer/Broker dogfood. It is **not** a provider adapter and is **not** required by the PADE specification. `pade-broker` is an experimental reference Broker; the draft wire protocol is documented in [../spec/broker.md](../spec/broker.md). See also [../spec/consumer.md](../spec/consumer.md).
 
-Portable `pade.yaml` stays capability-only. Direct `keeper-secrets-manager` (Milestone 9) remains available for local/Cloud Agents that still use ambient `KSM_CONFIG`.
+The portable `DevelopmentSession` in `pade.yaml` keeps provider-specific details out of `spec.capabilities`. Direct `keeper-secrets-manager` (Milestone 9) remains available for local/Cloud Agents that still use ambient `KSM_CONFIG`.
+
+Broker policy and agent bindings use their own `version: "0.1"` configuration format—that is **not** the Intent API version (`pade.local/v1alpha1`).
 
 ## Fake CI dogfood (no Cursor / no Keeper)
 
