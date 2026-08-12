@@ -10,6 +10,7 @@ KEEPER_DOGFOOD := $(CURDIR)/scripts/keeper-dogfood.sh
 BROKER_DOGFOOD := $(CURDIR)/scripts/broker-dogfood.sh
 BROKER_STAGE_B_DOGFOOD := $(CURDIR)/scripts/broker-stage-b-dogfood.sh
 BROKER_CONTAINER_SMOKE := $(CURDIR)/scripts/broker-container-smoke.sh
+EXEC_PROVIDER_DOGFOOD := $(CURDIR)/scripts/exec-provider-dogfood.sh
 KSM_DOGFOOD := $(CURDIR)/scripts/ksm-dogfood.sh
 ONEPASSWORD_LIVE_DOGFOOD := $(CURDIR)/scripts/onepassword-live-dogfood.sh
 KEEPER_LIVE_DOGFOOD := $(CURDIR)/scripts/keeper-live-dogfood.sh
@@ -20,6 +21,7 @@ INSTALL_KEEPER_CLI := $(CURDIR)/scripts/install-keeper-cli.sh
 
 .PHONY: check-go test build build-linux validate plan capabilities exec-demo dogfood \
 	dogfood-identity dogfood-vault dogfood-onepassword dogfood-keeper dogfood-ksm dogfood-broker \
+	dogfood-exec-provider dogfood-exec-provider-github \
 	dogfood-broker-stage-b smoke-broker-container ci-container \
 	dogfood-onepassword-live dogfood-keeper-live dogfood-ksm-live dogfood-github-live \
 	install-onepassword-cli install-keeper-cli \
@@ -124,6 +126,16 @@ dogfood-broker: check-go build
 	@chmod +x "$(BROKER_DOGFOOD)"
 	@PADE="$(CURDIR)/bin/pade" "$(BROKER_DOGFOOD)"
 
+# Milestone B–C: provider: exec contract dogfood (stub external provider).
+dogfood-exec-provider: check-go build
+	@chmod +x "$(EXEC_PROVIDER_DOGFOOD)"
+	@PADE="$(CURDIR)/bin/pade" GO="$(GO)" "$(EXEC_PROVIDER_DOGFOOD)" stub
+
+# Toward Milestone D: GitHub reference provider fake mode on the same exec seam.
+dogfood-exec-provider-github: check-go build
+	@chmod +x "$(EXEC_PROVIDER_DOGFOOD)"
+	@PADE="$(CURDIR)/bin/pade" GO="$(GO)" "$(EXEC_PROVIDER_DOGFOOD)" github
+
 # Stage B (Cursor Cloud Agent only, not CI): real Cursor OIDC + local pade-broker + fake KSM.
 # Requires identity socket. Optional: PADE_STAGE_B_SUBJECT=user:<id> to pin allowlist.
 dogfood-broker-stage-b: check-go build
@@ -220,8 +232,8 @@ dogfood-devpod-ci:
 # Fast path: mirrors the GitHub Actions "Unit tests" job.
 ci-unit: check-go fmt-check vet test build
 
-# Smoke path: mirrors the GitHub Actions "Smoke" job (env + Vault + 1Password + Keeper + KSM + broker dogfood).
-ci-smoke: check-go build dogfood dogfood-identity dogfood-vault dogfood-onepassword dogfood-keeper dogfood-ksm dogfood-broker
+# Smoke path: mirrors the GitHub Actions "Smoke" job (env + Vault + 1Password + Keeper + KSM + broker + exec-provider dogfood).
+ci-smoke: check-go build dogfood dogfood-identity dogfood-vault dogfood-onepassword dogfood-keeper dogfood-ksm dogfood-broker dogfood-exec-provider dogfood-exec-provider-github
 	./bin/pade validate -f spec/examples/web-app.yaml
 	./bin/pade plan -f spec/examples/web-app.yaml --json > /tmp/pade-plan.json
 	./bin/pade capabilities -f spec/examples/web-app.yaml --bindings spec/examples/bindings.example.yaml --json > /tmp/pade-capabilities.json

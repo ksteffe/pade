@@ -127,6 +127,12 @@ jobs:
           chmod +x scripts/broker-dogfood.sh
           PADE="$(pwd)/bin/pade" ./scripts/broker-dogfood.sh
 
+      - name: Exec provider dogfood
+        run: |
+          chmod +x scripts/exec-provider-dogfood.sh
+          PADE="$(pwd)/bin/pade" ./scripts/exec-provider-dogfood.sh stub
+          PADE="$(pwd)/bin/pade" ./scripts/exec-provider-dogfood.sh github
+
   container-smoke:
     name: Container smoke
     runs-on: ubuntu-latest

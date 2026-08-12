@@ -10,6 +10,7 @@ import (
 	"github.com/ksteffe/pade/internal/binding"
 	brokerprovider "github.com/ksteffe/pade/internal/binding/broker"
 	envprovider "github.com/ksteffe/pade/internal/binding/env"
+	execprovider "github.com/ksteffe/pade/internal/binding/exec"
 	keeperprovider "github.com/ksteffe/pade/internal/binding/keeper"
 	keepersmprovider "github.com/ksteffe/pade/internal/binding/keepersm"
 	onepasswordprovider "github.com/ksteffe/pade/internal/binding/onepassword"
@@ -246,5 +247,6 @@ func defaultRegistry() *binding.Registry {
 		keeperprovider.New(),
 		keepersmprovider.New(),
 		brokerprovider.New(),
+		execprovider.New(),
 	)
 }

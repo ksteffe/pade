@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"time"
 )
 
 // Provider resolves or probes a capability binding without logging secrets.
@@ -37,6 +38,9 @@ type ProbeResult struct {
 type Material struct {
 	Provider string
 	Env      map[string]string
+	// ExpiresAt is optional lifetime metadata for derived credentials.
+	// Callers must not treat a nil/zero value as "never expires" for all providers.
+	ExpiresAt *time.Time
 }
 
 // Status is the inspectable binding outcome for one declared capability.
