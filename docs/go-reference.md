@@ -1,7 +1,7 @@
 # PADE Go Reference Implementation
 
 > Converted from the project Google Doc for repository use.
-> Preserve revision history in-document; README states the current v0.1 direction.
+> Preserve revision history in-document; README states the current direction.
 >
 > **Purpose of this document:** design notes for the **Go reference implementation**
 > of the draft PADE specifications. Interoperability contracts live under
@@ -15,21 +15,24 @@
 > Historical `pade up` / RuntimeProvider sections are learning artifacts.
 > Current Intent is `DevelopmentSession` (`pade.local/v1alpha1`), not flat `version: "0.1"`.
 
-**Status: Draft / v0.1 Design**  
+**Status:** Draft — Go reference implementation / design history  
+(This “v0.1 design” label is **not** the Intent API version. Intent documents use `pade.local/v1alpha1`.)  
 **Related:** [RFC](../RFC.md), [DESIGN.md](../DESIGN.md), [spec/README.md](../spec/README.md)  
-**Language: Go**  
+**Language:** Go  
 
 ## 0. Reference mapping to the three specifications
 
-| Spec | Spec docs | Reference code |
-|------|-----------|----------------|
-| **Intent** | [`spec/intent.md`](../spec/intent.md), [`spec/pade.schema.json`](../spec/pade.schema.json) | [`internal/manifest`](../internal/manifest), [`internal/planner`](../internal/planner) |
-| **Consumer** | [`spec/consumer.md`](../spec/consumer.md) | [`cmd/pade`](../cmd/pade), [`internal/execution`](../internal/execution), [`internal/binding`](../internal/binding), [`internal/identity`](../internal/identity) |
-| **Broker** | [`spec/broker.md`](../spec/broker.md) | [`cmd/pade-broker`](../cmd/pade-broker), [`internal/broker`](../internal/broker) — experimental spike |
+| Layer | Meaning | Reference |
+|-------|---------|-----------|
+| **Intent** | Portable `DevelopmentSession` (`apiVersion: pade.local/v1alpha1`) | [`spec/intent.md`](../spec/intent.md), [`spec/pade.schema.json`](../spec/pade.schema.json) → [`internal/manifest`](../internal/manifest), [`internal/planner`](../internal/planner) |
+| **Consumer** | Interprets Intent; requests/uses authority | [`spec/consumer.md`](../spec/consumer.md) → [`cmd/pade`](../cmd/pade), [`internal/execution`](../internal/execution), [`internal/binding`](../internal/binding), [`internal/identity`](../internal/identity) |
+| **Broker** | Authn + server authz + materialization (experimental protocol) | [`spec/broker.md`](../spec/broker.md) → [`cmd/pade-broker`](../cmd/pade-broker), [`internal/broker`](../internal/broker) |
+| **Provider adapters** | env, Vault, 1Password, Keeper, Keeper Secrets Manager | packages under [`internal/binding`](../internal/binding) |
+| **Workload identity adapter** | Cursor OIDC (Broker authn dogfood) | [`internal/identity/cursor`](../internal/identity/cursor) |
 
 Local bindings YAML and the Go `Provider` interface are **reference implementation mechanisms**. Third-party Consumers or Brokers need not use those Go interfaces; they interoperate through the draft specifications (and, for broker mode, the experimental wire protocol documented in [spec/broker.md](../spec/broker.md)).
 
-Provider adapters (env, Vault, 1Password, Keeper, Keeper Secrets Manager, Cursor OIDC) are not automatically part of the PADE standard.
+Provider adapters (env, Vault, 1Password, Keeper, Keeper Secrets Manager) and the Cursor OIDC workload identity adapter are **not** automatic parts of the PADE standard.
 
 ## 1. Purpose
 
@@ -61,7 +64,11 @@ Secure defaults should be easier than insecure workarounds.
 
 The earliest implementation should optimize for learning and replaceability rather than feature completeness.
 
-## 3. Scope of v0.1
+## 3. Scope of v0.1 (historical reference-design target)
+
+> **Note:** “v0.1” here labels an early **Go reference / orchestration** design slice.
+> It is **not** the Intent API version. Current Intent is `pade.local/v1alpha1`
+> `DevelopmentSession`. Prefer the DevPod-first / capability path in the README.
 
 The first usable version should support a deliberately narrow vertical slice:
 

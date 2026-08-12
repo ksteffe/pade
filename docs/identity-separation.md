@@ -1,6 +1,6 @@
 # Identity separation (Milestone 5)
 
-Prove that the same repository, `pade.yaml`, and development image can be used by two developers (or simulated identities) while each execution resolves **different** credential material — without changing the portable capability declaration.
+Prove that the same repository, `DevelopmentSession` (`pade.yaml`), and development image can be used by two developers (or simulated identities) while each execution resolves **different** credential material — without changing the portable capability declaration.
 
 Demo capability: **`github.user.read`** → **`GITHUB_TOKEN`**.
 
@@ -8,14 +8,14 @@ Demo capability: **`github.user.read`** → **`GITHUB_TOKEN`**.
 
 | Concern | Owner |
 |---------|--------|
-| Portable capability names | `pade.yaml` (repo) |
+| Portable capability names | `DevelopmentSession` in `pade.yaml` (repo) |
 | How *this* identity resolves a capability | Local bindings (`--bindings` / `.pade/bindings.yaml`) |
 | Secret values | Credential manager / ambient env (never in repo) |
 | Workspace lifecycle | DevPod (unchanged from Milestone 4) |
 
 ## Acceptance criteria
 
-1. One shared `pade.yaml` declares `github.user.read` (no secrets).
+1. One shared `DevelopmentSession` in `pade.yaml` declares `github.user.read` under `spec.capabilities` (no secrets).
 2. Two binding configs (Alice / Bob) map that capability to resolution paths appropriate to each identity.
 3. `pade exec --capability github.user.read` under Alice’s ambient credentials yields Alice’s values; Bob’s yield Bob’s.
 4. Plan / capabilities / injection notices never print secret values (names and providers only).

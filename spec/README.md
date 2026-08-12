@@ -36,7 +36,7 @@ A network authority boundary that authenticates a workload, evaluates **server-o
 ```text
 Repository
    |
-   | PADE Intent (pade.yaml)
+   | PADE Intent (`DevelopmentSession` / `pade.yaml`)
    v
 Consumer
    |
@@ -68,7 +68,8 @@ Conceptually:
 |------|---------|
 | **Specification** | Interoperability behavior that independent implementations can agree upon. |
 | **Reference implementation** | The Go code in this repository (`cmd/pade`, `cmd/pade-broker`, `internal/*`) used to prove and revise the specs. |
-| **Provider / adapter** | Implementation-specific integrations such as Keeper, Keeper Secrets Manager, Vault, 1Password, env, or Cursor OIDC. These are **not** automatically part of the PADE standard. |
+| **Provider adapter** | Reference-implementation integration that materializes a capability (env, Vault, 1Password, Keeper, Keeper Secrets Manager). **Not** automatically part of the PADE standard. |
+| **Workload identity adapter** | Runtime identity integration used when authenticating to a Broker (reference: Cursor OIDC). **Not** a provider adapter and **not** a normative PADE identity mechanism. |
 
 A conforming PADE ecosystem participant SHOULD NOT need to run binaries produced by this repository. For example, hypothetically:
 
@@ -93,13 +94,13 @@ Development server
   remains in the original runtime
 ```
 
-This illustrates separated Intent, Consumer, and Broker roles. `preview.http` is **not** in the v0.1 schema; resource/lease-shaped results remain an open design question.
+This illustrates separated Intent, Consumer, and Broker roles. `preview.http` is **not** in the Intent schema (`pade.local/v1alpha1`); resource/lease-shaped results remain an open design question.
 
 ## Current reference dogfood path
 
 ```text
 Repository
-  pade.yaml requests github.user.read
+  DevelopmentSession (pade.yaml) requests github.user.read
 pade
   reference Consumer
 Cursor OIDC
@@ -107,7 +108,7 @@ Cursor OIDC
 pade-broker
   reference Broker (experimental)
 Keeper Secrets Manager
-  one materialization provider
+  one materialization provider (provider adapter)
 GitHub
   downstream authorization
 ```
@@ -116,10 +117,12 @@ See [examples/](examples/) and the dogfood guides under [`docs/`](../docs/).
 
 ## Maturity and versioning
 
-- Labels such as **Draft / Exploratory** and Intent `apiVersion: pade.local/v1alpha1` describe this repository’s intent documents and schema stub. The `pade.local` group is exploratory (`.local` avoids claiming a public DNS domain).
+- Labels such as **Draft / Exploratory** and Intent `apiVersion: pade.local/v1alpha1` describe this repository’s Intent documents and schema. Consumer and Broker documents may still say **Version: 0.1** for *those* surfaces—that is **not** the Intent API version. Local bindings and broker policy YAML also use `version: "0.1"` as separate configuration formats.
+- The `pade.local` group is exploratory (`.local` avoids claiming a public DNS domain).
 - Protocol and schema versioning remain under active development. Do not assume a sophisticated version-negotiation scheme.
 - Distinguish carefully:
-  - **current normative v1alpha1 behavior** (what the Intent schema and documented wire shapes actually constrain today);
+  - **current normative Intent (`pade.local/v1alpha1`)** — what the Intent schema and documented wire shapes actually constrain today;
+  - **Consumer / Broker draft versioning** — separate from Intent `apiVersion`;
   - **future direction** (hypotheses and open questions, including possible runtime-produced `status`);
   - **reference implementation behavior** (what `pade` / `pade-broker` do in Go).
 

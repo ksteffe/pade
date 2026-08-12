@@ -10,7 +10,7 @@ Navigation roots: [../README.md](../README.md) (current direction) and [../spec/
 | [../spec/broker.md](../spec/broker.md) | Broker Specification (experimental protocol) |
 | [../RFC.md](../RFC.md) | Architectural history / proposal evolution |
 | [../DESIGN.md](../DESIGN.md) | Reference implementation design history |
-| [go-reference.md](go-reference.md) | Go reference Consumer/Broker design notes |
+| [go-reference.md](go-reference.md) | Go reference Consumer/Broker design history (not Intent API version) |
 | [manifest-conventions.md](manifest-conventions.md) | DevelopmentSession apiVersion/kind/metadata/spec conventions |
 | [devpod-dogfood.md](devpod-dogfood.md) | DevPod composition / Milestone 4 dogfood |
 | [identity-separation.md](identity-separation.md) | Identity separation / Milestone 5 dogfood |

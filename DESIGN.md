@@ -414,6 +414,10 @@ A future schema may support explicit HTTP or command-based health checks, but th
 
 ## 14. Example Project
 
+> **Historical:** The manifest sketch below uses the pre-`DevelopmentSession`
+> flat `version: "0.1"` orchestration shape. Current Intent is
+> `apiVersion: pade.local/v1alpha1` / `kind: DevelopmentSession`.
+
 The repository should contain a tiny Next.js example application under examples/nextjs.
 
 Its manifest can initially contain only:
@@ -1096,7 +1100,7 @@ Humans review the running system together. Code, screenshots, docs, and diffs ar
 
 Milestone 9 proves capability resolution inside an existing cloud-agent runtime without Cursor product integration:
 
-- Portable `pade.yaml` still declares only capability names.
+- Portable `DevelopmentSession` in `pade.yaml` still declares only capability names under `spec.capabilities`.
 - Local bindings may use `provider: keeper-secrets-manager` with Keeper Notation refs (handles only).
 - Ambient `KSM_CONFIG` (Cursor Runtime Secret or local export) bootstraps the official Keeper Secrets Manager Go SDK inside the adapter package `internal/binding/keepersm`.
 - The existing Commander provider (`keeper`) is unchanged.

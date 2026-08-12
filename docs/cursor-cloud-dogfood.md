@@ -4,9 +4,9 @@ Vendor-specific composition guide: prove
 
 **Cursor iOS → Cursor Cloud Agent → PADE → Keeper Secrets Manager → process-scoped credential → GitHub API**
 
-without a Cursor product integration and without putting Cursor or Keeper secrets into portable `pade.yaml`.
+without a Cursor product integration and without putting Cursor or Keeper secrets into the portable `DevelopmentSession` (`pade.yaml`).
 
-> **Spec context:** This dogfood exercises the **reference Consumer** (`pade`) with a Keeper Secrets Manager **provider** adapter. Cursor Cloud is one runtime; Keeper is one materialization path. Neither is required by the PADE Intent Specification. See [../spec/README.md](../spec/README.md).
+> **Spec context:** This dogfood exercises the **reference Consumer** (`pade`) with a Keeper Secrets Manager **provider adapter**. Cursor Cloud is one runtime; Keeper is one materialization path. Neither is required by the PADE Intent Specification. See [../spec/README.md](../spec/README.md).
 
 Companion: [keeper-secrets-manager-dogfood.md](keeper-secrets-manager-dogfood.md).
 
@@ -17,12 +17,12 @@ Companion: [keeper-secrets-manager-dogfood.md](keeper-secrets-manager-dogfood.md
 | Cloud VM lifecycle | Cursor Cloud Agent |
 | Toolchain / install | Cursor environment / optional `.cursor/environment.json` |
 | Bootstrap `KSM_CONFIG` injection + dashboard transcript redaction | Cursor **Runtime Secret** |
-| Portable capability names | `pade.yaml` |
-| Record/field mapping | Local bindings (`keeper-secrets-manager`) |
+| Portable capability names | `DevelopmentSession` in `pade.yaml` (`spec.capabilities`) |
+| Record/field mapping | Local bindings (`keeper-secrets-manager` provider adapter) |
 | Resolve + child injection + output scrub | PADE `pade exec` |
 | Final authorization | GitHub API |
 
-Do **not** put Cursor-specific configuration into the portable PADE manifest.
+Do **not** put Cursor-specific configuration into the portable Intent document.
 
 ## One-time setup
 
@@ -49,7 +49,7 @@ Optional: commit a Cursor-only [`.cursor/environment.json`](https://cursor.com/d
 
 ### 3. This repository
 
-1. Portable `examples/demo-project/pade.yaml` already declares `github.user.read`.
+1. Portable `examples/demo-project/pade.yaml` is a `DevelopmentSession` that already declares `github.user.read` under `spec.capabilities`.
 2. Bindings example: `examples/demo-project/bindings.keeper-secrets-manager.example.yaml` (handles only).
 3. Build PADE in the Cloud Agent environment (`make build` or `go build -o bin/pade ./cmd/pade`).
 

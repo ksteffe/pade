@@ -1,6 +1,6 @@
 # Vault dogfood (local `-dev`)
 
-Prove that PADE can resolve declared capabilities from HashiCorp Vault without embedding secrets in `pade.yaml`, and that Alice/Bob identity paths resolve distinct material for the same capability name.
+Prove that PADE can resolve declared capabilities from HashiCorp Vault without embedding secrets in the portable `DevelopmentSession` (`pade.yaml`), and that Alice/Bob identity paths resolve distinct material for the same capability name.
 
 Demo capability: **`github.user.read`** → **`GITHUB_TOKEN`**.
 

@@ -12,7 +12,7 @@ Workload identity (SPIFFE / SPIRE) is **out of scope** for this spike; that is a
 
 | Concern | Owner |
 |---------|--------|
-| Tiny demo HTTP app + optional `pade.yaml` | [examples/ingress-demo](../examples/ingress-demo/) |
+| Tiny demo HTTP app + optional `DevelopmentSession` (`pade.yaml`) | [examples/ingress-demo](../examples/ingress-demo/) |
 | Authenticated browser path | Teleport (host binary by default; optional Compose under `examples/ingress-demo/`) |
 | Capability declaration / `pade exec` | PADE (unchanged; not an ingress controller) |
 

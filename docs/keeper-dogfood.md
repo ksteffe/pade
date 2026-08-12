@@ -1,6 +1,6 @@
 # Keeper Commander dogfood (Milestone 7)
 
-Prove that the same portable `pade.yaml` can resolve capabilities through **Keeper Commander** without changing the repository capability declaration.
+Prove that the same portable `DevelopmentSession` (`pade.yaml`) can resolve capabilities through **Keeper Commander** without changing the repository capability declaration.
 
 PADE shells out to Keeper Commander (`keeper get --format=password <UID>`).
 

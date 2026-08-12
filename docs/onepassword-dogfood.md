@@ -1,6 +1,6 @@
 # 1Password dogfood (Milestone 6)
 
-Prove that the same portable `pade.yaml` can resolve capabilities through a **second credential-manager product** (1Password) without changing the repository capability declaration.
+Prove that the same portable `DevelopmentSession` (`pade.yaml`) can resolve capabilities through a **second credential-manager product** (1Password) without changing the repository capability declaration.
 
 PADE shells out to the 1Password CLI (`op read`).
 

@@ -1,14 +1,14 @@
 # Keeper Secrets Manager dogfood (Milestone 9)
 
-Prove that the same portable `pade.yaml` can resolve capabilities through **Keeper Secrets Manager** (official Go SDK) without embedding Keeper details in the portable specification.
+Prove that the same portable `DevelopmentSession` (`pade.yaml`) can resolve capabilities through **Keeper Secrets Manager** (official Go SDK) without embedding Keeper details in `spec.capabilities`.
 
-> **Spec context:** Keeper Secrets Manager is one **reference materialization provider**. It is not part of the portable Intent Specification. Bindings and `KSM_CONFIG` stay outside `pade.yaml`. See [../spec/intent.md](../spec/intent.md) and [../spec/README.md](../spec/README.md).
+> **Spec context:** Keeper Secrets Manager is one **reference provider adapter** (materialization). It is not part of the portable Intent Specification. Bindings and `KSM_CONFIG` stay outside Intent. See [../spec/intent.md](../spec/intent.md) and [../spec/README.md](../spec/README.md).
 
 The Commander provider (`provider: keeper`) remains available and unchanged. This adapter is a separate provider: `keeper-secrets-manager`.
 
 The demo capability is **`github.user.read`** → env **`GITHUB_TOKEN`**.
 
-Bootstrap configuration comes from ambient **`KSM_CONFIG`** (base64-encoded bound device config). It must **not** appear in bindings files.
+Bootstrap configuration comes from ambient **`KSM_CONFIG`** (base64-encoded bound device config). It must **not** appear in bindings files. Local bindings use their own `version: "0.1"` format—that is **not** the Intent API version (`pade.local/v1alpha1`).
 
 ## Ways to try it
 
@@ -73,18 +73,18 @@ Redaction and stripping are **defense in depth**, not a sandbox. Any process in 
 ## Trust model
 
 ```text
-repo pade.yaml          → requests capability name
-bindings file           → selects provider + Keeper notation (handles)
-KSM Application         → ACL over which records this device can see
-KSM_CONFIG in runtime   → authenticates to that Application
-pade exec               → resolves; injects into child; strips bootstrap; redacts output
-GitHub API              → final authorization on the PAT
+DevelopmentSession (pade.yaml) → requests capability name
+bindings file                   → selects provider adapter + Keeper notation (handles)
+KSM Application                 → ACL over which records this device can see
+KSM_CONFIG in runtime           → authenticates to that Application
+pade exec                       → resolves; injects into child; strips bootstrap; redacts output
+GitHub API                      → final authorization on the PAT
 ```
 
 ## Out of scope
 
 - Changing the Commander `keeper` provider
-- Putting KSM details into portable `pade.yaml` / `spec/pade.schema.json`
+- Putting KSM details into portable Intent (`DevelopmentSession` / `spec/pade.schema.json`)
 - Running the live GitHub path in CI
 - Claiming PADE replaces Keeper or sandboxes a compromised workload
 - Cursor OIDC / remote capability broker (Phase 2; see DESIGN/RFC)

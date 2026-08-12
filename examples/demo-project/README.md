@@ -4,7 +4,7 @@ Minimal repository used to dogfood the DevPod-first PADE flow:
 
 1. **DevPod** owns workspace lifecycle (`devpod up` / `devpod stop`).
 2. **PADE** owns capability declaration, binding probes, and process-scoped `exec`.
-3. This repo never embeds secrets in `pade.yaml`.
+3. This repo never embeds secrets in the portable `DevelopmentSession` (`pade.yaml`).
 
 Demo capability: **`github.user.read`** (env: **`GITHUB_TOKEN`**).
 
@@ -12,7 +12,7 @@ Demo capability: **`github.user.read`** (env: **`GITHUB_TOKEN`**).
 
 | Path | Role |
 |------|------|
-| `pade.yaml` | Portable capability declaration (+ optional Dev Container pointer) |
+| `pade.yaml` | Portable `DevelopmentSession` Intent (`spec.capabilities`) |
 | `.devcontainer/devcontainer.json` | Environment definition for DevPod / Dev Containers |
 | `bindings.example.yaml` | Example *local* env bindings (copy; do not commit secrets) |
 | `bindings.vault.example.yaml` | Example Vault `-dev` bindings (prototype only) |

@@ -14,11 +14,13 @@ Do not collapse these layers:
 
 | Layer | Meaning |
 |-------|---------|
-| **Intent** (`pade.yaml`) | Portable capability *requests*. Provider-specific details (Keeper IDs, Vault paths, broker URLs, tokens) do **not** belong there. |
+| **Intent** (`DevelopmentSession` in `pade.yaml`) | Portable capability *requests*. Provider-specific details (Keeper IDs, Vault paths, broker URLs, tokens) do **not** belong there. |
 | **Consumer** | Software that interprets Intent. [`cmd/pade`](cmd/pade) is a **reference** Consumer, not the definition of PADE. |
 | **Broker** | Authn + server authz + materialization. [`cmd/pade-broker`](cmd/pade-broker) is a **reference** Broker spike, not the only valid broker. |
 | **Internal Go interfaces** | Implementation details (`Provider`, bindings YAML, packages under `internal/`) unless explicitly promoted into a specification. |
-| **Vendor adapters** | Cursor OIDC, Keeper, Vault, 1Password, Teleport, Cloud Run, etc. are dogfood/adapters—**not** normative PADE without evidence and an explicit spec change. |
+| **Provider adapters** | env, Vault, 1Password, Keeper, Keeper Secrets Manager — dogfood/materialization adapters, **not** normative PADE without evidence and an explicit spec change. |
+| **Workload identity adapters** | Cursor OIDC (and future peers) — runtime identity for Broker authn, **not** a credential provider adapter and **not** a normative PADE identity standard. |
+| **Other composition** | Teleport, Cloud Run, etc. are deployment/ingress experiments—**not** normative PADE without evidence and an explicit spec change. |
 
 Authorization stays server/resource-side. Prefer documenting experimental extensions before declaring them standard.
 
@@ -118,7 +120,7 @@ make dogfood-ingress-teleport  # Milestone 8 Teleport Application Access (host; 
 make dogfood-ingress-teleport-down
 ```
 
-DevPod lifecycle is documented in [docs/devpod-dogfood.md](docs/devpod-dogfood.md) and [examples/demo-project/README.md](examples/demo-project/README.md). Do not add a PADE wrapper that reimplements `devpod up`. Full DevPod proof runs locally via `make dogfood-devpod` and in CI via [`.github/workflows/devpod-dogfood.yml`](.github/workflows/devpod-dogfood.yml) (separate from the fast main CI). Teleport ingress composition is documented in [docs/teleport-ingress.md](docs/teleport-ingress.md); do not add a PADE wrapper that reimplements Teleport Application Access. Keeper Secrets Manager / Cursor Cloud composition is documented in [docs/keeper-secrets-manager-dogfood.md](docs/keeper-secrets-manager-dogfood.md) and [docs/cursor-cloud-dogfood.md](docs/cursor-cloud-dogfood.md). Phase 2 broker composition is documented in [docs/cursor-oidc-broker-dogfood.md](docs/cursor-oidc-broker-dogfood.md). Do not put Cursor-specific config into portable `pade.yaml`.
+DevPod lifecycle is documented in [docs/devpod-dogfood.md](docs/devpod-dogfood.md) and [examples/demo-project/README.md](examples/demo-project/README.md). Do not add a PADE wrapper that reimplements `devpod up`. Full DevPod proof runs locally via `make dogfood-devpod` and in CI via [`.github/workflows/devpod-dogfood.yml`](.github/workflows/devpod-dogfood.yml) (separate from the fast main CI). Teleport ingress composition is documented in [docs/teleport-ingress.md](docs/teleport-ingress.md); do not add a PADE wrapper that reimplements Teleport Application Access. Keeper Secrets Manager / Cursor Cloud composition is documented in [docs/keeper-secrets-manager-dogfood.md](docs/keeper-secrets-manager-dogfood.md) and [docs/cursor-cloud-dogfood.md](docs/cursor-cloud-dogfood.md). Phase 2 broker composition is documented in [docs/cursor-oidc-broker-dogfood.md](docs/cursor-oidc-broker-dogfood.md). Do not put Cursor-specific config into portable Intent (`DevelopmentSession` / `pade.yaml`).
 
 Treat [spec/pade.schema.json](spec/pade.schema.json) as the machine-readable Intent contract (`DevelopmentSession`). Update examples when the schema changes. See also [spec/README.md](spec/README.md) and [docs/manifest-conventions.md](docs/manifest-conventions.md).
 

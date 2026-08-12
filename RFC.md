@@ -708,7 +708,7 @@ This section records the latest architectural conclusion. Earlier RFC sections r
 | Original question | How do we make agent development environments portable? |
 | Learning | Existing runtimes (Dev Containers + DevPod and peers) already own much of workspace lifecycle. |
 | Next question | What is actually portable? |
-| Learning | The valuable portable artifact is **capability intent** (`pade.yaml`), not a new workspace runtime. |
+| Learning | The valuable portable artifact is **capability intent** (`DevelopmentSession` in `pade.yaml`), not a new workspace runtime. |
 | OIDC / broker learning | The development runtime and the **authority boundary** can be independent. |
 | Current model | **Intent Specification** + **Consumer Specification** + **Broker Specification** |
 | Reference implementation | `pade` (Consumer) + `pade-broker` (experimental Broker) |
@@ -727,7 +727,7 @@ This section records the latest architectural conclusion. Earlier RFC sections r
              Go reference implementation
 ```
 
-The Go implementation is used to **discover and validate protocol boundaries**, not to define the only valid PADE. Other runtimes, agent vendors, brokers, and service providers could implement the contract without using this repository’s code. Provider adapters (Keeper, Vault, 1Password, env, Cursor OIDC, and so on) remain implementation-specific unless later promoted into a specification with evidence.
+The Go implementation is used to **discover and validate protocol boundaries**, not to define the only valid PADE. Other runtimes, agent vendors, brokers, and service providers could implement the contract without using this repository’s code. **Provider adapters** (env, Vault, 1Password, Keeper, Keeper Secrets Manager) and the **Cursor OIDC workload identity adapter** remain implementation-specific unless later promoted into a specification with evidence.
 
 Historical “workspace broker” / orchestration language in earlier sections remains useful context; prefer sections 24+ and this section when they conflict with early product-platform framing. The specifications are exploratory drafts (`pade.local/v1alpha1` Intent), not standards-body deliverables.
 
