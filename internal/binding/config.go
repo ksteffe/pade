@@ -32,6 +32,16 @@ type CapabilityBinding struct {
 	Keeper               *KeeperBinding               `yaml:"keeper,omitempty" json:"keeper,omitempty"`
 	KeeperSecretsManager *KeeperSecretsManagerBinding `yaml:"keeperSecretsManager,omitempty" json:"keeperSecretsManager,omitempty"`
 	Broker               *BrokerBinding               `yaml:"broker,omitempty" json:"broker,omitempty"`
+	Exec                 *ExecBinding                 `yaml:"exec,omitempty" json:"exec,omitempty"`
+}
+
+// ExecBinding invokes an external provider process (draft contract).
+// Config is opaque to PADE core — vendor-specific keys belong there, not in
+// normative Intent or core wire fields. See docs/provider-contract.md.
+type ExecBinding struct {
+	Command []string               `yaml:"command" json:"command"`
+	Dir     string                 `yaml:"dir,omitempty" json:"dir,omitempty"`
+	Config  map[string]interface{} `yaml:"config,omitempty" json:"config,omitempty"`
 }
 
 // VaultBinding configures a Vault KV lookup. Field values are Vault secret keys
@@ -205,6 +215,18 @@ func (c *Config) Validate() error {
 			id := strings.TrimSpace(b.Broker.Identity)
 			if id != "" && id != "cursor" {
 				return fmt.Errorf("binding %q: unsupported broker.identity %q (want cursor)", name, id)
+			}
+		case "exec":
+			if b.Exec == nil {
+				return fmt.Errorf("binding %q: exec provider requires exec config", name)
+			}
+			if len(b.Exec.Command) == 0 {
+				return fmt.Errorf("binding %q: exec.command is required", name)
+			}
+			for i, part := range b.Exec.Command {
+				if strings.TrimSpace(part) == "" {
+					return fmt.Errorf("binding %q: exec.command[%d] is empty", name, i)
+				}
 			}
 		default:
 			return fmt.Errorf("binding %q: unsupported provider %q", name, b.Provider)

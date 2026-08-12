@@ -11,6 +11,7 @@ import (
 
 	"github.com/ksteffe/pade/internal/binding"
 	envprovider "github.com/ksteffe/pade/internal/binding/env"
+	execprovider "github.com/ksteffe/pade/internal/binding/exec"
 	keeperprovider "github.com/ksteffe/pade/internal/binding/keeper"
 	keepersmprovider "github.com/ksteffe/pade/internal/binding/keepersm"
 	onepasswordprovider "github.com/ksteffe/pade/internal/binding/onepassword"
@@ -80,6 +81,7 @@ func main() {
 			onepasswordprovider.New(),
 			keeperprovider.New(),
 			keepersmprovider.New(),
+			execprovider.New(),
 		),
 		Bindings: bindCfg,
 		Logger:   log.New(os.Stderr, "pade-broker: ", log.LstdFlags),

@@ -83,7 +83,7 @@ Before adding a feature, ask:
 - When behavior changes, update `spec/`, examples, and design docs in the same change when practical.
 - Keep Intent schemas small (`pade.local/v1alpha1`); every field creates compatibility pressure.
 - Prefer clear package boundaries over speculative abstractions.
-- Do not invent grant/lease/preview protocols in schema without dogfood evidence. Endpoint declaration and Grant/Lease remain decision/deferred items in [ROADMAP.md](ROADMAP.md)—do not implement them preemptively. Do not put GitHub App or Google Analytics (or other vendor) auth into PADE core. Non-normative reference providers belong under `examples/providers/github/` and `examples/providers/google-analytics/` per [ROADMAP.md](ROADMAP.md) Milestones B–G; do not preemptively implement the provider contract or those providers in this planning pass. Keep PAT dogfood as stage-1 baseline; preferred pre-release GitHub dogfood is App → installation token with repo-scoped validation (not `/user` whoami).
+- Do not invent grant/lease/preview protocols in schema without dogfood evidence. Endpoint declaration and Grant/Lease remain decision/deferred items in [ROADMAP.md](ROADMAP.md)—do not implement them preemptively. Do not put GitHub App or Google Analytics (or other vendor) auth into PADE core. External providers use the draft `provider: exec` contract ([docs/provider-contract.md](docs/provider-contract.md)); vendor logic stays under `examples/providers/`. Keep PAT dogfood as stage-1 baseline; preferred pre-release GitHub dogfood is App → installation token with repo-scoped validation (not `/user` whoami).
 
 ## Tests and commands
 
@@ -115,6 +115,8 @@ make dogfood-ksm   # Milestone 9 Keeper Secrets Manager (PADE_KSM_FAKE=1)
 make dogfood-ksm-live   # local / Cursor Cloud: real KSM + GitHub API (not CI)
 make dogfood-broker   # Phase 2 spike: fake OIDC + pade-broker + fake KSM
 make dogfood-broker-stage-b   # Stage B: real Cursor OIDC + local broker (Cloud Agent; not CI)
+make dogfood-exec-provider   # Milestone B–C: provider: exec stub contract dogfood
+make dogfood-exec-provider-github   # Toward D: GitHub reference provider (PADE_PROVIDER_FAKE=1)
 make smoke-broker-container   # Docker pade-broker image smoke (requires docker)
 make dogfood-ingress-teleport  # Milestone 8 Teleport Application Access (host; Docker optional)
 make dogfood-ingress-teleport-down

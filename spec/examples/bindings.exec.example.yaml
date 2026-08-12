@@ -1,0 +1,20 @@
+# Example local/broker bindings for provider: exec (draft external provider contract).
+# See docs/provider-contract.md. Command paths are host-local — not portable Intent.
+version: "0.1"
+
+capabilities:
+  demo.derived:
+    provider: exec
+    exec:
+      command: ["./bin/pade-provider-stub"]
+      config:
+        tokenEnv: DEMO_TOKEN
+        value: example-only-not-a-real-secret
+
+  # GitHub App reference provider (fake mode requires PADE_PROVIDER_FAKE=1).
+  # github.repo.read:
+  #   provider: exec
+  #   exec:
+  #     command: ["./bin/pade-provider-github"]
+  #     config:
+  #       tokenEnv: GITHUB_TOKEN

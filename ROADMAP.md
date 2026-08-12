@@ -55,8 +55,8 @@ Derived from the repository as of this roadmap pass (reference Consumer/Broker c
 | Broker authentication | DONE (spike) | JWKS / RS256; iss/aud; JTI replay store still deferred |
 | Broker authorization | DONE (spike) | Server policy: subject + capability allowlist + optional `repo_urls` |
 | Provider materialization (in-tree adapters) | DONE | Server-side env/Vault/op/keeper/ksm via broker bindings |
-| External/independently packaged provider seam | MISSING | Needed before `v0.1.0` (Milestones B–C) |
-| GitHub App derived-credential dogfood | MISSING | Needed before `v0.1.0` (Milestones D–E) |
+| External/independently packaged provider seam | PARTIAL | Draft `provider: exec` contract + adapter (`docs/provider-contract.md`, `internal/binding/exec`); stub dogfood in CI |
+| GitHub App derived-credential dogfood | PARTIAL | Skeleton + fake mode under `examples/providers/github/`; real App exchange still Milestone D–E |
 | Google Analytics derived-credential dogfood | MISSING | Needed before `v0.1.0` (Milestone F) |
 | Two-provider same-seam validation | MISSING | Needed before `v0.1.0` (Milestone G) |
 | Arbitrary Material / env injection | DONE (env maps) | `Material.Env map[string]string` only; sufficient for token/API credentials |
@@ -76,12 +76,13 @@ Derived from the repository as of this roadmap pass (reference Consumer/Broker c
 
 **Genuinely missing PADE-repository work** before the first release:
 
-1. Minimal generic provider contract + dogfood binding (Milestones B–C)
-2. GitHub App **reference** provider under `examples/providers/github/` + dogfood migration (Milestones D–E) — non-normative
-3. Google Analytics **reference** provider under `examples/providers/google-analytics/` (Milestone F) — non-normative
-4. Two-provider architectural test that both use the same seam (Milestone G)
-5. Spec/docs tightening from that dogfood (Milestone H)
-6. Versioned release foundation gated on the above (Milestone I)
+1. Finish GitHub App **reference** provider real derivation + dogfood migration (Milestones D–E) — fake/`provider: exec` seam already dogfooded
+2. Google Analytics **reference** provider under `examples/providers/google-analytics/` (Milestone F) — non-normative
+3. Two-provider architectural test that both use the same seam (Milestone G)
+4. Spec/docs tightening from that dogfood (Milestone H)
+5. Versioned release foundation gated on the above (Milestone I)
+
+**In progress / landed for B–C:** draft exec contract, `provider: exec` binding, stub + GitHub fake-mode providers (`make dogfood-exec-provider`, `make dogfood-exec-provider-github`).
 
 Do not roadmap work that is already DONE.
 
@@ -288,9 +289,9 @@ Previous letters after PR #31 (GA-first A–M) are **superseded**:
 | Milestone | Focus | Where work happens |
 |-----------|--------|--------------------|
 | **A — Broker dogfood baseline** | Keep PAT **direct materialization** healthy as stage-1 baseline (not preferred final GitHub dogfood) | PADE repo (mostly DONE) |
-| **B — Generic provider contract** | Minimal portable fulfill/derive seam | PADE repo |
-| **C — Dogfood provider binding** | One binding sufficient for dogfood (exec is a candidate, not frozen) | PADE repo |
-| **D — GitHub App reference provider** | `examples/providers/github/` — App private key broker-side → installation token | PADE repo (non-normative example) |
+| **B — Generic provider contract** | Minimal portable fulfill/derive seam | PADE repo — **draft landed** (`docs/provider-contract.md`) |
+| **C — Dogfood provider binding** | One binding sufficient for dogfood (`provider: exec`) | PADE repo — **landed** (other bindings still open) |
+| **D — GitHub App reference provider** | `examples/providers/github/` — App private key broker-side → installation token | PADE repo — **skeleton/fake mode**; real App next |
 | **E — GitHub dogfood migration** | Prefer derived installation token; repo-scoped validation (not `/user`) | PADE + broker deploy config + cloud agent |
 | **F — Google Analytics reference provider** | `examples/providers/google-analytics/` — second vendor on same seam | PADE repo (non-normative example) |
 | **G — Two-provider architectural test** | Both providers use the same generic seam; no vendor leakage into core | PADE repo |
@@ -340,6 +341,8 @@ Mostly **DONE**. Do not remove this path. It is useful for the simple path and f
 
 ### Milestone B — Generic provider contract
 
+**Status:** Draft contract documented in [`docs/provider-contract.md`](docs/provider-contract.md). Naming remains an open question; dogfood continues to drive the shape.
+
 **Goal:** Define and dogfood a minimal generic PADE provider contract.
 
 Semantic responsibility (approximate):
@@ -354,14 +357,18 @@ This is **not** “an arbitrary hook.”
 
 ### Milestone C — Dogfood provider binding
 
+**Status:** First binding landed as `provider: exec` ([`internal/binding/exec`](internal/binding/exec)). Dogfood: `make dogfood-exec-provider`. Other bindings (HTTP, gRPC, plugin) remain open options—not committed.
+
 **Goal:** Implement one **implementation binding** sufficient for dogfood of the contract from Milestone B.
 
-Candidates include subprocess/exec, local plugin, HTTP, gRPC, or a separately packaged provider. **Do not commit the roadmap to all of them.** An exec/subprocess binding may be an attractive first experiment (any language), but distinguish:
+Candidates include subprocess/exec, local plugin, HTTP, gRPC, or a separately packaged provider. **Do not commit the roadmap to all of them.** Distinguish:
 
 - **Provider contract** — semantic abstraction
-- **Exec/subprocess** — one possible binding
+- **Exec/subprocess** — the first dogfood binding (not the definition of the abstraction)
 
 ### Milestone D — GitHub App reference provider (first)
+
+**Status:** Skeleton + `PADE_PROVIDER_FAKE=1` mode under [`examples/providers/github`](examples/providers/github). Real App private key → installation token exchange is the remaining work. Dogfood fake path: `make dogfood-exec-provider-github`.
 
 **Goal:** Add the **first** in-tree reference provider and primary derived-credential dogfood path.
 
