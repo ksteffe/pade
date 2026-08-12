@@ -7,6 +7,7 @@
 > (including historical “workspace broker” language). Sections 24+ revise toward
 > DevPod-first capability interoperability. Section 36 records the latest model:
 > PADE as an Interoperability Contract (Intent Spec + Consumer Spec + Broker Spec).
+> Section 37 records the Kubernetes-style DevelopmentSession Intent convention.
 > For current draft specifications see [spec/README.md](spec/README.md). The README
 > is the short source of truth for current direction.
 
@@ -728,4 +729,42 @@ This section records the latest architectural conclusion. Earlier RFC sections r
 
 The Go implementation is used to **discover and validate protocol boundaries**, not to define the only valid PADE. Other runtimes, agent vendors, brokers, and service providers could implement the contract without using this repository’s code. Provider adapters (Keeper, Vault, 1Password, env, Cursor OIDC, and so on) remain implementation-specific unless later promoted into a specification with evidence.
 
-Historical “workspace broker” / orchestration language in earlier sections remains useful context; prefer sections 24+ and this section when they conflict with early product-platform framing. The specifications are exploratory v0.1 drafts, not standards-body deliverables.
+Historical “workspace broker” / orchestration language in earlier sections remains useful context; prefer sections 24+ and this section when they conflict with early product-platform framing. The specifications are exploratory drafts (`pade.local/v1alpha1` Intent), not standards-body deliverables.
+
+## 37. Kubernetes-Style Declarative Resource Convention
+
+PADE adopts the familiar Kubernetes **API-object grammar** for portable Intent documents—not Kubernetes itself.
+
+```yaml
+apiVersion: pade.local/v1alpha1
+kind: DevelopmentSession
+metadata:
+  name: demo
+spec:
+  capabilities:
+    github.user.read:
+      access: read
+```
+
+| Field | Why it is useful |
+|-------|------------------|
+| `apiVersion` | Explicit evolution path for the experimental wire format (`pade.local/v1alpha1`; `.local` avoids claiming a public DNS domain). |
+| `kind` | Leaves room for future resource types without requiring them now. |
+| `metadata` | Identifies the portable object (`name`, optional labels/annotations) without adopting API-server ObjectMeta. |
+| `spec` | Portable desired intent (capability requests). |
+
+Runtime/provider-specific observed state may eventually be represented separately as `status`, but that is **not** part of v1alpha1 Intent input. Reference Consumers continue to show satisfaction via `plan` / `capabilities`.
+
+A Kubernetes platform **could** choose to expose PADE resources as CRDs/controllers. That would be one conforming implementation environment—not a PADE dependency or requirement. PADE MUST remain usable on a laptop, with DevPod, Coder, cloud agents, or other hosts.
+
+This convention supports the design principle:
+
+> PADE SHOULD STANDARDIZE ONLY WHAT MUST BE SHARED BETWEEN PROVIDERS.
+
+Standardize portable intent. Leave runtimes, credential managers, brokers, and ingress systems as pluggable conforming implementations. See [docs/manifest-conventions.md](docs/manifest-conventions.md) and [spec/intent.md](spec/intent.md).
+
+### Non-normative note: adjacent CNCF discussion
+
+This direction was influenced methodologically by adjacent CNCF discussion of project-agnostic declarative specifications for application integration dependencies ([cncf/toc#1797](https://github.com/cncf/toc/issues/1797)): declare requirements independently of implementations, prefer existing specifications when possible, keep formats programmatically consumable, and let conforming systems choose how requirements are satisfied.
+
+PADE is **not** affiliated with CNCF, endorsed by CNCF, compatible with that unfinished specification, or part of that initiative.

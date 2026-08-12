@@ -1,9 +1,13 @@
-# Capability-first shape (current v0.1 direction).
+# Capability-first DevelopmentSession Intent (v1alpha1).
 # Environment lives in .devcontainer/devcontainer.json; start with DevPod.
-version: "0.1"
-
-capabilities:
-  google-analytics.read:
-    access: read
-  datadog.logs.read:
-    access: read
+# Credentials must never appear in this file.
+apiVersion: pade.local/v1alpha1
+kind: DevelopmentSession
+metadata:
+  name: web-app
+spec:
+  capabilities:
+    google-analytics.read:
+      access: read
+    datadog.logs.read:
+      access: read

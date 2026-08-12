@@ -1,22 +1,15 @@
-# Illustrative earlier orchestration-oriented shape from the initial prototype design.
-# Kept for comparison; not the default DevPod-first target.
+# Historical orchestration-oriented example, reduced to portable Intent.
+# Earlier drafts also declared environment/services/lifecycle here; those are
+# outside v1alpha1 DevelopmentSession.spec (Dev Containers / DevPod own env).
 # Credentials must never appear in this file.
-version: "0.1"
-
-environment:
-  devcontainer: ".devcontainer/devcontainer.json"
-
-services:
-  web:
-    command: "npm run dev -- --host 0.0.0.0"
-    port: 3000
-
-capabilities:
-  google-analytics.read:
-    provider: env
-    env:
-      - GA_PROPERTY_ID
-      - GOOGLE_APPLICATION_CREDENTIALS
-
-lifecycle:
-  idleTimeout: "30m"
+apiVersion: pade.local/v1alpha1
+kind: DevelopmentSession
+metadata:
+  name: web-app-orchestrated
+spec:
+  capabilities:
+    google-analytics.read:
+      provider: env
+      env:
+        - GA_PROPERTY_ID
+        - GOOGLE_APPLICATION_CREDENTIALS

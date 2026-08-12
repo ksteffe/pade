@@ -173,7 +173,7 @@ Example:
 				return fmt.Errorf("validation failed; fix the manifest before exec")
 			}
 			for _, name := range capabilities {
-				if _, ok := m.Capabilities[name]; !ok {
+				if _, ok := m.Spec.Capabilities[name]; !ok {
 					return fmt.Errorf("capability %q is not declared in the manifest", name)
 				}
 			}
@@ -225,7 +225,7 @@ func resolveBindings(ctx context.Context, m *manifest.Manifest, bindingsPath str
 	}
 	reg := defaultRegistry()
 	views := map[string]binding.CapabilityRequestView{}
-	for name, cap := range m.Capabilities {
+	for name, cap := range m.Spec.Capabilities {
 		views[name] = binding.CapabilityRequestView{
 			Access:   cap.Access,
 			Required: cap.IsRequired(),

@@ -31,6 +31,12 @@ func WriteValidateHuman(w io.Writer, res *manifest.Result) {
 
 // WritePlanHuman prints a plan without secrets.
 func WritePlanHuman(w io.Writer, p *planner.Plan) {
+	fmt.Fprintln(w, "Resource")
+	fmt.Fprintf(w, "  apiVersion: %s\n", p.APIVersion)
+	fmt.Fprintf(w, "  kind: %s\n", p.Kind)
+	fmt.Fprintf(w, "  name: %s\n", p.Name)
+	fmt.Fprintln(w)
+
 	fmt.Fprintln(w, "Workspace")
 	fmt.Fprintf(w, "  runtime: %s\n", p.Workspace.Runtime)
 	if p.Workspace.Config != "" {
@@ -50,33 +56,6 @@ func WritePlanHuman(w io.Writer, p *planner.Plan) {
 		writeCapability(w, c)
 	}
 	fmt.Fprintln(w)
-
-	if len(p.Services) > 0 {
-		fmt.Fprintln(w, "Services")
-		for _, s := range p.Services {
-			fmt.Fprintf(w, "  %s\n", s.Name)
-			fmt.Fprintf(w, "    command: %s\n", s.Command)
-			fmt.Fprintf(w, "    port: %d\n", s.Port)
-			if s.Ingress != "" {
-				fmt.Fprintf(w, "    ingress: %s\n", s.Ingress)
-			}
-			if s.Note != "" {
-				fmt.Fprintf(w, "    note: %s\n", s.Note)
-			}
-		}
-		fmt.Fprintln(w)
-	}
-
-	if p.Lifecycle != nil {
-		fmt.Fprintln(w, "Lifecycle")
-		if p.Lifecycle.IdleTimeout != "" {
-			fmt.Fprintf(w, "  idleTimeout: %s\n", p.Lifecycle.IdleTimeout)
-		}
-		if p.Lifecycle.MaximumLifetime != "" {
-			fmt.Fprintf(w, "  maximumLifetime: %s\n", p.Lifecycle.MaximumLifetime)
-		}
-		fmt.Fprintln(w)
-	}
 
 	if len(p.Notes) > 0 {
 		fmt.Fprintln(w, "Notes")

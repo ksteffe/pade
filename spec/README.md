@@ -19,7 +19,9 @@ The Go CLI (`pade`) and broker (`pade-broker`) in this repository are **referenc
 
 ### PADE Intent Specification
 
-Portable repository metadata (`pade.yaml`) that names required capabilities without saying where execution occurs, which agent runs, where secrets live, which broker is used, or which human/workload is authorized. The machine-readable v0.1 shape is [pade.schema.json](pade.schema.json).
+Portable repository metadata (`pade.yaml`) shaped as a `DevelopmentSession` API object (`apiVersion: pade.local/v1alpha1`) that names required capabilities without saying where execution occurs, which agent runs, where secrets live, which broker is used, or which human/workload is authorized. The machine-readable shape is [pade.schema.json](pade.schema.json). See also [../docs/manifest-conventions.md](../docs/manifest-conventions.md).
+
+PADE borrows Kubernetes-style declarative grammar but does **not** require Kubernetes.
 
 ### PADE Consumer Specification
 
@@ -114,14 +116,16 @@ See [examples/](examples/) and the dogfood guides under [`docs/`](../docs/).
 
 ## Maturity and versioning
 
-- Labels such as **Draft / Exploratory** and **Version: 0.1** describe this repository’s intent documents and schema stub.
+- Labels such as **Draft / Exploratory** and Intent `apiVersion: pade.local/v1alpha1` describe this repository’s intent documents and schema stub. The `pade.local` group is exploratory (`.local` avoids claiming a public DNS domain).
 - Protocol and schema versioning remain under active development. Do not assume a sophisticated version-negotiation scheme.
 - Distinguish carefully:
-  - **current normative v0.1 behavior** (what the Intent schema and documented wire shapes actually constrain today);
-  - **future direction** (hypotheses and open questions);
+  - **current normative v1alpha1 behavior** (what the Intent schema and documented wire shapes actually constrain today);
+  - **future direction** (hypotheses and open questions, including possible runtime-produced `status`);
   - **reference implementation behavior** (what `pade` / `pade-broker` do in Go).
 
 The Intent schema is the most concrete machine-readable contract today. The Consumer and Broker documents mix draft interoperability requirements with accurate descriptions of the reference spike.
+
+Historical flat `version: "0.1"` Intent manifests are rejected with an explicit migration error; they are not dual-supported.
 
 ## Open specification questions
 
@@ -131,7 +135,7 @@ Dogfood should drive these; do not freeze them prematurely:
 2. **Capability vocabulary** — Naming, namespaces, registration, and third-party extension rules remain exploratory. There is no global capability registry in v0.1.
 3. **Broker discovery / configuration** — Today the reference consumer configures broker endpoint and audience via local bindings. Universal discovery is unspecified.
 4. **Workload identity catalog** — Cursor OIDC is the first reference adapter. GitHub Actions OIDC, SPIFFE, cloud workload identity, and enterprise mechanisms are possible later adapters, not standardized here.
-5. **Version negotiation** — Schema/protocol version fields and compatibility rules beyond fixed `"0.1"` remain future work.
+5. **Version negotiation** — Schema/protocol version fields and compatibility rules beyond fixed `pade.local/v1alpha1` remain future work. Legacy flat `version: "0.1"` Intent is not accepted.
 
 ## Normative language
 

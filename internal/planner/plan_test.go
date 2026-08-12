@@ -12,17 +12,30 @@ import (
 func TestBuildPlanCapabilityFirst(t *testing.T) {
 	t.Parallel()
 	m, err := manifest.Parse([]byte(`
-version: "0.1"
-capabilities:
-  google-analytics.read:
-    access: read
-  datadog.logs.read:
-    access: read
+apiVersion: pade.local/v1alpha1
+kind: DevelopmentSession
+metadata:
+  name: web-app
+spec:
+  capabilities:
+    google-analytics.read:
+      access: read
+    datadog.logs.read:
+      access: read
 `), "pade.yaml")
 	if err != nil {
 		t.Fatal(err)
 	}
 	plan := planner.Build(m, planner.BuildOptions{})
+	if plan.APIVersion != manifest.APIVersionV1Alpha1 {
+		t.Fatalf("apiVersion: got %q", plan.APIVersion)
+	}
+	if plan.Kind != manifest.KindDevelopmentSession {
+		t.Fatalf("kind: got %q", plan.Kind)
+	}
+	if plan.Name != "web-app" {
+		t.Fatalf("name: got %q", plan.Name)
+	}
 	if plan.Workspace.Runtime != "devpod" {
 		t.Fatalf("runtime: got %q", plan.Workspace.Runtime)
 	}
@@ -40,15 +53,22 @@ capabilities:
 			t.Fatalf("status must not mention secrets: %q", c.Status)
 		}
 	}
+	if !strings.Contains(plan.SummaryLine(), "DevelopmentSession/web-app") {
+		t.Fatalf("summary=%q", plan.SummaryLine())
+	}
 }
 
 func TestBuildPlanWithBindings(t *testing.T) {
 	t.Parallel()
 	m, err := manifest.Parse([]byte(`
-version: "0.1"
-capabilities:
-  google-analytics.read:
-    access: read
+apiVersion: pade.local/v1alpha1
+kind: DevelopmentSession
+metadata:
+  name: web-app
+spec:
+  capabilities:
+    google-analytics.read:
+      access: read
 `), "pade.yaml")
 	if err != nil {
 		t.Fatal(err)
@@ -79,13 +99,17 @@ capabilities:
 func TestBuildPlanDoesNotEchoSecrets(t *testing.T) {
 	t.Parallel()
 	m, err := manifest.Parse([]byte(`
-version: "0.1"
-capabilities:
-  google-analytics.read:
-    provider: env
-    env:
-      - GA_PROPERTY_ID
-      - GOOGLE_APPLICATION_CREDENTIALS
+apiVersion: pade.local/v1alpha1
+kind: DevelopmentSession
+metadata:
+  name: web-app
+spec:
+  capabilities:
+    google-analytics.read:
+      provider: env
+      env:
+        - GA_PROPERTY_ID
+        - GOOGLE_APPLICATION_CREDENTIALS
 `), "pade.yaml")
 	if err != nil {
 		t.Fatal(err)

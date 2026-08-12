@@ -7,9 +7,11 @@
 > Draft interoperability specs (Intent / Consumer / Broker) live under
 > [spec/README.md](spec/README.md). Sections 1–23 describe the original Dev Container
 > orchestration prototype (`pade up`, …). Sections 24+ revise toward DevPod-first
-> capability resolution. Section 40 maps code to the three specs. Prefer later
-> sections, the README, and [docs/go-reference.md](docs/go-reference.md) when
-> implementing v0.1.
+> capability resolution. Section 28’s `version: "0.1"` examples are **historical**;
+> current Intent is `DevelopmentSession` (`pade.local/v1alpha1`) — see section 41.
+> Section 40 maps code to the three specs. Prefer later sections, the README,
+> [docs/manifest-conventions.md](docs/manifest-conventions.md), and
+> [docs/go-reference.md](docs/go-reference.md) when implementing.
 
 **Status: Exploratory Prototype**  
 **Implementation language: Go**  
@@ -87,6 +89,10 @@ The internal package boundaries should remain clear, but v0.1 should avoid specu
 
 ## 4. Initial Manifest
 
+> **Historical:** This section describes the original orchestration-oriented
+> `version: "0.1"` sketch (environment / services / lifecycle). Do not implement
+> it as current Intent. See [section 41](#41-developmentsession-v1alpha1-intent).
+
 The first schema should remain deliberately small.
 
 ```yaml
@@ -115,9 +121,14 @@ lifecycle:
  idleTimeout: "30m"
 ```
 
-For v0.1, lifecycle fields such as idleTimeout may be accepted by the schema while being explicitly reported as unsupported by the local provider. The essential concepts are environment, services, and capabilities.
+For the historical prototype, lifecycle fields such as idleTimeout may be accepted by the schema while being explicitly reported as unsupported by the local provider. The essential concepts at that time were environment, services, and capabilities.
 
 ## 5. JSON Schema
+
+> **Historical:** The illustrative schema below mirrors the early
+> `version: "0.1"` Intent shape. The normative schema today is
+> [`spec/pade.schema.json`](spec/pade.schema.json) for `DevelopmentSession`
+> (`pade.local/v1alpha1`).
 
 `spec/pade.schema.json` is the normative machine-readable contract for the prototype.
 
@@ -134,7 +145,7 @@ Illustrative schema:
 ```json
 {
  "$schema": "https://json-schema.org/draft/2020-12/schema",
- "$id": "https://pade.dev/schema/v0.1/pade.schema.json",
+ "$id": "https://pade.local/schema/v0.1/pade.schema.json",
  "title": "PADE Workspace",
  "type": "object",
  "required": ["version", "environment"],
@@ -656,11 +667,17 @@ PADE may invoke DevPod as a convenience during experiments, but DevPod remains t
 
 ## 28. Revised Manifest
 
+> **Historical note:** The YAML sketches in this section use the earlier flat
+> `version: "0.1"` Intent shape. That shape is no longer accepted by the
+> reference Consumer. Current Intent is `apiVersion: pade.local/v1alpha1` /
+> `kind: DevelopmentSession` — see [section 41](#41-developmentsession-v1alpha1-intent)
+> and [spec/intent.md](spec/intent.md).
+
 PADE should avoid duplicating the environment definition already contained in devcontainer.json.
 
 The prototype should test either a small standalone capability file or an existing Dev Container customization extension point.
 
-Example standalone form:
+Example standalone form (historical `version: "0.1"` sketch):
 
 ```yaml
 version: "0.1"
@@ -1144,3 +1161,26 @@ Capability → resource / lease → URL + connection info + expiration
 ```
 
 There is **no** general Grant type in the Go code or schema yet. Do not standardize leasing, renewal, revocation, or preview tunnel protocols here. Let dogfood drive any future Grant Specification. See [spec/README.md](spec/README.md#open-specification-questions).
+
+## 41. DevelopmentSession v1alpha1 Intent
+
+**Current direction** for portable Intent (supersedes flat `version: "0.1"` sketches above):
+
+```yaml
+apiVersion: pade.local/v1alpha1
+kind: DevelopmentSession
+metadata:
+  name: demo
+spec:
+  capabilities:
+    github.user.read:
+      access: read
+```
+
+- Normative schema: [`spec/pade.schema.json`](spec/pade.schema.json)
+- Conventions: [`docs/manifest-conventions.md`](docs/manifest-conventions.md)
+- Go wire model: [`internal/manifest`](internal/manifest) — PADE owns a tiny struct (`APIVersion`, `Kind`, `Metadata`, `Spec`). Do **not** import Kubernetes API machinery merely for formatting conventions.
+- Capability requests live under `spec.capabilities` (Go: `Manifest.Spec.Capabilities`).
+- Bindings remain separate (`version: "0.1"` local/org YAML is unchanged).
+- Checked-in `status` is not accepted; plan/capabilities remain the satisfaction surfaces.
+- Legacy Intent documents with top-level `version: "0.1"` are rejected with an explicit migration error.

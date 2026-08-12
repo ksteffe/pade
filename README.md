@@ -2,6 +2,30 @@
 
 **Portable Agent Development Environments**
 
+## The portable thing is the intent
+
+PADE describes **what a development session requires**, not which vendor or infrastructure must satisfy those requirements.
+
+A repository declares portable capability intent. A conforming implementation decides how to satisfy that intent using existing runtimes, credential systems, network infrastructure, ingress systems, and so on.
+
+PADE uses **Kubernetes-style declarative API conventions** because they provide a familiar vocabulary for API versioning, resource kinds, metadata, and desired intent under `spec`. PADE does **not** require Kubernetes, and `DevelopmentSession` is **not** currently a Kubernetes CRD. See [docs/manifest-conventions.md](docs/manifest-conventions.md).
+
+```text
+DevelopmentSession.spec
+        ↓
+declares portable intent
+        ↓
+conforming implementation
+        ↓
+DevPod / Coder / local / cloud runtime
++
+env / Vault / 1Password / Keeper / enterprise broker
++
+future ingress/network providers
+```
+
+The checked-in manifest must **not** encode those provider choices.
+
 PADE is an exploratory **interoperability contract** for portable development capability intent: declare what a project may need, consume that intent safely, and broker authorized capabilities through existing authority systems.
 
 It currently defines three **draft** specification surfaces:
@@ -15,7 +39,7 @@ It currently defines three **draft** specification surfaces:
 Specification entry point: [spec/README.md](spec/README.md).
 
 ```text
-pade.yaml
+pade.yaml (DevelopmentSession)
    |
    | portable intent
    v
@@ -31,7 +55,7 @@ Keeper / Vault / cloud IAM / preview provider /
 enterprise platform / other service
 ```
 
-These specs are **draft / exploratory (v0.1)**—not an industry standard. No vendor is claimed to support PADE today.
+These specs are **draft / exploratory (`pade.local/v1alpha1`)**—not an industry standard. No vendor is claimed to support PADE today. The `pade.local` API group is an **exploratory** identifier (`.local` avoids claiming a public DNS domain).
 
 This repository contains the Go **reference** Consumer ([`pade`](cmd/pade)) and Broker ([`pade-broker`](cmd/pade-broker)). Third parties can implement the contract without running binaries from this repository.
 
@@ -41,7 +65,7 @@ This repository contains the Go **reference** Consumer ([`pade`](cmd/pade)) and 
 |-------|------|----------|
 | [`cmd/pade`](cmd/pade) | Reference Consumer (`validate`, `plan`, `capabilities`, `exec`, `identity`) | Implemented (v0.1 capability path) |
 | [`cmd/pade-broker`](cmd/pade-broker) | Reference Broker | **Experimental spike** |
-| [`spec/pade.schema.json`](spec/pade.schema.json) | Machine-readable Intent schema | v0.1 stub |
+| [`spec/pade.schema.json`](spec/pade.schema.json) | Machine-readable Intent schema | v1alpha1 DevelopmentSession |
 
 Provider adapters (env, Vault, 1Password, Keeper, Keeper Secrets Manager) and the Cursor OIDC workload identity adapter are **reference implementation** integrations—not automatic parts of the PADE standard.
 
@@ -140,7 +164,7 @@ Dev Container spec → DevPod → local/remote workspace
 Intent (pade.yaml) → Consumer → [bindings | Broker] → authority systems → process-scoped use
 ```
 
-A future Intent manifest version *may* further separate pure portable intent from reference-implementation/runtime hints present in the v0.1 schema; that separation is not designed yet. Do not add fields anticipating it.
+A future Intent evolution *may* add runtime-produced `status` or further separate pure portable intent from prototype hints; that is not part of v1alpha1 input. Do not add fields anticipating it. Legacy flat `version: "0.1"` Intent manifests are rejected with an explicit migration error.
 
 ## Historical / alternate path
 
@@ -154,7 +178,8 @@ Earlier sections of [DESIGN.md](DESIGN.md) and [docs/go-reference.md](docs/go-re
 | [spec/intent.md](spec/intent.md) | Intent Specification |
 | [spec/consumer.md](spec/consumer.md) | Consumer Specification |
 | [spec/broker.md](spec/broker.md) | Broker Specification (experimental protocol) |
-| [spec/pade.schema.json](spec/pade.schema.json) | Intent JSON Schema (v0.1 stub) |
+| [spec/pade.schema.json](spec/pade.schema.json) | Intent JSON Schema (DevelopmentSession v1alpha1) |
+| [docs/manifest-conventions.md](docs/manifest-conventions.md) | apiVersion / kind / metadata / spec conventions |
 | [spec/examples/](spec/examples/) | Example manifests, bindings, broker policy |
 | [RFC.md](RFC.md) | Architectural history / evolving proposal |
 | [DESIGN.md](DESIGN.md) | Reference implementation design history |
@@ -190,16 +215,19 @@ Earlier sections of [DESIGN.md](DESIGN.md) and [docs/go-reference.md](docs/go-re
 Capabilities only — no secrets in the repo:
 
 ```yaml
-version: "0.1"
-
-capabilities:
-  github.user.read:
-    access: read
+apiVersion: pade.local/v1alpha1
+kind: DevelopmentSession
+metadata:
+  name: demo
+spec:
+  capabilities:
+    github.user.read:
+      access: read
 ```
 
 (Schema examples under `spec/examples/` may still show other capability names such as `google-analytics.read`.)
 
-Environment construction stays in `.devcontainer/devcontainer.json` and is started with DevPod (for example `devpod up .`). See [spec/examples/web-app.yaml](spec/examples/web-app.yaml) for the capability-first shape and [spec/examples/web-app-orchestrated.yaml](spec/examples/web-app-orchestrated.yaml) for the earlier environment/services shape.
+Environment construction stays in `.devcontainer/devcontainer.json` and is started with DevPod (for example `devpod up .`). See [spec/examples/web-app.yaml](spec/examples/web-app.yaml). The earlier orchestration-oriented example ([spec/examples/web-app-orchestrated.yaml](spec/examples/web-app-orchestrated.yaml)) has been reduced to portable capability Intent under the same v1alpha1 shape.
 
 ## Local bindings (reference Consumer)
 

@@ -10,8 +10,10 @@
 >
 > This document still emphasizes a broader orchestration CLI in places. Align new
 > implementation work with the DevPod-first direction in the repository README,
-> later sections of [DESIGN.md](../DESIGN.md), and the three specification surfaces.
+> later sections of [DESIGN.md](../DESIGN.md), [manifest-conventions.md](manifest-conventions.md),
+> and the three specification surfaces.
 > Historical `pade up` / RuntimeProvider sections are learning artifacts.
+> Current Intent is `DevelopmentSession` (`pade.local/v1alpha1`), not flat `version: "0.1"`.
 
 **Status: Draft / v0.1 Design**  
 **Related:** [RFC](../RFC.md), [DESIGN.md](../DESIGN.md), [spec/README.md](../spec/README.md)  
@@ -96,9 +98,39 @@ Potential later commands include `pade auth`, `pade logs`, `pade snapshot`, `pad
 
 ## 5. Manifest
 
+> **Historical sketch below** uses an early nested `workspace` / list-capabilities
+> shape that never matched the normative schema. For the current Intent contract
+> see [`spec/intent.md`](../spec/intent.md) and [`spec/pade.schema.json`](../spec/pade.schema.json).
+
 The portable manifest should be YAML for human authoring, with JSON Schema as the normative validation representation.
 
-Example:
+**Current** Intent (`DevelopmentSession`):
+
+```yaml
+apiVersion: pade.local/v1alpha1
+kind: DevelopmentSession
+metadata:
+  name: demo
+spec:
+  capabilities:
+    github.user.read:
+      access: read
+```
+
+Go reference model (`internal/manifest`):
+
+```go
+type Manifest struct {
+    APIVersion string
+    Kind       string
+    Metadata   Metadata // Name; optional Labels/Annotations
+    Spec       Spec     // Capabilities map
+}
+```
+
+Do not import `k8s.io/*` merely to reuse ObjectMeta or scheme types. PADE owns this tiny wire model.
+
+Historical (non-normative) orchestration-era sketch:
 
 ```yaml
 version: "0.1"

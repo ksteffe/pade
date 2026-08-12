@@ -22,17 +22,22 @@ Do not collapse these layers:
 
 Authorization stays server/resource-side. Prefer documenting experimental extensions before declaring them standard.
 
-## Current v0.1 intent
+## Current v1alpha1 intent
 
 Prefer the **DevPod-first** environment composition and Intent/Consumer/Broker model in the README and later sections of [RFC.md](RFC.md) / [DESIGN.md](DESIGN.md):
 
 - DevPod (or equivalent) owns workspace lifecycle.
-- **Intent** declares portable capability requests (`pade.yaml`).
+- **Intent** declares portable capability requests as a `DevelopmentSession` (`pade.yaml` with `apiVersion: pade.local/v1alpha1`).
+- Capability declarations live under `spec.capabilities` (Go: `manifest.Spec.Capabilities`).
 - A **Consumer** (reference: `pade`) validates, plans, and resolves capabilities; an optional **Broker** (reference: `pade-broker`) may authorize and materialize them.
 - Do not reimplement Dev Container semantics, port forwarding, SSH, or prebuilds unless a concrete gap is proven.
 - Do not treat `cmd/pade` or `cmd/pade-broker` as the definition of PADE.
 
-Earlier `pade up` / Dev Container orchestration designs are historical context, not the default implementation target.
+PADE uses Kubernetes-style declarative API conventions but is not Kubernetes-dependent. Do not add Kubernetes libraries, controllers, CRDs, reconciliation loops, or API-server assumptions unless a separately validated use case explicitly requires them.
+
+Earlier `pade up` / Dev Container orchestration designs and flat `version: "0.1"` Intent YAML are historical context, not the default implementation target. Legacy Intent shape is rejected with a migration error (no dual-schema support).
+
+See [docs/manifest-conventions.md](docs/manifest-conventions.md). The `pade.local` API group is exploratory (`.local` avoids claiming a public DNS domain).
 
 ## Architecture boundaries
 
@@ -74,7 +79,7 @@ Before adding a feature, ask:
 
 - Plan before changing cross-cutting interfaces or the schema.
 - When behavior changes, update `spec/`, examples, and design docs in the same change when practical.
-- Keep v0.1 schemas small; every field creates compatibility pressure.
+- Keep Intent schemas small (`pade.local/v1alpha1`); every field creates compatibility pressure.
 - Prefer clear package boundaries over speculative abstractions.
 - Do not invent grant/lease/preview protocols in schema without dogfood evidence.
 
@@ -115,7 +120,7 @@ make dogfood-ingress-teleport-down
 
 DevPod lifecycle is documented in [docs/devpod-dogfood.md](docs/devpod-dogfood.md) and [examples/demo-project/README.md](examples/demo-project/README.md). Do not add a PADE wrapper that reimplements `devpod up`. Full DevPod proof runs locally via `make dogfood-devpod` and in CI via [`.github/workflows/devpod-dogfood.yml`](.github/workflows/devpod-dogfood.yml) (separate from the fast main CI). Teleport ingress composition is documented in [docs/teleport-ingress.md](docs/teleport-ingress.md); do not add a PADE wrapper that reimplements Teleport Application Access. Keeper Secrets Manager / Cursor Cloud composition is documented in [docs/keeper-secrets-manager-dogfood.md](docs/keeper-secrets-manager-dogfood.md) and [docs/cursor-cloud-dogfood.md](docs/cursor-cloud-dogfood.md). Phase 2 broker composition is documented in [docs/cursor-oidc-broker-dogfood.md](docs/cursor-oidc-broker-dogfood.md). Do not put Cursor-specific config into portable `pade.yaml`.
 
-Treat [spec/pade.schema.json](spec/pade.schema.json) as the machine-readable Intent contract. Update examples when the schema changes. See also [spec/README.md](spec/README.md).
+Treat [spec/pade.schema.json](spec/pade.schema.json) as the machine-readable Intent contract (`DevelopmentSession`). Update examples when the schema changes. See also [spec/README.md](spec/README.md) and [docs/manifest-conventions.md](docs/manifest-conventions.md).
 
 ## Adding a provider later
 
