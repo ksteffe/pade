@@ -100,7 +100,7 @@ Environment: the child inherits the parent environment (so broker-side durable c
 ## Toward GitHub App / Google Analytics
 
 - [`examples/providers/stub`](../examples/providers/stub) — contract dogfood only
-- [`examples/providers/github`](../examples/providers/github) — first reference provider (fake mode now; real App derivation next)
+- [`examples/providers/github`](../examples/providers/github) — first reference provider (App JWT → installation token; fake mode for CI)
 - [`examples/providers/google-analytics`](../examples/providers/google-analytics) — planned second reference provider
 
 If a second vendor forces new **normative** core fields, revisit this contract rather than leaking vendor semantics into PADE.

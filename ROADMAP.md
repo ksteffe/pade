@@ -56,7 +56,7 @@ Derived from the repository as of this roadmap pass (reference Consumer/Broker c
 | Broker authorization | DONE (spike) | Server policy: subject + capability allowlist + optional `repo_urls` |
 | Provider materialization (in-tree adapters) | DONE | Server-side env/Vault/op/keeper/ksm via broker bindings |
 | External/independently packaged provider seam | PARTIAL | Draft `provider: exec` contract + adapter (`docs/provider-contract.md`, `internal/binding/exec`); stub dogfood in CI |
-| GitHub App derived-credential dogfood | PARTIAL | Skeleton + fake mode under `examples/providers/github/`; real App exchange still Milestone D–E |
+| GitHub App derived-credential dogfood | PARTIAL | Real App JWT → installation token in `examples/providers/github/` (httptest + fake CI); preferred repo-scoped dogfood path landed; live App install still optional/local (Milestone E) |
 | Google Analytics derived-credential dogfood | MISSING | Needed before `v0.1.0` (Milestone F) |
 | Two-provider same-seam validation | MISSING | Needed before `v0.1.0` (Milestone G) |
 | Arbitrary Material / env injection | DONE (env maps) | `Material.Env map[string]string` only; sufficient for token/API credentials |
@@ -76,13 +76,13 @@ Derived from the repository as of this roadmap pass (reference Consumer/Broker c
 
 **Genuinely missing PADE-repository work** before the first release:
 
-1. Finish GitHub App **reference** provider real derivation + dogfood migration (Milestones D–E) — fake/`provider: exec` seam already dogfooded
+1. Finish preferred GitHub dogfood migration / live App proof where useful (Milestone E remainder) — derivation + offline preferred path already landed in D
 2. Google Analytics **reference** provider under `examples/providers/google-analytics/` (Milestone F) — non-normative
 3. Two-provider architectural test that both use the same seam (Milestone G)
 4. Spec/docs tightening from that dogfood (Milestone H)
 5. Versioned release foundation gated on the above (Milestone I)
 
-**In progress / landed for B–C:** draft exec contract, `provider: exec` binding, stub + GitHub fake-mode providers (`make dogfood-exec-provider`, `make dogfood-exec-provider-github`).
+**Landed for B–D:** draft exec contract, `provider: exec` binding, stub provider, GitHub App reference provider (fake CI + real JWT/installation-token derivation). Dogfood: `make dogfood-exec-provider`, `make dogfood-exec-provider-github`.
 
 Do not roadmap work that is already DONE.
 
@@ -291,8 +291,8 @@ Previous letters after PR #31 (GA-first A–M) are **superseded**:
 | **A — Broker dogfood baseline** | Keep PAT **direct materialization** healthy as stage-1 baseline (not preferred final GitHub dogfood) | PADE repo (mostly DONE) |
 | **B — Generic provider contract** | Minimal portable fulfill/derive seam | PADE repo — **draft landed** (`docs/provider-contract.md`) |
 | **C — Dogfood provider binding** | One binding sufficient for dogfood (`provider: exec`) | PADE repo — **landed** (other bindings still open) |
-| **D — GitHub App reference provider** | `examples/providers/github/` — App private key broker-side → installation token | PADE repo — **skeleton/fake mode**; real App next |
-| **E — GitHub dogfood migration** | Prefer derived installation token; repo-scoped validation (not `/user`) | PADE + broker deploy config + cloud agent |
+| **D — GitHub App reference provider** | `examples/providers/github/` — App private key broker-side → installation token | PADE repo — **landed** (fake CI + httptest-tested real path) |
+| **E — GitHub dogfood migration** | Prefer derived installation token; repo-scoped validation (not `/user`) | PADE — **partial** (repo-meta script + fake preferred path); live App optional |
 | **F — Google Analytics reference provider** | `examples/providers/google-analytics/` — second vendor on same seam | PADE repo (non-normative example) |
 | **G — Two-provider architectural test** | Both providers use the same generic seam; no vendor leakage into core | PADE repo |
 | **H — Spec/docs tighten from dogfood** | Capture D–G learnings; no premature Intent redesign | PADE repo |
@@ -368,11 +368,11 @@ Candidates include subprocess/exec, local plugin, HTTP, gRPC, or a separately pa
 
 ### Milestone D — GitHub App reference provider (first)
 
-**Status:** Skeleton + `PADE_PROVIDER_FAKE=1` mode under [`examples/providers/github`](examples/providers/github). Real App private key → installation token exchange is the remaining work. Dogfood fake path: `make dogfood-exec-provider-github`.
+**Status:** Landed under [`examples/providers/github`](examples/providers/github). Real mode mints an App JWT and exchanges it for a short-lived installation token; `PADE_PROVIDER_FAKE=1` keeps CI offline. Unit coverage uses `httptest`. Dogfood: `make dogfood-exec-provider-github`.
 
 **Goal:** Add the **first** in-tree reference provider and primary derived-credential dogfood path.
 
-Planned location: **`examples/providers/github/`** (clearly non-core). Avoid an `extensions/` directory name.
+Location: **`examples/providers/github/`** (clearly non-core). Avoid an `extensions/` directory name.
 
 Explicit statement:
 
@@ -409,16 +409,16 @@ PADE core must **not** gain fields or logic specific to GitHub Apps (for example
 
 ### Milestone E — GitHub dogfood migration
 
+**Status:** Partial. Preferred offline path uses capability `github.repo.read` + [`examples/demo-project/scripts/github-repo-meta`](examples/demo-project/scripts/github-repo-meta) (GET `/repos/{owner}/{repo}`; fake tokens skip network). Wired into `make dogfood-exec-provider-github`. PAT + `github-whoami` remain the stage-1 baseline. Live App install + cloud agent proof still optional/local.
+
 **Goal:** Migrate the **preferred** pre-release GitHub dogfood from PAT delivery to derived installation tokens, while keeping the PAT path documented as stage 1.
 
 **Success condition:** Do **not** assume `/user` or `whoami` remains appropriate. GitHub App installation tokens represent the **app installation**, not the developer personally.
 
-Plan a minimal **repository-scoped** validation matching granted permissions, such as:
+Minimal **repository-scoped** validation matching granted permissions:
 
-- reading repository metadata
-- listing branches
-- fetching repository contents
-- another low-risk repository operation
+- reading repository metadata (`github-repo-meta`) — preferred
+- listing branches / fetching contents — optional later
 
 Do **not** select overly broad permissions merely to make the demo easy.
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Dogfood provider: exec (Milestone B–C). Optional GitHub fake provider toward D.
+# Dogfood provider: exec (Milestone B–C) and GitHub App reference provider (D–E fake path).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -33,12 +33,19 @@ case "$MODE" in
     unset PADE_PROVIDER_FAKE || true
     ;;
   github)
+    echo "=== github provider unit tests (JWT + installation token httptest) ==="
+    "$GO" test ./examples/providers/github/ -count=1
     "$GO" build -o "${GH_OUT}" ./examples/providers/github
     COMMAND_PATH="${GH_OUT}"
     CAP="github.repo.read"
     CHECK_ENV="GITHUB_TOKEN"
     EXPECT="ghs_pade_fake_installation_token"
-    CONFIG_YAML="        tokenEnv: GITHUB_TOKEN"
+    CONFIG_YAML="        tokenEnv: GITHUB_TOKEN
+        repositories:
+          - ksteffe/pade
+        permissions:
+          metadata: read
+          contents: read"
     export PADE_PROVIDER_FAKE=1
     ;;
   *)
@@ -79,5 +86,14 @@ echo "=== exec provider dogfood (${MODE}): exec (assert env; do not print secret
 "$PADE" exec -f "${TMP}/pade.yaml" --bindings "${TMP}/bindings.yaml" \
   --capability "${CAP}" --quiet -- \
   /bin/sh -c "test \"\$${CHECK_ENV}\" = '${EXPECT}'"
+
+if [[ "$MODE" == "github" ]]; then
+  REPO_META="${ROOT}/examples/demo-project/scripts/github-repo-meta"
+  chmod +x "$REPO_META"
+  echo "=== exec provider dogfood (github): repo-scoped validation (Milestone E; fake skips network) ==="
+  "$PADE" exec -f "${TMP}/pade.yaml" --bindings "${TMP}/bindings.yaml" \
+    --capability "${CAP}" --quiet -- \
+    env GITHUB_REPOSITORY=ksteffe/pade "$REPO_META"
+fi
 
 echo "ok: exec provider dogfood (${MODE})"
