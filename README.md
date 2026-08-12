@@ -266,7 +266,7 @@ Workspace lifecycle: prefer `devpod up` / `devpod stop` directly. See [examples/
 
 ## Roadmap
 
-**Authoritative forward plan:** [ROADMAP.md](ROADMAP.md) (provider seam + GA reference provider **before** `v0.1.0`, then released artifacts, Cloudflare/preview dogfood, endpoint decision).
+**Authoritative forward plan:** [ROADMAP.md](ROADMAP.md) (GitHub App + Google Analytics **reference providers** on the same generic seam **before** `v0.1.0`, then released artifacts, Cloudflare/preview dogfood, endpoint decision).
 
 ### Historical dogfood milestones
 
@@ -287,7 +287,7 @@ Completed learning milestones (not the live plan; see [ROADMAP.md](ROADMAP.md#hi
 | **9** | Keeper Secrets Manager + Cursor Cloud dogfood (`KSM_CONFIG`, exec redaction) |
 | **9b** (spike) | Cursor OIDC token source + minimal `pade-broker` — **experimental reference Broker** |
 
-Earlier “9+ / Later” rows in this README are superseded by [ROADMAP.md](ROADMAP.md) Milestones A–M.
+Earlier “9+ / Later” rows in this README are superseded by [ROADMAP.md](ROADMAP.md) Milestones A–O.
 
 ## License
 

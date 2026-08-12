@@ -1130,7 +1130,7 @@ A minimal `pade-broker` and `provider: broker` binding now exist as a **spike**,
 - Container image: repo-root `Dockerfile` (distroless nonroot); smoke with `make smoke-broker-container`.
 - Direct Milestone 9 KSM mode remains supported and unchanged in intent.
 
-Still deferred in the spike itself: multi-tenant hosting, DB policy, JTI replay store, and replacing direct KSM mode. **Release automation** is planned under [ROADMAP.md](ROADMAP.md) Milestone A (not implemented in this document).
+Still deferred in the spike itself: multi-tenant hosting, DB policy, JTI replay store, and replacing direct KSM mode. **Release automation** is planned under [ROADMAP.md](ROADMAP.md) Milestone I (gated on provider dogfood; not implemented in this document).
 
 ## 40. Specification architecture vs reference implementation
 
@@ -1164,7 +1164,7 @@ Future providers (preview services, ephemeral databases, temporary queues/storag
 Capability → resource / lease → URL + connection info + expiration
 ```
 
-There is **no** general Grant type in the Go code or schema yet. Do not standardize leasing, renewal, revocation, or preview tunnel protocols here. Let dogfood drive any future Grant Specification. Broker-side **derivation** of short-lived credentials before Material delivery (durable authority stays broker-side), via a provider-neutral seam and a non-normative GA reference provider under `examples/providers/`, is required **before** the initial `v0.1.0` release—[ROADMAP.md](ROADMAP.md) Milestones B–G. Sequencing, ownership, and the related **endpoint declaration** decision gate are also in [ROADMAP.md](ROADMAP.md). See also [spec/README.md](spec/README.md#open-specification-questions).
+There is **no** general Grant type in the Go code or schema yet. Do not standardize leasing, renewal, revocation, or preview tunnel protocols here. Let dogfood drive any future Grant Specification. Broker-side **derivation** of short-lived credentials before Material delivery (durable authority stays broker-side), via a provider-neutral seam and two non-normative reference providers under `examples/providers/` (**GitHub App** first, **Google Analytics** second), is required **before** the initial `v0.1.0` release—[ROADMAP.md](ROADMAP.md) Milestones B–I. Sequencing, ownership, and the related **endpoint declaration** decision gate are also in [ROADMAP.md](ROADMAP.md). See also [spec/README.md](spec/README.md#open-specification-questions).
 
 ## 41. DevelopmentSession v1alpha1 Intent
 

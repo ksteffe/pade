@@ -72,7 +72,7 @@ Even for local demos (including Vault `-dev` mode):
 - Never bake resolved credentials into images or snapshots.
 - Treat Vault/1Password/env/Keeper/KSM/broker adapters as **bindings / providers**, not as part of the portable Intent Specification.
 
-**Materialization preference (roadmap):** Brokers SHOULD prefer session-scoped, short-lived, or otherwise derived credentials over delivering durable source credentials when the configured provider supports such derivation. Direct durable-secret materialization remains a valid interoperability mechanism (and is what current GitHub dogfood uses). The first meaningful release (`v0.1.0`) is expected to demonstrate **both** direct materialization and derived/session-scoped fulfillment. Details and maturity stages: [ROADMAP.md](ROADMAP.md) (fulfillment maturity; Milestones A–G).
+**Materialization preference (roadmap):** Brokers SHOULD prefer session-scoped, short-lived, or otherwise derived credentials over delivering durable source credentials when the configured provider supports such derivation. Direct durable-secret materialization remains a valid interoperability mechanism (and is what current GitHub PAT dogfood uses as the stage-1 baseline). The first meaningful release (`v0.1.0`) is expected to demonstrate **both** direct materialization and derived/session-scoped fulfillment via **GitHub App** and **Google Analytics** reference providers on the same generic seam. Details and maturity stages: [ROADMAP.md](ROADMAP.md) (fulfillment maturity; Milestones A–I).
 
 Local Vault development servers and root tokens are for proving seams only. They are not production-safe and must not be documented as recommended production practice.
 

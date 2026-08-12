@@ -8,7 +8,11 @@ This document is planning only until milestones are implemented. It does not cha
 
 PADE should prove **generic authority brokering** once. Downstream systems (Google Analytics, Cloudflare Tunnel, GitHub, …) should work because the mechanism is generic—not because PADE knows about them.
 
-Before the first meaningful release (`v0.1.0`), PADE must prove more than direct secret materialization. It must also demonstrate that a broker can fulfill a DevelopmentSession capability through an **independently implemented provider** that can derive a session-scoped credential—without vendor-specific behavior in PADE core.
+Before the first meaningful release (`v0.1.0`), PADE must prove that a broker can fulfill a DevelopmentSession capability through an **independently implemented provider** that derives a session-scoped credential—**twice**, with two different vendors—without vendor-specific behavior in PADE core.
+
+PADE core should understand only something equivalent to:
+
+> An authorized DevelopmentSession requests a capability, and a configured provider fulfills it.
 
 Governing principles:
 
@@ -17,9 +21,9 @@ Governing principles:
 3. Treat `apiVersion: pade.local/v1alpha1` / `kind: DevelopmentSession` and the Intent / Consumer / Broker specs as authoritative.
 4. Prefer dogfood evidence before extending Intent or inventing Grant/Lease protocols.
 5. Do not reclaim responsibility for starting and orchestrating development environments unless real dogfood proves that necessary.
-6. PADE standardizes the **provider seam**, not every provider implementation. A provider should be architecturally removable from PADE core. Vendor-specific business logic (Google Analytics auth, Google service accounts/OAuth scopes, GitHub App tokens, AWS STS, Keeper/1Password/Vault derivation details, provider-specific field names or credential formats, …) belongs in independently implemented providers—not in PADE core (`cmd/`, portable `internal/` packages).
+6. PADE standardizes the **provider seam**, not every provider implementation. A provider should be architecturally removable from PADE core. Vendor-specific business logic (GitHub App auth/installation tokens, Google Analytics auth, Google service accounts/OAuth scopes, AWS STS, Keeper/1Password/Vault derivation details, provider-specific field names or credential formats, …) belongs in independently implemented providers—not in PADE core (`cmd/`, portable `internal/` packages).
 7. Brokers **SHOULD** prefer session-scoped, short-lived, or otherwise **derived** credentials over delivering durable source credentials when the configured provider supports such derivation. Direct durable-secret **materialization** remains a valid interoperability mechanism where necessary; PADE must work with systems that only expose static credentials and must not pretend every capability can be fulfilled without exposing credential material.
-8. Prove the provider seam **before** cutting the initial versioned release. Accumulating many vendor integrations is less important than proving that third parties can implement providers without modifying PADE itself.
+8. Prove the provider seam with **two** non-normative reference providers (**GitHub App**, then **Google Analytics**) **before** cutting the initial versioned release. Accumulating many integrations is less important than proving third parties can implement providers without modifying PADE itself.
 
 Document roles:
 
@@ -52,59 +56,78 @@ Derived from the repository as of this roadmap pass (reference Consumer/Broker c
 | Broker authorization | DONE (spike) | Server policy: subject + capability allowlist + optional `repo_urls` |
 | Provider materialization (in-tree adapters) | DONE | Server-side env/Vault/op/keeper/ksm via broker bindings |
 | External/independently packaged provider seam | MISSING | Needed before `v0.1.0` (Milestones B–C) |
-| Derived / session-scoped fulfillment dogfood | MISSING | Needed before `v0.1.0` (Milestones D–E) |
+| GitHub App derived-credential dogfood | MISSING | Needed before `v0.1.0` (Milestones D–E) |
+| Google Analytics derived-credential dogfood | MISSING | Needed before `v0.1.0` (Milestone F) |
+| Two-provider same-seam validation | MISSING | Needed before `v0.1.0` (Milestone G) |
 | Arbitrary Material / env injection | DONE (env maps) | `Material.Env map[string]string` only; sufficient for token/API credentials |
 | Structured / multiline credential Material | PARTIAL | String values may contain newlines; not dogfooded; **no anticipated PADE work** until a proven deficiency |
 | `pade exec` | DONE | Process-scoped resolve → inject → wait → discard |
 | Child exit-code propagation | DONE | Maps to process exit |
 | Output redaction | DONE | Exact-match secret redaction on child stdout/stderr (defense in depth) |
-| Signal forwarding (SIGINT / SIGTERM → child) | MISSING | No explicit forward; evaluate in Milestone J if needed |
+| Signal forwarding (SIGINT / SIGTERM → child) | MISSING | No explicit forward; evaluate in Milestone L if needed |
 | Long-running child-process behavior | PARTIAL / UNKNOWN | Wait + stream works; process-group / signal behavior needs dogfood |
 | Remote broker endpoint / audience configuration | DONE | Local bindings only (not in Intent) |
 | Containerized `pade-broker` | DONE | Root [`Dockerfile`](Dockerfile); `make smoke-broker-container` |
 | Cloud Run–compatible transport mode | DONE | `PORT` + `-tls-termination=proxy` |
-| Fake broker dogfood (GitHub direct Material) | DONE | `make dogfood-broker` (CI smoke); Stage B real Cursor OIDC (not CI) |
-| Version reporting (`pade` / `pade-broker --version`) | MISSING | Part of Milestone G |
-| GitHub Release artifacts | MISSING | Part of Milestone G |
-| Broker container publishing (GHCR) | MISSING | Part of Milestone G |
+| Fake broker dogfood (GitHub PAT direct Material) | DONE | `make dogfood-broker` (CI smoke); Stage B real Cursor OIDC (not CI) — **stage 1 baseline**, not preferred final pre-release GitHub dogfood |
+| Version reporting (`pade` / `pade-broker --version`) | MISSING | Part of Milestone I |
+| GitHub Release artifacts | MISSING | Part of Milestone I |
+| Broker container publishing (GHCR) | MISSING | Part of Milestone I |
 
 **Genuinely missing PADE-repository work** before the first release:
 
 1. Minimal generic provider contract + dogfood binding (Milestones B–C)
-2. Google Analytics **reference** provider under `examples/providers/google-analytics/` (Milestone D) — non-normative
-3. Cloud-agent derived-credential proof (Milestone E)
-4. Spec/docs tightening from that dogfood (Milestone F)
-5. Versioned release foundation gated on the above (Milestone G)
+2. GitHub App **reference** provider under `examples/providers/github/` + dogfood migration (Milestones D–E) — non-normative
+3. Google Analytics **reference** provider under `examples/providers/google-analytics/` (Milestone F) — non-normative
+4. Two-provider architectural test that both use the same seam (Milestone G)
+5. Spec/docs tightening from that dogfood (Milestone H)
+6. Versioned release foundation gated on the above (Milestone I)
 
 Do not roadmap work that is already DONE.
 
-## Direct materialization dogfood verdict
+## Direct materialization vs preferred GitHub dogfood
+
+### Stage 1 baseline (PAT / direct materialization) — keep
 
 The GitHub-token broker path already proves **direct materialization** (fulfillment maturity stage 1):
 
 ```text
+Current (baseline / simple path):
+PAT
+  ↓
+secret store
+  ↓
+broker
+  ↓
 DevelopmentSession
-    ↓
-PADE Consumer (pade)
-    ↓
-Cursor workload identity (OIDC)
-    ↓
-PADE Broker (pade-broker)
-    ↓
-authorization (server policy)
-    ↓
-Provider (e.g. Keeper Secrets Manager)
-    ↓
-Material (env map, e.g. GITHUB_TOKEN)
-    ↓
-pade exec child process
 ```
 
-Evidence: `make dogfood-broker`, Stage B (`make dogfood-broker-stage-b`), demo Intent `github.user.read`, and related provider dogfoods that resolve the same capability through different bindings.
+Evidence: `make dogfood-broker`, Stage B (`make dogfood-broker-stage-b`), demo Intent `github.user.read`, and related provider dogfoods. This path remains **documented and useful** for showing the simple interoperability mechanism and is a **required** stage-1 baseline for `v0.1.0`.
 
-That path remains **valid and minimal** and is a **required** baseline for `v0.1.0`. It does **not** yet prove the larger model: an independently implemented provider that derives session-scoped credentials while durable authority stays broker-side.
+It is **not** the preferred final pre-release GitHub dogfood. Do **not** remove the PAT example if it remains useful for the simple path.
 
-Keep the GitHub dogfood. Do **not** add Cloudflare or additional vendor integrations merely to repeat direct Material delivery. One **non-normative** in-tree Google Analytics reference provider is planned specifically to dogfood the **provider contract and derivation** (Milestones D–E)—not to make GA part of the PADE standard.
+### Preferred pre-release GitHub dogfood (derived)
+
+```text
+Preferred:
+GitHub App private key
+  ↓
+trusted broker-side source
+  ↓
+PADE broker
+  ↓
+GitHub reference provider
+  ↓
+short-lived GitHub App installation token
+  ↓
+cloud DevelopmentSession
+  ↓
+repository-scoped GitHub operation
+```
+
+The durable App private key must remain broker-side. The DevelopmentSession receives only the derived installation token.
+
+Do **not** add Cloudflare or additional vendor integrations merely to repeat direct Material delivery. Two **non-normative** in-tree reference providers (`examples/providers/github/`, `examples/providers/google-analytics/`) are planned to dogfood the **provider contract and derivation**—not to make GitHub or Google Analytics part of the PADE standard.
 
 ## Material vs Endpoint vs Grant
 
@@ -113,10 +136,10 @@ Three emerging concepts—only **Material** is implemented today:
 | Concept | Meaning | Status |
 |---------|---------|--------|
 | **Material** | Authority returned to a child process (today: env map). Examples: API credential, tunnel token. | Current protocol / reference implementation |
-| **Endpoint** | Potential portable description of a **local** service a capability may act upon. Example: HTTP on port 3000. | Unevaluated; see Milestone K |
+| **Endpoint** | Potential portable description of a **local** service a capability may act upon. Example: HTTP on port 3000. | Unevaluated; see Milestone M |
 | **Grant / Lease** | Potential future broker result for dynamically provisioned resources (preview URL, ephemeral DB, expiration/revocation). | Deferred; no schema or type |
 
-Post-release Cloudflare / preview dogfood (Milestone J) should first test:
+Post-release Cloudflare / preview dogfood (Milestone L) should first test:
 
 ```text
 existing Material
@@ -132,8 +155,8 @@ Do **not** implement Grant/Lease before the initial release.
 
 | Stage | What happens | Status |
 |-------|----------------|--------|
-| **1. Direct materialization** | Broker retrieves a secret from a source store and safely delivers it as `Material` to the DevelopmentSession. | **Today** — GitHub dogfood; **required** for `v0.1.0` |
-| **2. Derived / session-scoped credentials** | Durable authority remains broker-side. A configurable external provider **derives** or **issues** a temporary credential; the Consumer receives only that derived `Material`, with expiry/lifecycle associated with the session where possible. | **Milestones B–E** — **required** for `v0.1.0` |
+| **1. Direct materialization** | Broker retrieves a secret from a source store and safely delivers it as `Material` to the DevelopmentSession. | **Today** — GitHub PAT dogfood; **required** for `v0.1.0` |
+| **2. Derived / session-scoped credentials** | Durable authority remains broker-side. A configurable external provider **derives** or **issues** a temporary credential; the Consumer receives only that derived `Material`, with expiry/lifecycle associated with the session where possible. | **Milestones B–G** — **required** for `v0.1.0`, demonstrated by **both** GitHub App and Google Analytics |
 | **3. Mediated capabilities** | Consumer exercises a capability through the broker/provider **without** receiving the underlying credential at all. | **Future direction** — not required for `v0.1.0` |
 
 The initial release must demonstrate stages **1 and 2**. Stage 3 remains future work.
@@ -147,55 +170,29 @@ Preserve the current DevelopmentSession direction:
 - The **Consumer** exercises that capability.
 - The **Broker** / **Provider** determines the safest available **materialization** (or mediation) mechanism.
 
-The DevelopmentSession Intent **must not** need to know whether fulfillment ultimately came from a static secret, a derived access token, an OIDC exchange, an external credential issuer, or a broker-mediated service. That remains a fulfillment concern. Do not redesign Intent around CNCF Runtime Conditions while that discussion is open.
+The DevelopmentSession Intent **must not** need to know whether fulfillment ultimately came from a PAT, a GitHub App installation token, an OAuth access token, OIDC federation, a static secret, or a broker-mediated operation. That remains a fulfillment concern. Do not redesign Intent around CNCF Runtime Conditions while that discussion is open.
 
 #### Conceptual fulfillment pipeline (illustrative names)
 
 Stage labels such as SOURCE / PROVIDER / DERIVATION / DELIVERY are **illustrative only**—not normative API terms. Prefer existing PADE vocabulary (`Provider`, **materialization**, `Material`) until naming is decided (see [Open design questions](#open-design-questions)).
 
 ```text
-Source
-  Where durable authority originates
-  (Keeper, 1Password, Vault, cloud secret manager, …)
-        ↓
-Provider / optional derivation
-  Given a capability request and authorized DevelopmentSession context,
-  fulfill via a configured external implementation. May:
-  retrieve durable authority
-  derive a temporary credential
-  perform an identity exchange
-  mint a scoped token
-  return an existing secret unchanged
-  eventually mediate without returning credential material
-        ↓
-Delivery
-  How the resulting capability is made usable
-  Material.env (today)
-  file / credential helper / consumer protocol response
-  eventually broker-mediated operation
+durable authority
+      ↓
+source / secret store
+      ↓
+PADE broker
+      ↓
+configured provider
+      ↓
+derived/session-scoped result (or unchanged static secret when derivation is unavailable)
+      ↓
+DevelopmentSession
 ```
+
+The provider contract should eventually allow implementations to derive short-lived credentials, mint scoped tokens, exchange identities, pass static credentials through when derivation is unavailable, and eventually mediate capabilities without exposing credential material. Do **not** freeze the exact API shape in this roadmap document.
 
 The provider mechanism is a **semantic fulfill/derive contract**, not an arbitrary “hook.” An exec/subprocess integration may be a useful first **binding**; that is an implementation choice, not the definition of the abstraction.
-
-Non-normative examples (do **not** imply PADE core knows these vendors):
-
-```text
-Keeper-held Google service-account credential
-    ↓
-Google Analytics reference provider (examples/providers/…)
-    ↓
-short-lived OAuth access token
-    ↓
-DevelopmentSession (Material)
-
-GitHub App private key
-    ↓
-external PADE provider (derivation)
-    ↓
-short-lived installation token
-    ↓
-DevelopmentSession (Material)
-```
 
 ## Ownership boundaries
 
@@ -203,28 +200,29 @@ DevelopmentSession (Material)
 
 Near-term (before `v0.1.0`):
 
-- Keep GitHub direct-materialization broker dogfood healthy (Milestone A)
+- Keep PAT direct-materialization broker dogfood healthy as stage-1 baseline (Milestone A)
 - Define minimal generic provider contract + dogfood binding (Milestones B–C)
-- In-tree **non-normative** Google Analytics reference provider at planned `examples/providers/google-analytics/` (Milestone D)
-- Cloud-agent derived-credential proof + docs tighten (Milestones E–F)
-- Versioned CLI + broker release artifacts (Milestone G), gated on A–F
-- Any genuinely missing **generic** Consumer/Broker behavior discovered while proving the seam
+- In-tree **non-normative** GitHub App reference provider at planned `examples/providers/github/` and migrate preferred GitHub dogfood (Milestones D–E)
+- In-tree **non-normative** Google Analytics reference provider at planned `examples/providers/google-analytics/` (Milestone F)
+- Two-provider same-seam architectural test (Milestone G)
+- Spec/docs tighten + versioned CLI/broker release (Milestones H–I), gated on A–G
 
 PADE should **not** put into core:
 
+- GitHub App authentication, installation identification, token issuance, or repository/permission policy fields as protocol semantics
 - Google Analytics authentication, service-account, OAuth-scope, or API client logic
 - Cloudflare-specific APIs or tunnel provisioning
 - Application start/stop orchestration (DevPod / repo tooling owns lifecycle)
 - A catalog of vendor integrations
 
-In-tree reference providers under `examples/providers/` exist for **dogfooding and illustrating the provider contract**. Their presence does **not** make the vendor, API, or capability part of the PADE standard. Prefer `examples/providers/` over an `extensions/` directory name (avoids collision with CNCF Runtime Conditions “extension” terminology).
+In-tree reference providers under `examples/providers/` exist for **dogfooding and illustrating the provider contract**. They are **non-normative** and **architecturally removable** from PADE core. Their presence does **not** make the vendor, API, or capability part of the PADE standard. Prefer `examples/providers/` over an `extensions/` directory name (avoids collision with CNCF Runtime Conditions “extension” terminology).
 
 ### `pade-broker-deployment` (external)
 
 - Google Cloud Run (or equivalent) hosting of the broker
-- Private broker policy and secret-store bootstrap (durable authority)
-- Capability → source/provider configuration (including durable Google authority and Cloudflare credentials)
-- Consumption of **released** broker images (`ghcr.io/ksteffe/pade-broker:vX.Y.Z`) after Milestone G
+- Private broker policy and secret-store bootstrap (durable authority, including GitHub App private key and Google durable credentials)
+- Capability → source/provider configuration
+- Consumption of **released** broker images (`ghcr.io/ksteffe/pade-broker:vX.Y.Z`) after Milestone I
 
 ### `after-certainty` (external)
 
@@ -232,15 +230,24 @@ In-tree reference providers under `examples/providers/` exist for **dogfooding a
 - Cursor Cloud / iOS agent environment setup
 - Product GA4 tooling, analytics commands/scripts, use of returned credentials
 - Application start command, local port, Cloudflare preview command, stable preview hostname
-- Consumption of **released** PADE CLI (`PADE_VERSION=vX.Y.Z`) after Milestone G
+- Consumption of **released** PADE CLI (`PADE_VERSION=vX.Y.Z`) after Milestone I
 
 Do not move these external product responsibilities into PADE merely because PADE enables them.
+
+### GitHub ownership
+
+| Owner | Responsibility |
+|-------|----------------|
+| **PADE** (`examples/providers/github/`) | Non-normative **reference provider**: GitHub App auth, installation identification, token issuance, repo/permission restriction, expiry handling. Not part of the PADE standard. |
+| `pade-broker-deployment` | Private durable GitHub App private key / secret-store bootstrap and broker policy wiring |
+| Demo / dogfood scripts | Repository-scoped validation matching granted permissions (not `/user` whoami) |
+| **PADE core** | Remains vendor-neutral; sees only the generic provider request/result contract |
 
 ### Google Analytics ownership
 
 | Owner | Responsibility |
 |-------|----------------|
-| **PADE** (`examples/providers/google-analytics/`) | Non-normative **reference provider** that exercises the generic contract and performs broker-side derivation for dogfood. Not part of the PADE standard. |
+| **PADE** (`examples/providers/google-analytics/`) | Non-normative **reference provider** that exercises the same generic contract and performs broker-side derivation for dogfood. Not part of the PADE standard. |
 | `pade-broker-deployment` | Private durable Google authority / secret-store bootstrap and broker policy wiring |
 | `after-certainty` | Product GA4 tooling; analytics commands; use of returned Material |
 | **PADE core** | Remains vendor-neutral; sees only the generic provider request/result contract |
@@ -251,7 +258,7 @@ Do not move these external product responsibilities into PADE merely because PAD
 |-------|----------------|
 | `pade-broker-deployment` | Private capability → Cloudflare credential binding |
 | `after-certainty` | App dev command; `cloudflared` install; preview workflow; hostname configuration |
-| **PADE** | No Cloudflare-specific APIs or tunnel provisioning. Track the **endpoint declaration** question (Milestone K) as a portable protocol concern if needed. Post-release (Milestone J). |
+| **PADE** | No Cloudflare-specific APIs or tunnel provisioning. Track the **endpoint declaration** question (Milestone M) as a portable protocol concern if needed. Post-release (Milestone L). |
 
 ## Forward milestones
 
@@ -259,70 +266,77 @@ Completed learning dogfood (0–9 / 9b) is summarized under [Historical dogfood 
 
 ### Mapping from previous roadmap letters
 
-Previous letters (release-first A–I) are **superseded** by the table below:
+Previous letters after PR #31 (GA-first A–M) are **superseded**:
 
-| Previous | Now |
-|----------|-----|
-| Old A (release foundation) | **G** (gated on provider dogfood) |
-| Old B (released broker deploy) | **H** |
-| Old C (released Consumer dogfood) | **I** |
-| Old D (external GA via direct Material) | Absorbed into **D–E** (derived reference provider) + product use in **L** |
-| Old E (Cloudflare preview) | **J** |
-| Old F (endpoint decision) | **K** |
-| Old G (Cursor iOS workflow) | **L** |
-| Old H (post-dogfood evaluation) | **M** |
-| Old I (derived fulfillment hardening) | **B–E** (moved **before** initial release) |
+| Previous (PR #31) | Now |
+|-------------------|-----|
+| A (PAT baseline) | **A** (unchanged role) |
+| B (provider contract) | **B** |
+| C (dogfood binding) | **C** |
+| D–E (GA provider + proof) | Split/replaced by **D–E** (GitHub App first) then **F–G** (GA + same-seam test) |
+| F (docs tighten) | **H** |
+| G (v0.1.0) | **I** |
+| H (released broker deploy) | **J** |
+| I (released Consumer) | **K** |
+| J (Cloudflare preview) | **L** |
+| K (endpoint decision) | **M** |
+| L (Cursor iOS) | **N** |
+| M (post-dogfood evaluation) | **O** |
 
 ### Pre-release (required for `v0.1.0`)
 
 | Milestone | Focus | Where work happens |
 |-----------|--------|--------------------|
-| **A — Broker dogfood baseline** | Keep DevelopmentSession + broker + GitHub **direct materialization** valid and minimal | PADE repo (mostly DONE) |
+| **A — Broker dogfood baseline** | Keep PAT **direct materialization** healthy as stage-1 baseline (not preferred final GitHub dogfood) | PADE repo (mostly DONE) |
 | **B — Generic provider contract** | Minimal portable fulfill/derive seam | PADE repo |
 | **C — Dogfood provider binding** | One binding sufficient for dogfood (exec is a candidate, not frozen) | PADE repo |
-| **D — GA reference provider** | `examples/providers/google-analytics/` exercises the contract | PADE repo (non-normative example) |
-| **E — Derived-credential cloud-agent proof** | Durable Google authority stays broker-side; session uses derived Material against GA API | PADE + broker deploy config + cloud agent |
-| **F — Spec/docs tighten from dogfood** | Capture B–E learnings; no premature Intent redesign | PADE repo |
-| **G — Initial versioned release (`v0.1.0`)** | CLI + broker artifacts; **gated on A–F**; must show stages 1 and 2 | PADE repo |
+| **D — GitHub App reference provider** | `examples/providers/github/` — App private key broker-side → installation token | PADE repo (non-normative example) |
+| **E — GitHub dogfood migration** | Prefer derived installation token; repo-scoped validation (not `/user`) | PADE + broker deploy config + cloud agent |
+| **F — Google Analytics reference provider** | `examples/providers/google-analytics/` — second vendor on same seam | PADE repo (non-normative example) |
+| **G — Two-provider architectural test** | Both providers use the same generic seam; no vendor leakage into core | PADE repo |
+| **H — Spec/docs tighten from dogfood** | Capture D–G learnings; no premature Intent redesign | PADE repo |
+| **I — Initial versioned release (`v0.1.0`)** | CLI + broker artifacts; **gated on A–H**; stages 1 and 2 via both providers | PADE repo |
 
-### Post-release (preserved; reordered)
+### Post-release (preserved; renumbered)
 
 | Milestone | Focus | Where work happens |
 |-----------|--------|--------------------|
-| **H — Released broker deployment** | Private deploy consumes `ghcr.io/ksteffe/pade-broker:vX.Y.Z` | `pade-broker-deployment` |
-| **I — Released Consumer dogfood** | Cursor Cloud uses released `pade` against real deployed broker | External + PADE artifacts |
-| **J — External preview / Cloudflare dogfood** | App + tunnel via generic Material; long-running `pade exec` | External + possible generic exec fix |
-| **K — Endpoint decision** | Portable endpoint declaration decision gate | Architecture decision |
-| **L — Full Cursor iOS workflow** | Analytics → edit → run → preview acceptance | External acceptance |
-| **M — Post-dogfood protocol evaluation** | Only generic deficiencies return to PADE | Conditional |
+| **J — Released broker deployment** | Private deploy consumes `ghcr.io/ksteffe/pade-broker:vX.Y.Z` | `pade-broker-deployment` |
+| **K — Released Consumer dogfood** | Cursor Cloud uses released `pade` against real deployed broker | External + PADE artifacts |
+| **L — External preview / Cloudflare dogfood** | App + tunnel via generic Material; long-running `pade exec` | External + possible generic exec fix |
+| **M — Endpoint decision** | Portable endpoint declaration decision gate | Architecture decision |
+| **N — Full Cursor iOS workflow** | Analytics → edit → run → preview acceptance | External acceptance |
+| **O — Post-dogfood protocol evaluation** | Only generic deficiencies return to PADE | Conditional |
 
 ```text
-A (GitHub direct Material)
+A (PAT direct Material baseline)
   → B (provider contract)
   → C (dogfood binding)
-  → D (GA reference provider)
-  → E (cloud-agent derived proof)
-  → F (docs tighten)
-  → G (v0.1.0)
-  → H (released broker deploy)
-  → I (released Consumer)
-  → J (Cloudflare preview)
-  → K (endpoint decision)
-  → L (Cursor iOS acceptance)
-  → M (post-dogfood evaluation)
+  → D (GitHub App reference provider)
+  → E (migrate GitHub dogfood to installation token)
+  → F (GA reference provider)
+  → G (same-seam architectural test)
+  → H (docs tighten)
+  → I (v0.1.0)
+  → J (released broker deploy)
+  → K (released Consumer)
+  → L (Cloudflare preview)
+  → M (endpoint decision)
+  → N (Cursor iOS acceptance)
+  → O (post-dogfood evaluation)
 ```
 
 ### Milestone A — Broker dogfood baseline
 
-**Goal:** Preserve and keep healthy the existing DevelopmentSession / broker / GitHub direct-materialization dogfood.
+**Goal:** Preserve and keep healthy the existing DevelopmentSession / broker / GitHub **PAT direct-materialization** dogfood as the stage-1 baseline.
 
 - Intent requests a capability (`github.user.read`)
 - Cloud agent (or fake OIDC in CI) communicates with the broker
 - Broker obtains an existing credential from a configured source
 - Capability is delivered as `Material` to the development environment
-- `make dogfood-broker` / Stage B remain the minimal proof
+- `make dogfood-broker` / Stage B remain the minimal stage-1 proof
 
-Mostly **DONE**. Do not remove or replace this path.
+Mostly **DONE**. Do not remove this path. It is useful for the simple path and for systems that only expose static credentials. It is **not** the preferred final pre-release GitHub derived dogfood (see Milestones D–E).
 
 ### Milestone B — Generic provider contract
 
@@ -347,80 +361,153 @@ Candidates include subprocess/exec, local plugin, HTTP, gRPC, or a separately pa
 - **Provider contract** — semantic abstraction
 - **Exec/subprocess** — one possible binding
 
-### Milestone D — Google Analytics reference provider
+### Milestone D — GitHub App reference provider (first)
 
-**Goal:** Add an in-tree reference provider that exercises the contract with a real external system involving broker-side credential derivation.
+**Goal:** Add the **first** in-tree reference provider and primary derived-credential dogfood path.
 
-Planned location: **`examples/providers/google-analytics/`** (clearly non-core; matches existing `examples/` layout). Avoid an `extensions/` directory name.
+Planned location: **`examples/providers/github/`** (clearly non-core). Avoid an `extensions/` directory name.
 
 Explicit statement:
 
-> In-tree reference providers exist for dogfooding and illustrating the provider contract. Their presence does **not** make the vendor, API, or capability part of the PADE standard.
+> In-tree reference providers exist for dogfooding and illustrating the provider contract. They are non-normative and architecturally removable from PADE core. Their presence does **not** make GitHub (or Google Analytics) part of the PADE standard.
 
-The provider contains all Google-specific behavior needed to derive a temporary usable credential. PADE core sees only the generic provider request/result contract. Do not select the exact Google authentication mechanism in this planning document unless later implementation dogfood establishes one.
+Preferred flow:
 
-### Milestone E — Derived-credential cloud-agent proof
+```text
+GitHub App private key
+        ↓
+trusted broker-side source
+        ↓
+PADE broker
+        ↓
+GitHub reference provider
+        ↓
+short-lived GitHub App installation token
+        ↓
+cloud DevelopmentSession
+        ↓
+GitHub repository operation
+```
 
-**Goal:** Prove the end-to-end derived path from a cloud-agent DevelopmentSession:
+The provider is responsible for all GitHub-specific behavior, such as:
+
+- GitHub App authentication
+- installation identification
+- token issuance
+- repository restriction
+- requested permission restriction
+- token expiry handling
+
+PADE core must **not** gain fields or logic specific to GitHub Apps (for example `githubInstallationId` as normative protocol semantics). Opaque provider configuration local to the broker/admin side is fine.
+
+### Milestone E — GitHub dogfood migration
+
+**Goal:** Migrate the **preferred** pre-release GitHub dogfood from PAT delivery to derived installation tokens, while keeping the PAT path documented as stage 1.
+
+**Success condition:** Do **not** assume `/user` or `whoami` remains appropriate. GitHub App installation tokens represent the **app installation**, not the developer personally.
+
+Plan a minimal **repository-scoped** validation matching granted permissions, such as:
+
+- reading repository metadata
+- listing branches
+- fetching repository contents
+- another low-risk repository operation
+
+Do **not** select overly broad permissions merely to make the demo easy.
+
+The dogfood should demonstrate that the resulting token is:
+
+- short-lived
+- repository-scoped where practical
+- permission-scoped
+- derived without exposing the durable private key to the DevelopmentSession
+
+### Milestone F — Google Analytics reference provider (second)
+
+**Goal:** Add the **second** reference provider to prove the generic contract was not accidentally designed around GitHub.
+
+Planned location: **`examples/providers/google-analytics/`**.
 
 ```text
 durable Google authority
         ↓
-secret source / broker configuration
+trusted broker-side source
         ↓
 PADE broker
         ↓
 Google Analytics reference provider
         ↓
-short-lived / session-scoped credential (Material)
+short-lived usable credential
         ↓
-cloud-agent DevelopmentSession
+DevelopmentSession
         ↓
 Google Analytics API
 ```
 
-Acceptance:
+All Google-specific authentication behavior belongs inside the provider. Do **not** add Google Analytics-specific fields, scopes, service-account structures, or OAuth logic to PADE core. Do not select the exact Google authentication strategy in this planning document unless later implementation dogfood establishes one.
 
-- Durable credential remains broker-side
-- Provider is vendor-specific; PADE core remains generic
-- DevelopmentSession does not need to know whether the credential came from a service account, OAuth exchange, identity federation, or another Google mechanism
-- Provider lifecycle and error behavior are documented enough for a first release
+### Milestone G — Two-provider architectural test
 
-### Milestone F — Spec/docs tighten from dogfood
+**Goal:** Explicit pre-release validation that GitHub and Google Analytics providers use the **same** generic PADE provider seam without requiring vendor-specific changes to PADE core.
 
-**Goal:** Update draft specs, SECURITY notes, and examples based on what B–E learned.
+Treat this as an **architectural test**. If implementing the second provider requires adding vendor-specific concepts to the provider protocol, **revisit the abstraction** rather than extending core with provider-specific fields.
+
+Examples of undesirable leakage into normative PADE protocol semantics:
+
+- `githubInstallationId`
+- `googleServiceAccount`
+- `analyticsPropertyId`
+- `oauthScope`
+
+Opaque provider configuration (admin/local policy) is acceptable; vendor fields as portable Intent or core wire semantics are not.
+
+### Milestone H — Spec/docs tighten from dogfood
+
+**Goal:** Update draft specs, SECURITY notes, and examples based on what D–G learned.
 
 Do **not** redesign DevelopmentSession / Intent around Runtime Conditions or invent Grant/Lease without evidence. Keep changes proportional to dogfood.
 
-### Milestone G — Initial versioned release (`v0.1.0`)
+### Milestone I — Initial versioned release (`v0.1.0`)
 
-**Goal:** External consumers pin `PADE_VERSION=vX.Y.Z` instead of arbitrary `main` commits—**only after** A–F prove both direct and derived fulfillment.
+**Goal:** External consumers pin `PADE_VERSION=vX.Y.Z` instead of arbitrary `main` commits—**only after** A–H succeed.
 
 **SemVer strategy:** Pre-1.0 SemVer. Breaking changes allowed with minor bumps while major remains `0`. Initial release: **`v0.1.0`**.
 
 #### Release gate (required)
 
-**Stage 1 — existing/basic dogfood**
+**Direct materialization path (stage 1)**
 
-- DevelopmentSession/Intent can request a capability
-- Cloud agent can communicate with the broker
-- Broker can obtain an existing credential from a configured source
-- Capability can be delivered to the development environment
-- Existing GitHub-token dogfood remains valid and minimal
+- Existing credential can be retrieved
+- Broker can deliver it to a DevelopmentSession
+- Simple current GitHub/PAT dogfood remains documented if useful
 
-**Stage 2 — provider dogfood**
+**Generic provider path**
 
-- Broker can invoke an external/provider implementation through a generic contract
-- Provider implementation can remain vendor-specific while PADE core remains generic
-- Google Analytics reference provider exercises that contract
-- Durable Google authority stays broker-side
-- Provider returns a derived/session-scoped usable credential
-- Cloud development session can successfully use it against the Google Analytics API
-- Provider lifecycle/error behavior is sufficiently documented for a first release
+- Broker can invoke a provider through a vendor-neutral contract
+- Provider implementation remains outside PADE core
+- Expiry metadata can be represented sufficiently for dogfood
+
+**GitHub provider**
+
+- GitHub App durable private key remains broker-side
+- Provider derives a short-lived installation token
+- Token is scoped appropriately
+- Cloud DevelopmentSession successfully performs a repository-scoped operation
+
+**Google Analytics provider**
+
+- Durable Google authority remains broker-side
+- Provider derives a short-lived usable credential
+- Cloud DevelopmentSession successfully performs a minimal Analytics API operation
+
+**Abstraction validation**
+
+- Both providers use the same generic provider seam
+- Neither requires vendor-specific PADE core behavior
 
 **Not required for `v0.1.0`:** mediated capabilities; full provider ecosystem; every future binding; Intent redesign; Runtime Conditions integration; Cloudflare/preview completion.
 
-#### Release artifacts (implement at G)
+#### Release artifacts (implement at I)
 
 - `pade --version` and `pade-broker --version` reporting SemVer + source commit (+ optional build time)
 - Annotated git tags `vX.Y.Z`
@@ -454,6 +541,7 @@ GitHub Release (+ tag)
 
 - **No release on merge to `main`.**
 - Automatic version bumping remains deferred.
+- Cut the first release only after the dogfood gate above succeeds; broker deployment should then consume released/versioned artifacts rather than unreleased repository state.
 
 #### Artifact contract (PADE publishes; externals consume)
 
@@ -467,27 +555,27 @@ without cloning or building PADE source. Operators must be able to identify PADE
 
 **Cloud development environments should install** `pade vX.Y.Z` from a GitHub Release asset.
 
-### Milestone H — Released broker deployment
+### Milestone J — Released broker deployment
 
 External: private broker deployment pulls the released GHCR image, mounts policy/bindings/secrets, and runs with Cloud Run–compatible transport (`PORT`, trusted TLS termination).
 
 PADE acceptance: image runs as already smoked by `make smoke-broker-container`; no PADE protocol change required.
 
-### Milestone I — Released Consumer dogfood
+### Milestone K — Released Consumer dogfood
 
 External Cursor Cloud (or equivalent) installs released `pade`, points agent bindings at the real broker, and resolves a capability end-to-end with Cursor OIDC.
 
 PADE acceptance: released CLI talks to released broker using the existing wire protocol.
 
-### Milestone J — External preview / Cloudflare dogfood
+### Milestone L — External preview / Cloudflare dogfood
 
 after-certainty runs its normal application and establishes a Cloudflare Tunnel using **generic** PADE-brokered Material (tunnel token or equivalent), plus **repo-local** start command / port / `cloudflared` invocation.
 
 Evaluate long-running `pade exec` (signals, exit codes, Material lifetime, redaction). Fix gaps as **generic execution** improvements—not Cloudflare support.
 
-Preserved from the prior roadmap; intentionally **after** the initial release.
+Preserved from the prior roadmap; intentionally **after** the initial release. Keeper/1Password and other historical dogfood remain documented under historical milestones and existing docs—not deleted.
 
-### Milestone K — Endpoint decision
+### Milestone M — Endpoint decision
 
 A credential capability alone may not fully describe a preview workflow. A preview needs external authority **and** a local service to expose.
 
@@ -533,13 +621,13 @@ If PADE must also start/stop services itself
         → revisit lifecycle carefully; do not assume this outcome.
 ```
 
-### Milestone L — Full Cursor iOS workflow
+### Milestone N — Full Cursor iOS workflow
 
 Acceptance story:
 
 From Cursor iOS, launch a fresh after-certainty Cloud Agent and ask it to inspect Google Analytics, make an appropriate change, run the application, and provide a public preview—**without manually copying credentials into the agent**.
 
-Expected path uses **released** CLI/broker (post-G) and derived Material where the configured provider supports it:
+Expected path uses **released** CLI/broker (post-I) and derived Material where the configured provider supports it:
 
 ```text
 released PADE CLI
@@ -557,13 +645,13 @@ repo-owned tooling (GA scripts, app start, cloudflared)
 
 PADE core remains unaware of the downstream vendors.
 
-### Milestone M — Post-dogfood protocol evaluation
+### Milestone O — Post-dogfood protocol evaluation
 
 Only **generic** deficiencies discovered during real use return to the PADE repository (Intent, Consumer, Broker, or reference execution behavior). Vendor-specific work stays in external repos or `examples/providers/`.
 
 ## Capability naming (exploratory)
 
-External dogfood may use names resembling `analytics.google.read` or `preview.http`.
+External dogfood may use names resembling `github.repo.read`, `analytics.google.read`, or `preview.http`.
 
 - Do **not** create a capability registry in PADE.
 - Do **not** standardize vendor capability names in this roadmap pass.
@@ -581,21 +669,29 @@ Track these without freezing Intent or Broker wire formats prematurely.
 
 1. **Provider naming** — What should the external fulfill/derive seam be called in specs vs reference code (`Provider`, materialization adapter, issuer, …)?
 2. **Provider contract shape** — Minimal request/result fields for capability + DevelopmentSession context → Material (or later mediation)?
-3. **First provider binding** — Exec/subprocess vs HTTP vs gRPC vs plugin for the first dogfood—choose during Milestone C, not in this planning pass.
-4. **Credential lifetime / expiry semantics** — Does derived Material need explicit expiry/revocation metadata, or does that belong to a future Grant/Lease model?
-5. **Fulfillment pipeline naming** — Keep illustrative SOURCE / PROVIDER / DERIVATION / DELIVERY, or stick strictly to Provider / materialization / Material?
-6. **Mediated capabilities** — Does credential-less exercise require Consumer protocol changes beyond today’s resolve → Material path?
-7. **Runtime Conditions (CNCF)** — Active discussion with Runtime Conditions maintainers. Emerging possibility: Runtime Conditions describe requirements of a runtime *thing* (application runtime, development environment, Dev Container, code session, agent sandbox), while PADE creates/fulfills an identity-bound DevelopmentSession and handles downstream capability fulfillment. **Do not** claim adopt/extend/replace/integrate yet. **Do not** redesign Intent while this is open.
-8. **Hierarchical profiles** — Emerging idea that a development runtime could add requirements atop those already required by the application/codebase. Record only; no PADE schema work yet.
-9. **Endpoint declaration** — See Milestone K.
-10. **Capability vocabulary** — See [Capability naming](#capability-naming-exploratory).
+3. **Capability-specific parameters** — How are they passed without leaking vendor semantics into core (opaque provider config vs normative protocol fields)?
+4. **Durable authority handoff** — How does the broker pass durable authority to the provider safely?
+5. **Generic provider result** — What does a portable result look like beyond today’s env `Material`?
+6. **Expiry / refresh** — How are expiry and refresh represented for dogfood and beyond?
+7. **Renewal during a live DevelopmentSession** — Can a provider request renewal while a session is still running?
+8. **Revocation on session end** — How is revocation handled when a session ends?
+9. **First provider binding** — Exec/subprocess vs HTTP vs gRPC vs plugin—choose during Milestone C, not in this planning pass.
+10. **Provider failure surfacing** — How are provider failures surfaced to the Consumer?
+11. **Provider isolation** — How are provider implementations isolated from the broker?
+12. **Config vs Intent** — Which provider configuration is local/admin policy versus portable project Intent?
+13. **Fulfillment pipeline naming** — Keep illustrative SOURCE / PROVIDER / DERIVATION / DELIVERY, or stick strictly to Provider / materialization / Material?
+14. **Mediated capabilities** — Does credential-less exercise require Consumer protocol changes beyond today’s resolve → Material path?
+15. **Runtime Conditions (CNCF)** — Active discussion with Runtime Conditions maintainers. Emerging possibility: Runtime Conditions describe requirements of a runtime *thing* (application, Dev Container, code session, agent sandbox, development environment), while PADE creates/fulfills an identity-bound DevelopmentSession and handles downstream capability fulfillment. **Do not** claim adopt/extend/replace/integrate yet. **Do not** redesign Intent while this is open.
+16. **Hierarchical / composed profiles** — Emerging idea that development-session requirements could layer on top of application runtime requirements. Record only; no PADE schema work yet.
+17. **Endpoint declaration** — See Milestone M.
+18. **Capability vocabulary** — See [Capability naming](#capability-naming-exploratory).
 
 ## Deferred until after the initial release / full workflow
 
 Explicitly deferred (not blockers for `v0.1.0` unless noted otherwise):
 
-- **Mediated capabilities** (Consumer never receives credential Material) — after stage 2 is proven
-- Endpoint schema implementation **unless** Milestone K decides it is required
+- **Mediated capabilities** (Consumer never receives credential Material) — after stage 2 is proven with both reference providers
+- Endpoint schema implementation **unless** Milestone M decides it is required
 - Grant / Lease model
 - Additional vendor reference providers / integration catalog
 - Extra provider bindings beyond the first dogfood binding
@@ -614,7 +710,8 @@ Explicitly deferred (not blockers for `v0.1.0` unless noted otherwise):
 - Standards / governance work
 - Runtime Conditions adoption or hierarchical-profile Intent changes
 - JTI replay store, multi-tenant broker hosting, DB-backed policy (still deferred spike hardening)
-- Cloudflare / preview completion (Milestone J — post-release, preserved)
+- Cloudflare / preview completion (Milestone L — post-release, preserved)
+- Keeper / 1Password / Vault historical dogfood remains available; not deleted
 
 ## Historical dogfood milestones
 
@@ -635,4 +732,4 @@ The following learning milestones are **complete or spiked** and are not the liv
 | **9** | Keeper Secrets Manager + Cursor Cloud dogfood |
 | **9b** | Cursor OIDC + minimal `pade-broker` — **experimental reference Broker** |
 
-Earlier README “9+ / Later” rows and the previous release-first A–I ordering (derived fulfillment as post-release Milestone I) are **superseded** by Milestones **A–M** in this document.
+Earlier README “9+ / Later” rows, the release-first A–I ordering, and the GA-first A–M ordering (PR #31) are **superseded** by Milestones **A–O** in this document (GitHub App first, Google Analytics second, both before `v0.1.0`).
