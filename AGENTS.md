@@ -83,7 +83,7 @@ Before adding a feature, ask:
 - When behavior changes, update `spec/`, examples, and design docs in the same change when practical.
 - Keep Intent schemas small (`pade.local/v1alpha1`); every field creates compatibility pressure.
 - Prefer clear package boundaries over speculative abstractions.
-- Do not invent grant/lease/preview protocols in schema without dogfood evidence. Endpoint declaration and Grant/Lease remain decision/deferred items in [ROADMAP.md](ROADMAP.md)—do not implement them preemptively.
+- Do not invent grant/lease/preview protocols in schema without dogfood evidence. Endpoint declaration and Grant/Lease remain decision/deferred items in [ROADMAP.md](ROADMAP.md)—do not implement them preemptively. Do not implement vendor-specific credential derivation or provider plugins in PADE core ahead of [ROADMAP.md](ROADMAP.md) Milestone I (derived / session-scoped fulfillment).
 
 ## Tests and commands
 

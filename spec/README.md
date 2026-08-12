@@ -136,10 +136,12 @@ Dogfood should drive these; do not freeze them prematurely. Sequencing and owner
 
 1. **Grant / lease model** — Today results are largely credential **material** (env maps). Future capabilities (preview URLs, ephemeral databases, temporary queues/storage, cloud roles) may need a broader grant/lease result model. There is no Grant Specification yet. See [ROADMAP.md](../ROADMAP.md) (Material vs Endpoint vs Grant; deferred until after full workflow dogfood).
 2. **Endpoint declaration** — Whether a `DevelopmentSession` should declare local services/ports that capabilities may act upon is an open architecture question with an explicit post-preview dogfood decision gate. Not in v1alpha1. See [ROADMAP.md](../ROADMAP.md) Milestone F.
-3. **Capability vocabulary** — Naming, namespaces, registration, and third-party extension rules remain exploratory. There is no global capability registry in v0.1.
-4. **Broker discovery / configuration** — Today the reference consumer configures broker endpoint and audience via local bindings. Universal discovery is unspecified.
-5. **Workload identity catalog** — Cursor OIDC is the first reference adapter. GitHub Actions OIDC, SPIFFE, cloud workload identity, and enterprise mechanisms are possible later adapters, not standardized here.
-6. **Version negotiation** — Schema/protocol version fields and compatibility rules beyond fixed `pade.local/v1alpha1` remain future work. Legacy flat `version: "0.1"` Intent is not accepted.
+3. **Derived / session-scoped materialization** — Brokers may eventually fulfill a capability by deriving short-lived credentials from durable authority (or mediating without returning credentials), instead of only direct secret materialization. Provider-neutral seam; not near-term dogfood. See [ROADMAP.md](../ROADMAP.md) Milestone I.
+4. **Runtime Conditions (CNCF)** — Could Runtime Conditions eventually describe some portable *demand* while PADE focuses on creating and fulfilling an identity-bound DevelopmentSession? Under discussion; no adopt/extend/replace/integrate claim yet. See [ROADMAP.md](../ROADMAP.md#open-design-questions).
+5. **Capability vocabulary** — Naming, namespaces, registration, and third-party extension rules remain exploratory. There is no global capability registry in v0.1.
+6. **Broker discovery / configuration** — Today the reference consumer configures broker endpoint and audience via local bindings. Universal discovery is unspecified.
+7. **Workload identity catalog** — Cursor OIDC is the first reference adapter. GitHub Actions OIDC, SPIFFE, cloud workload identity, and enterprise mechanisms are possible later adapters, not standardized here.
+8. **Version negotiation** — Schema/protocol version fields and compatibility rules beyond fixed `pade.local/v1alpha1` remain future work. Legacy flat `version: "0.1"` Intent is not accepted.
 
 ## Normative language
 
