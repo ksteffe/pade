@@ -21,7 +21,7 @@ INSTALL_KEEPER_CLI := $(CURDIR)/scripts/install-keeper-cli.sh
 
 .PHONY: check-go test build build-linux validate plan capabilities exec-demo dogfood \
 	dogfood-identity dogfood-vault dogfood-onepassword dogfood-keeper dogfood-ksm dogfood-broker \
-	dogfood-exec-provider dogfood-exec-provider-github \
+	dogfood-exec-provider dogfood-exec-provider-github dogfood-exec-provider-ga dogfood-exec-provider-two \
 	dogfood-broker-stage-b smoke-broker-container ci-container \
 	dogfood-onepassword-live dogfood-keeper-live dogfood-ksm-live dogfood-github-live \
 	install-onepassword-cli install-keeper-cli \
@@ -136,6 +136,18 @@ dogfood-exec-provider-github: check-go build
 	@chmod +x "$(EXEC_PROVIDER_DOGFOOD)" examples/demo-project/scripts/github-repo-meta
 	@PADE="$(CURDIR)/bin/pade" GO="$(GO)" "$(EXEC_PROVIDER_DOGFOOD)" github
 
+# Milestone F: Google Analytics reference provider (unit + fake resolve + property-meta).
+dogfood-exec-provider-ga: check-go build
+	@chmod +x "$(EXEC_PROVIDER_DOGFOOD)" examples/demo-project/scripts/ga-property-meta
+	@PADE="$(CURDIR)/bin/pade" GO="$(GO)" "$(EXEC_PROVIDER_DOGFOOD)" ga
+
+# Milestone G: GitHub + GA on the same provider: exec seam (fake; no core vendor fields).
+dogfood-exec-provider-two: check-go build
+	@chmod +x "$(EXEC_PROVIDER_DOGFOOD)" \
+		examples/demo-project/scripts/github-repo-meta \
+		examples/demo-project/scripts/ga-property-meta
+	@PADE="$(CURDIR)/bin/pade" GO="$(GO)" "$(EXEC_PROVIDER_DOGFOOD)" two
+
 # Stage B (Cursor Cloud Agent only, not CI): real Cursor OIDC + local pade-broker + fake KSM.
 # Requires identity socket. Optional: PADE_STAGE_B_SUBJECT=user:<id> to pin allowlist.
 dogfood-broker-stage-b: check-go build
@@ -233,7 +245,7 @@ dogfood-devpod-ci:
 ci-unit: check-go fmt-check vet test build
 
 # Smoke path: mirrors the GitHub Actions "Smoke" job (env + Vault + 1Password + Keeper + KSM + broker + exec-provider dogfood).
-ci-smoke: check-go build dogfood dogfood-identity dogfood-vault dogfood-onepassword dogfood-keeper dogfood-ksm dogfood-broker dogfood-exec-provider dogfood-exec-provider-github
+ci-smoke: check-go build dogfood dogfood-identity dogfood-vault dogfood-onepassword dogfood-keeper dogfood-ksm dogfood-broker dogfood-exec-provider dogfood-exec-provider-github dogfood-exec-provider-ga dogfood-exec-provider-two
 	./bin/pade validate -f spec/examples/web-app.yaml
 	./bin/pade plan -f spec/examples/web-app.yaml --json > /tmp/pade-plan.json
 	./bin/pade capabilities -f spec/examples/web-app.yaml --bindings spec/examples/bindings.example.yaml --json > /tmp/pade-capabilities.json

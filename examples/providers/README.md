@@ -10,6 +10,6 @@ Prefer this `examples/providers/` layout over an `extensions/` name (avoids coll
 |------|------|
 | [stub/](stub/) | Minimal contract dogfood |
 | [github/](github/) | First reference provider (GitHub App → installation token; fake mode for CI) |
-| `google-analytics/` | Planned second reference provider (not created yet) |
+| [google-analytics/](google-analytics/) | Second reference provider (service account → access token; fake mode for CI) |
 
-Bindings use `provider: exec` with opaque `exec.config`. See ROADMAP Milestones B–G.
+Bindings use `provider: exec` with opaque `exec.config`. Same-seam proof: `make dogfood-exec-provider-two`. See ROADMAP Milestones B–G.

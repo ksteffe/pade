@@ -57,8 +57,8 @@ Derived from the repository as of this roadmap pass (reference Consumer/Broker c
 | Provider materialization (in-tree adapters) | DONE | Server-side env/Vault/op/keeper/ksm via broker bindings |
 | External/independently packaged provider seam | PARTIAL | Draft `provider: exec` contract + adapter (`docs/provider-contract.md`, `internal/binding/exec`); stub dogfood in CI |
 | GitHub App derived-credential dogfood | PARTIAL | Real App JWT → installation token in `examples/providers/github/` (httptest + fake CI); preferred repo-scoped dogfood path landed; live App install still optional/local (Milestone E) |
-| Google Analytics derived-credential dogfood | MISSING | Needed before `v0.1.0` (Milestone F) |
-| Two-provider same-seam validation | MISSING | Needed before `v0.1.0` (Milestone G) |
+| Google Analytics derived-credential dogfood | PARTIAL | SA JWT → access token in `examples/providers/google-analytics/` (httptest + fake CI); live GA property optional/local (Milestone F) |
+| Two-provider same-seam validation | DONE (CI) | `make dogfood-exec-provider-two` — GitHub + GA on `provider: exec` without core vendor fields (Milestone G) |
 | Arbitrary Material / env injection | DONE (env maps) | `Material.Env map[string]string` only; sufficient for token/API credentials |
 | Structured / multiline credential Material | PARTIAL | String values may contain newlines; not dogfooded; **no anticipated PADE work** until a proven deficiency |
 | `pade exec` | DONE | Process-scoped resolve → inject → wait → discard |
@@ -76,13 +76,11 @@ Derived from the repository as of this roadmap pass (reference Consumer/Broker c
 
 **Genuinely missing PADE-repository work** before the first release:
 
-1. Finish preferred GitHub dogfood migration / live App proof where useful (Milestone E remainder) — derivation + offline preferred path already landed in D
-2. Google Analytics **reference** provider under `examples/providers/google-analytics/` (Milestone F) — non-normative
-3. Two-provider architectural test that both use the same seam (Milestone G)
-4. Spec/docs tightening from that dogfood (Milestone H)
-5. Versioned release foundation gated on the above (Milestone I)
+1. Finish preferred GitHub / live App or live GA proofs where useful (E/F remainders) — offline preferred paths already landed
+2. Spec/docs tightening from D–G dogfood (Milestone H)
+3. Versioned release foundation gated on A–H (Milestone I)
 
-**Landed for B–D:** draft exec contract, `provider: exec` binding, stub provider, GitHub App reference provider (fake CI + real JWT/installation-token derivation). Dogfood: `make dogfood-exec-provider`, `make dogfood-exec-provider-github`.
+**Landed for B–G:** draft exec contract, `provider: exec` binding, stub + GitHub App + Google Analytics reference providers (fake CI + httptest-tested real derivation), two-provider same-seam dogfood. Targets: `make dogfood-exec-provider{,-github,-ga,-two}`.
 
 Do not roadmap work that is already DONE.
 
@@ -293,8 +291,8 @@ Previous letters after PR #31 (GA-first A–M) are **superseded**:
 | **C — Dogfood provider binding** | One binding sufficient for dogfood (`provider: exec`) | PADE repo — **landed** (other bindings still open) |
 | **D — GitHub App reference provider** | `examples/providers/github/` — App private key broker-side → installation token | PADE repo — **landed** (fake CI + httptest-tested real path) |
 | **E — GitHub dogfood migration** | Prefer derived installation token; repo-scoped validation (not `/user`) | PADE — **partial** (repo-meta script + fake preferred path); live App optional |
-| **F — Google Analytics reference provider** | `examples/providers/google-analytics/` — second vendor on same seam | PADE repo (non-normative example) |
-| **G — Two-provider architectural test** | Both providers use the same generic seam; no vendor leakage into core | PADE repo |
+| **F — Google Analytics reference provider** | `examples/providers/google-analytics/` — second vendor on same seam | PADE repo — **landed** (fake CI + httptest-tested SA→token); live optional |
+| **G — Two-provider architectural test** | Both providers use the same generic seam; no vendor leakage into core | PADE repo — **landed** (`make dogfood-exec-provider-two`) |
 | **H — Spec/docs tighten from dogfood** | Capture D–G learnings; no premature Intent redesign | PADE repo |
 | **I — Initial versioned release (`v0.1.0`)** | CLI + broker artifacts; **gated on A–H**; stages 1 and 2 via both providers | PADE repo |
 
@@ -431,12 +429,14 @@ The dogfood should demonstrate that the resulting token is:
 
 ### Milestone F — Google Analytics reference provider (second)
 
+**Status:** Landed under [`examples/providers/google-analytics`](examples/providers/google-analytics). Real mode uses a broker-side service account JSON/key to mint a JWT assertion and exchange it for a short-lived OAuth2 access token (`analytics.readonly` by default). `PADE_PROVIDER_FAKE=1` keeps CI offline. Dogfood: `make dogfood-exec-provider-ga` (+ `ga-property-meta`). Live Google property proof remains optional/local.
+
 **Goal:** Add the **second** reference provider to prove the generic contract was not accidentally designed around GitHub.
 
-Planned location: **`examples/providers/google-analytics/`**.
+Location: **`examples/providers/google-analytics/`**.
 
 ```text
-durable Google authority
+durable Google authority (service account)
         ↓
 trusted broker-side source
         ↓
@@ -444,16 +444,18 @@ PADE broker
         ↓
 Google Analytics reference provider
         ↓
-short-lived usable credential
+short-lived OAuth2 access token (+ optional GA_PROPERTY_ID)
         ↓
 DevelopmentSession
         ↓
-Google Analytics API
+Google Analytics Admin API (property metadata)
 ```
 
-All Google-specific authentication behavior belongs inside the provider. Do **not** add Google Analytics-specific fields, scopes, service-account structures, or OAuth logic to PADE core. Do not select the exact Google authentication strategy in this planning document unless later implementation dogfood establishes one.
+All Google-specific authentication behavior belongs inside the provider. Do **not** add Google Analytics-specific fields, scopes, service-account structures, or OAuth logic to PADE core. Dogfood chose service-account JWT bearer grant as the first strategy; alternatives remain provider-local.
 
 ### Milestone G — Two-provider architectural test
+
+**Status:** Landed. `make dogfood-exec-provider-two` binds `github.repo.read` and `google-analytics.read` through the same `provider: exec` seam in one Intent/bindings pair (fake mode). No GitHub/Google fields were added to PADE core or Intent schema.
 
 **Goal:** Explicit pre-release validation that GitHub and Google Analytics providers use the **same** generic PADE provider seam without requiring vendor-specific changes to PADE core.
 

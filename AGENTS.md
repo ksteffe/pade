@@ -117,6 +117,8 @@ make dogfood-broker   # Phase 2 spike: fake OIDC + pade-broker + fake KSM
 make dogfood-broker-stage-b   # Stage B: real Cursor OIDC + local broker (Cloud Agent; not CI)
 make dogfood-exec-provider   # Milestone B–C: provider: exec stub contract dogfood
 make dogfood-exec-provider-github   # Milestone D–E: GitHub App provider (fake + httptest + repo-meta)
+make dogfood-exec-provider-ga   # Milestone F: Google Analytics provider (fake + httptest + property-meta)
+make dogfood-exec-provider-two   # Milestone G: GitHub + GA on the same provider: exec seam
 make smoke-broker-container   # Docker pade-broker image smoke (requires docker)
 make dogfood-ingress-teleport  # Milestone 8 Teleport Application Access (host; Docker optional)
 make dogfood-ingress-teleport-down

@@ -27,3 +27,15 @@ capabilities:
   #       permissions:
   #         metadata: read
   #         contents: read
+  #
+  # Google Analytics reference provider (examples/providers/google-analytics).
+  # Fake CI: PADE_PROVIDER_FAKE=1. Real: service account JSON on broker host.
+  # google-analytics.read:
+  #   provider: exec
+  #   exec:
+  #     command: ["./bin/pade-provider-google-analytics"]
+  #     config:
+  #       tokenEnv: GA_ACCESS_TOKEN
+  #       propertyId: properties/123456789
+  #       serviceAccountFile: /run/secrets/ga-sa.json
+  #       scope: https://www.googleapis.com/auth/analytics.readonly

@@ -1,6 +1,6 @@
 # Draft external provider contract (exec binding)
 
-**Status:** Draft / dogfood — Milestone B–C toward D. Not a frozen standard.  
+**Status:** Draft / dogfood — Milestones B–G. Not a frozen standard.  
 **Related:** [ROADMAP.md](../ROADMAP.md), [spec/broker.md](../spec/broker.md), Go adapters under [`internal/binding`](../internal/binding).
 
 ## Purpose
@@ -101,6 +101,6 @@ Environment: the child inherits the parent environment (so broker-side durable c
 
 - [`examples/providers/stub`](../examples/providers/stub) — contract dogfood only
 - [`examples/providers/github`](../examples/providers/github) — first reference provider (App JWT → installation token; fake mode for CI)
-- [`examples/providers/google-analytics`](../examples/providers/google-analytics) — planned second reference provider
+- [`examples/providers/google-analytics`](../examples/providers/google-analytics) — second reference provider (SA JWT → access token; fake mode for CI)
 
-If a second vendor forces new **normative** core fields, revisit this contract rather than leaking vendor semantics into PADE.
+Milestone G dogfood (`make dogfood-exec-provider-two`) runs GitHub + GA on this same seam without vendor fields in PADE core. If a future vendor forces new **normative** core fields, revisit this contract rather than leaking vendor semantics into PADE.

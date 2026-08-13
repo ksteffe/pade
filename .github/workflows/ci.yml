@@ -129,9 +129,13 @@ jobs:
 
       - name: Exec provider dogfood
         run: |
-          chmod +x scripts/exec-provider-dogfood.sh
+          chmod +x scripts/exec-provider-dogfood.sh \
+            examples/demo-project/scripts/github-repo-meta \
+            examples/demo-project/scripts/ga-property-meta
           PADE="$(pwd)/bin/pade" ./scripts/exec-provider-dogfood.sh stub
           PADE="$(pwd)/bin/pade" ./scripts/exec-provider-dogfood.sh github
+          PADE="$(pwd)/bin/pade" ./scripts/exec-provider-dogfood.sh ga
+          PADE="$(pwd)/bin/pade" ./scripts/exec-provider-dogfood.sh two
 
   container-smoke:
     name: Container smoke
