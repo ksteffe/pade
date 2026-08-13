@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# Minimal Google Analytics property check for derived-token dogfood (Milestone F).
+#
+# Requires:
+#   GA_ACCESS_TOKEN — process-scoped Material from pade exec
+#   GA_PROPERTY_ID  — properties/{id} or numeric id
+#
+# Never prints GA_ACCESS_TOKEN. Tokens with prefix "ya29.pade_fake_" skip the
+# network call so CI stays offline-friendly.
+set -euo pipefail
+
+if [[ -z "${GA_ACCESS_TOKEN:-}" ]]; then
+  echo "error: GA_ACCESS_TOKEN is not set" >&2
+  echo "hint: run via: pade exec --capability google-analytics.read -- ./scripts/ga-property-meta" >&2
+  exit 1
+fi
+
+PROP="${GA_PROPERTY_ID:-}"
+if [[ -z "$PROP" ]]; then
+  echo "error: GA_PROPERTY_ID must be set" >&2
+  exit 1
+fi
+if [[ "$PROP" != properties/* ]]; then
+  PROP="properties/${PROP}"
+fi
+
+API_URL="${GOOGLE_ANALYTICS_ADMIN_API_URL:-https://analyticsadmin.googleapis.com}"
+
+if [[ "$GA_ACCESS_TOKEN" == ya29.pade_fake_* ]]; then
+  echo "ga-property-meta (stub)"
+  echo "property: ${PROP}"
+  echo "note: fake/demo token prefix; skipped real Google API"
+  exit 0
+fi
+
+tmp="$(mktemp)"
+trap 'rm -f "$tmp"' EXIT
+
+http_code="$(
+  curl -sS -o "$tmp" -w '%{http_code}' \
+    -H "Authorization: Bearer ${GA_ACCESS_TOKEN}" \
+    -H "Accept: application/json" \
+    -H "User-Agent: pade-demo-ga-property-meta" \
+    "${API_URL}/v1beta/${PROP}"
+)"
+
+if [[ "$http_code" != "200" ]]; then
+  echo "error: Google Analytics Admin API ${PROP} returned HTTP ${http_code}" >&2
+  echo "hint: ensure the service account can read this property" >&2
+  exit 1
+fi
+
+python3 - "$tmp" "$PROP" <<'PY'
+import json, sys
+data = json.load(open(sys.argv[1]))
+want = sys.argv[2]
+name = data.get("name") or ""
+if name != want:
+    raise SystemExit(f"error: unexpected name {name!r} (want {want!r})")
+print("ga-property-meta")
+print(f"property: {name}")
+print(f"displayName: {data.get('displayName')}")
+print("note: authenticated via access token from capability binding")
+PY

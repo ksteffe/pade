@@ -23,6 +23,7 @@ Preferred pre-release GitHub dogfood (Milestone E): derived **installation token
 | `identities/` | Alice/Bob env, Vault, 1Password, and Keeper binding fixtures |
 | `scripts/github-whoami` | Stage-1: GitHub `/user` (or stub for `pade-demo-*` tokens) |
 | `scripts/github-repo-meta` | Preferred: GET `/repos/{owner}/{repo}` for installation tokens |
+| `scripts/ga-property-meta` | GA derived-token dogfood: Admin API property metadata (fake skips network) |
 
 ## Easiest path (from repo root)
 
