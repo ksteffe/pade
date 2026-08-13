@@ -72,9 +72,27 @@ Even for local demos (including Vault `-dev` mode):
 - Never bake resolved credentials into images or snapshots.
 - Treat Vault/1Password/env/Keeper/KSM/broker adapters as **bindings / providers**, not as part of the portable Intent Specification.
 
-**Materialization preference (roadmap):** Brokers SHOULD prefer session-scoped, short-lived, or otherwise derived credentials over delivering durable source credentials when the configured provider supports such derivation. Direct durable-secret materialization remains a valid interoperability mechanism (and is what current GitHub PAT dogfood uses as the stage-1 baseline). The first meaningful release (`v0.1.0`) is expected to demonstrate **both** direct materialization and derived/session-scoped fulfillment via **GitHub App** and **Google Analytics** reference providers on the same generic seam. Details and maturity stages: [ROADMAP.md](ROADMAP.md) (fulfillment maturity; Milestones A–I).
+**Materialization preference (roadmap):** Brokers SHOULD prefer session-scoped, short-lived, or otherwise derived credentials over delivering durable source credentials when the configured provider supports such derivation. Direct durable-secret materialization remains a valid interoperability mechanism (and is what current GitHub PAT dogfood uses as the stage-1 baseline). Before `v0.1.0`, two **non-normative reference providers** on the same generic seam prove stage-2 derivation: GitHub App (first) and Google service-account OAuth (second **structural** test—not Google Analytics product support). Details: [ROADMAP.md](ROADMAP.md#why-two-derived-token-providers-before-v010).
 
 Local Vault development servers and root tokens are for proving seams only. They are not production-safe and must not be documented as recommended production practice.
+
+## Credential exposure and derived materialization
+
+Long-lived credentials are generally **more damaging if exposed** than short-lived, narrowly scoped ones. Agent and cloud development environments may have unexpected logging, trace capture, transcript retention, or isolation failures that increase exposure risk for anything injected into a DevelopmentSession.
+
+**Stage 1 (pass-through):** the broker delivers the same long-lived credential the Consumer would have obtained from a secret store. This remains valid where derivation is unavailable.
+
+**Stage 2 (derived):** durable authority stays on the broker/provider side; the Consumer receives a **shorter-lived**, typically **narrower** credential when the downstream system supports temporary issuance. This **reduces** blast radius when exposure occurs; it does **not** eliminate compromise risk.
+
+**Stage 3 (mediated):** future/exploratory—the broker performs the operation and returns a result without credential Material. **Not current PADE behavior.**
+
+Broker-side derivation helps keep durable private keys and long-lived secrets **outside** the Consumer whenever supported. Short-lived Material must still be:
+
+- narrowly scoped to the authorized capability;
+- protected in the Consumer (process-scoped injection, no casual logging);
+- subject to **downstream resource authorization** (GitHub, Google, databases, etc.)—PADE does not replace those checks.
+
+The pre-release **two-provider architectural test** validates that this derivation model works through a vendor-neutral seam without encoding GitHub- or Google-specific behavior in PADE core. See [ROADMAP.md](ROADMAP.md#why-two-derived-token-providers-before-v010).
 
 ## Process-scoped execution
 

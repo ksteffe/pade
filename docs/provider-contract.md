@@ -3,8 +3,6 @@
 **Status:** Draft / dogfood — Milestones B–G. Not a frozen standard.  
 **Related:** [ROADMAP.md](../ROADMAP.md), [spec/broker.md](../spec/broker.md), Go adapters under [`internal/binding`](../internal/binding).
 
-## Purpose
-
 PADE core should understand only:
 
 > An authorized DevelopmentSession requests a capability, and a configured provider fulfills it.
@@ -97,10 +95,12 @@ Environment: the child inherits the parent environment (so broker-side durable c
 
 [`internal/binding.Provider`](../internal/binding/provider.go) remains the in-process adapter surface for env/Vault/op/keeper/ksm/broker/**exec**. Third-party providers need not be written in Go; they speak this stdin/stdout JSON contract when invoked via `provider: exec`.
 
-## Toward GitHub App / Google Analytics
+## Reference providers (architectural tests)
+
+In-tree providers under [`examples/providers/`](../examples/providers/) are **non-normative architectural tests**—not integration goals. Full rationale: [ROADMAP.md — Why two derived-token providers before v0.1.0](../ROADMAP.md#why-two-derived-token-providers-before-v010).
 
 - [`examples/providers/stub`](../examples/providers/stub) — contract dogfood only
-- [`examples/providers/github`](../examples/providers/github) — first reference provider (App JWT → installation token; fake mode for CI)
-- [`examples/providers/google-analytics`](../examples/providers/google-analytics) — second reference provider (SA JWT → access token; fake mode for CI)
+- [`examples/providers/github`](../examples/providers/github) — first test: App JWT → installation token (fake mode for CI)
+- [`examples/providers/google-analytics`](../examples/providers/google-analytics) — second **structural** test: SA JWT → OAuth access token (fake mode for CI; directory name is dogfood convenience—not GA product support)
 
-Milestone G dogfood (`make dogfood-exec-provider-two`) runs GitHub + GA on this same seam without vendor fields in PADE core. If a future vendor forces new **normative** core fields, revisit this contract rather than leaking vendor semantics into PADE.
+Milestone G dogfood (`make dogfood-exec-provider-two`) runs GitHub + Google on this same seam without vendor fields in PADE core. If a future vendor forces new **normative** core fields, revisit this contract rather than leaking vendor semantics into PADE.

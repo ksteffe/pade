@@ -10,6 +10,13 @@
 > Section 37 records the Kubernetes-style DevelopmentSession Intent convention.
 > For current draft specifications see [spec/README.md](spec/README.md). The README
 > is the short source of truth for current direction.
+>
+> **Pre-release validation (current):** Before `v0.1.0`, PADE dogfoods generic
+> broker-side credential derivation through two **non-normative** in-tree reference
+> providers on the same seam (GitHub App; Google service-account OAuth as a second
+> structural test). See [ROADMAP.md](ROADMAP.md#why-two-derived-token-providers-before-v010).
+> Early RFC mentions of Google Analytics as example capabilities are **historical
+> context**, not a claim that PADE ships GA product support.
 
 **Status: Exploratory**  
 **Date: August 2026**  

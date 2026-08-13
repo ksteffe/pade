@@ -5,7 +5,7 @@ Navigation roots: [../README.md](../README.md) (current direction), [../ROADMAP.
 | Document | Description |
 |----------|-------------|
 | [../ROADMAP.md](../ROADMAP.md) | Authoritative planned work (releases, external dogfood, open decisions) |
-| [provider-contract.md](provider-contract.md) | Draft `provider: exec` external fulfill/derive contract (Milestone B–C) |
+| [provider-contract.md](provider-contract.md) | Draft `provider: exec` external fulfill/derive contract (Milestones B–G; two-provider architectural rationale in [ROADMAP](../ROADMAP.md#why-two-derived-token-providers-before-v010)) |
 | [../spec/README.md](../spec/README.md) | PADE specification entry (Intent / Consumer / Broker) |
 | [../spec/intent.md](../spec/intent.md) | Intent Specification |
 | [../spec/consumer.md](../spec/consumer.md) | Consumer Specification |

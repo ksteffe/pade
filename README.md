@@ -267,7 +267,7 @@ Workspace lifecycle: prefer `devpod up` / `devpod stop` directly. See [examples/
 
 ## Roadmap
 
-**Authoritative forward plan:** [ROADMAP.md](ROADMAP.md) (GitHub App + Google Analytics **reference providers** on the same generic seam **before** `v0.1.0`, then released artifacts, Cloudflare/preview dogfood, endpoint decision).
+**Authoritative forward plan:** [ROADMAP.md](ROADMAP.md) — before `v0.1.0`, two **non-normative reference providers** prove stage-2 broker-side credential derivation on the same generic seam (GitHub App first; Google service-account OAuth second as a **structural** test, not Google Analytics product support). Then released artifacts, external dogfood, Cloudflare/preview, and the endpoint decision. See [Why two derived-token providers before v0.1.0](ROADMAP.md#why-two-derived-token-providers-before-v010).
 
 ### Historical dogfood milestones
 

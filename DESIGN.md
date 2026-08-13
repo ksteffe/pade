@@ -1164,7 +1164,35 @@ Future providers (preview services, ephemeral databases, temporary queues/storag
 Capability → resource / lease → URL + connection info + expiration
 ```
 
-There is **no** general Grant type in the Go code or schema yet. Do not standardize leasing, renewal, revocation, or preview tunnel protocols here. Let dogfood drive any future Grant Specification. Broker-side **derivation** of short-lived credentials before Material delivery (durable authority stays broker-side), via a provider-neutral seam and two non-normative reference providers under `examples/providers/` (**GitHub App** first, **Google Analytics** second), is required **before** the initial `v0.1.0` release—[ROADMAP.md](ROADMAP.md) Milestones B–I. Sequencing, ownership, and the related **endpoint declaration** decision gate are also in [ROADMAP.md](ROADMAP.md). See also [spec/README.md](spec/README.md#open-specification-questions).
+There is **no** general Grant type in the Go code or schema yet. Do not standardize leasing, renewal, revocation, or preview tunnel protocols here. Let dogfood drive any future Grant Specification. Broker-side **derivation** of short-lived credentials before Material delivery (durable authority stays broker-side), via a provider-neutral seam and two non-normative reference providers under `examples/providers/` (**GitHub App** first, **Google service-account OAuth** second as a structurally different architectural test), is required **before** the initial `v0.1.0` release—[ROADMAP.md](ROADMAP.md) Milestones B–I. Sequencing, ownership, release-gate rationale, and the related **endpoint declaration** decision gate are in [ROADMAP.md](ROADMAP.md). See also [spec/README.md](spec/README.md#open-specification-questions).
+
+## 40b. Fulfillment maturity model (architectural framing)
+
+**Non-normative framing only** — these stages are **not** represented in the Intent schema. They describe how fulfillment may evolve in the reference architecture. Full rationale and pre-release sequencing: [ROADMAP.md — Why two derived-token providers before v0.1.0](ROADMAP.md#why-two-derived-token-providers-before-v010) and [Fulfillment maturity (Material path)](ROADMAP.md#fulfillment-maturity-material-path).
+
+### Stage 1 — Pass-through material (exists today)
+
+```text
+long-lived credential → broker → same credential → Consumer
+```
+
+Direct materialization: retrieve a secret and deliver it unchanged as `Material`. GitHub PAT broker dogfood is the stage-1 baseline.
+
+### Stage 2 — Derived / session-scoped credential (pre-release validation target)
+
+```text
+durable authority → broker → provider-specific derivation/exchange → short-lived credential → Consumer
+```
+
+Durable authority stays broker-side; an external provider derives a temporary credential. The two in-tree reference providers (GitHub App installation-token exchange; Google OAuth JWT-bearer grant) are **architectural tests** of this stage—not integration goals. See [ROADMAP.md — Structurally different derivation flows](ROADMAP.md#structurally-different-derivation-flows).
+
+### Stage 3 — Mediated capability (future / exploratory)
+
+```text
+durable authority → broker → broker performs operation → result only → Consumer
+```
+
+The Consumer never receives the underlying credential. **Not current behavior**; do not implement or promote as part of `v0.1.0`.
 
 ## 41. DevelopmentSession v1alpha1 Intent
 
