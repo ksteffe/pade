@@ -1,6 +1,20 @@
-# Google Analytics reference provider
+# Google service-account reference provider (second structural test)
 
-**Non-normative.** In-tree for dogfooding the generic [`provider: exec`](../../../docs/provider-contract.md) seam. Removable from PADE core. Does **not** make Google Analytics part of the PADE standard.
+**Non-normative architectural test.** In-tree for dogfooding the generic [`provider: exec`](../../../docs/provider-contract.md) seam. Removable from PADE core. Does **not** make Google or Google Analytics part of the PADE standard.
+
+The directory is named `google-analytics/` for dogfood convenience only. **This is not Google Analytics product support in PADE.**
+
+## Not GA product support
+
+This provider demonstrates **broker-side credential derivation only** (service account → OAuth access token). PADE does **not** own or contain:
+
+- GA4 report logic, dimensions, or metrics
+- Analytics property semantics beyond injecting a non-secret `GA_PROPERTY_ID` into Material
+- GA client libraries or analytics tooling
+
+Product GA4 usage belongs in downstream applications such as `after-certainty`. The minimal `ga-property-meta` script is a **validation hook** for the derived token—not GA application code inside PADE.
+
+Rationale for two pre-release providers: [ROADMAP.md — Why two derived-token providers](../../../ROADMAP.md#why-two-derived-token-providers-before-v010).
 
 ## Flow (Milestone F)
 

@@ -1,6 +1,8 @@
 # GitHub App reference provider
 
-**Non-normative.** In-tree for dogfooding the generic [`provider: exec`](../../../docs/provider-contract.md) seam. Removable from PADE core. Does **not** make GitHub part of the PADE standard.
+**Non-normative architectural test.** In-tree for dogfooding the generic [`provider: exec`](../../../docs/provider-contract.md) seam. Removable from PADE core. Does **not** make GitHub part of the PADE standard. Does **not** define a normative PADE identity mechanism or require GitHub App for all GitHub capabilities.
+
+Rationale for two pre-release providers: [ROADMAP.md — Why two derived-token providers](../../../ROADMAP.md#why-two-derived-token-providers-before-v010).
 
 ## Flow (Milestones D–E)
 
