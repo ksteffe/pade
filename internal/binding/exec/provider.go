@@ -7,7 +7,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	osexec "os/exec"
 	"strings"
@@ -16,7 +18,10 @@ import (
 	"github.com/ksteffe/pade/internal/binding"
 )
 
-const providerName = "exec"
+const (
+	providerName = "exec"
+	maxOutput    = 1 << 20 // 1 MiB per stream
+)
 
 // Provider runs an external fulfill/derive program.
 type Provider struct{}
@@ -99,6 +104,29 @@ func requireExec(b binding.CapabilityBinding) error {
 	return nil
 }
 
+type limitedBuffer struct {
+	buf    bytes.Buffer
+	limit  int
+	exceed bool
+}
+
+func (l *limitedBuffer) Write(p []byte) (int, error) {
+	if l.exceed {
+		return len(p), nil
+	}
+	remain := l.limit - l.buf.Len()
+	if remain <= 0 {
+		l.exceed = true
+		return len(p), nil
+	}
+	if len(p) > remain {
+		_, _ = l.buf.Write(p[:remain])
+		l.exceed = true
+		return len(p), nil
+	}
+	return l.buf.Write(p)
+}
+
 func (p *Provider) invoke(ctx context.Context, capability, operation string, eb *binding.ExecBinding) (*response, error) {
 	payload, err := json.Marshal(request{
 		Capability: capability,
@@ -111,22 +139,32 @@ func (p *Provider) invoke(ctx context.Context, capability, operation string, eb 
 
 	cmd := osexec.CommandContext(ctx, eb.Command[0], eb.Command[1:]...)
 	cmd.Dir = eb.Dir
-	cmd.Env = os.Environ()
+	cmd.Env = providerEnviron()
 	cmd.Stdin = bytes.NewReader(payload)
-	var stdout, stderr bytes.Buffer
+	var stdout, stderr limitedBuffer
+	stdout.limit = maxOutput
+	stderr.limit = maxOutput
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	if err := cmd.Run(); err != nil {
-		msg := strings.TrimSpace(stderr.String())
-		if msg == "" {
-			msg = err.Error()
+	runErr := cmd.Run()
+	if stdout.exceed {
+		return nil, fmt.Errorf("exec provider %q stdout exceeded %d byte limit", eb.Command[0], maxOutput)
+	}
+	if stderr.exceed {
+		return nil, fmt.Errorf("exec provider %q stderr exceeded %d byte limit", eb.Command[0], maxOutput)
+	}
+	if runErr != nil {
+		// Do not include stdout (may contain material) or raw stderr (may contain
+		// bootstrap secrets) in user-facing errors.
+		code := exitCode(runErr)
+		if code >= 0 {
+			return nil, fmt.Errorf("exec provider %q failed (exit %d)", eb.Command[0], code)
 		}
-		// Do not include stdout (may contain material) in the error.
-		return nil, fmt.Errorf("exec provider %q failed: %s", eb.Command[0], msg)
+		return nil, fmt.Errorf("exec provider %q failed", eb.Command[0])
 	}
 
-	out := bytes.TrimSpace(stdout.Bytes())
+	out := bytes.TrimSpace(stdout.buf.Bytes())
 	if len(out) == 0 {
 		return nil, fmt.Errorf("exec provider returned empty stdout")
 	}
@@ -136,3 +174,68 @@ func (p *Provider) invoke(ctx context.Context, capability, operation string, eb 
 	}
 	return &resp, nil
 }
+
+func exitCode(err error) int {
+	var ee *osexec.ExitError
+	if errors.As(err, &ee) {
+		return ee.ExitCode()
+	}
+	return -1
+}
+
+// providerEnviron builds a deliberate environment for provider subprocesses.
+// It includes ordinary process variables and documented ambient auth keys,
+// not the full caller environment.
+func providerEnviron() []string {
+	allowExact := map[string]struct{}{
+		"PATH":                           {},
+		"HOME":                           {},
+		"USER":                           {},
+		"LOGNAME":                        {},
+		"SHELL":                          {},
+		"TMPDIR":                         {},
+		"TMP":                            {},
+		"TEMP":                           {},
+		"LANG":                           {},
+		"LANGUAGE":                       {},
+		"TZ":                             {},
+		"TERM":                           {},
+		"GOOGLE_APPLICATION_CREDENTIALS": {},
+		"KSM_CONFIG":                     {},
+		"VAULT_ADDR":                     {},
+		"VAULT_TOKEN":                    {},
+		"VAULT_NAMESPACE":                {},
+		"VAULT_CACERT":                   {},
+	}
+	allowPrefix := []string{
+		"LC_",
+		"XDG_",
+		"PADE_",
+		"VAULT_",
+		"OP_",
+		"KSM_",
+		"KEEPER_",
+		"CLOUDSDK_",
+		"GOOGLE_",
+	}
+
+	env := os.Environ()
+	out := make([]string, 0, len(env)/4+8)
+	for _, e := range env {
+		key, _, _ := strings.Cut(e, "=")
+		if _, ok := allowExact[key]; ok {
+			out = append(out, e)
+			continue
+		}
+		for _, p := range allowPrefix {
+			if strings.HasPrefix(key, p) {
+				out = append(out, e)
+				break
+			}
+		}
+	}
+	return out
+}
+
+// Ensure limitedBuffer implements io.Writer.
+var _ io.Writer = (*limitedBuffer)(nil)

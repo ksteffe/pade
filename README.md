@@ -233,20 +233,20 @@ Environment construction stays in `.devcontainer/devcontainer.json` and is start
 
 ## Local bindings (reference Consumer)
 
-`pade.yaml` is the conventional filename for a `DevelopmentSession` Intent document. It declares capability names under `spec.capabilities` only. Bindings are local to the reference Consumer (or broker host), not portable Intent:
+`pade.yaml` is the conventional filename for a `DevelopmentSession` Intent document. It declares capability names under `spec.capabilities` only. Bindings are **trusted operator/developer fulfillment config**, not portable Intent:
 
-- `.pade/bindings.yaml` (gitignored via `.pade/`)
-- `~/.config/pade/bindings.yaml`
-- `PADE_BINDINGS` or `--bindings`
+- `--bindings` or `PADE_BINDINGS` (explicit)
+- `~/.config/pade/bindings.yaml` (user config)
+- `<repo>/.pade/bindings.yaml` **only** when `PADE_TRUST_WORKSPACE_BINDINGS=1` (workspace-local bindings are not trusted by default)
 
-See [spec/examples/bindings.example.yaml](spec/examples/bindings.example.yaml). Plan/capabilities may show paths and env **names**, never secret values. Vault `-dev` and the 1Password dogfood shim are prototype-only.
+See [spec/examples/bindings.example.yaml](spec/examples/bindings.example.yaml) and [SECURITY.md](SECURITY.md). `pade plan` / `pade capabilities` inspect bindings statically (no provider Probe). Plan/capabilities may show paths and env **names**, never secret values. Vault `-dev` and the 1Password dogfood shim are prototype-only.
 
 ## CLI (reference Consumer / Broker)
 
 | Command | Status | Role |
 |---------|--------|------|
 | `pade validate` | Implemented | Validate Intent (`DevelopmentSession` in `pade.yaml`) and referenced config |
-| `pade plan` | Implemented | Side-effect-free plan including binding status |
+| `pade plan` | Implemented | Descriptive plan; does not probe providers or materialize credentials |
 | `pade capabilities` | Implemented | Show declared capabilities and binding probes |
 | `pade exec --capability … -- <cmd>` | Implemented | Run a command with process-scoped capability injection |
 | `pade identity --audience …` | Implemented | Inspect Cursor workload identity (safe claims; no raw JWT) |

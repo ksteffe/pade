@@ -49,7 +49,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version-file: go.mod
+          go-version: '1.26.x'
           cache: true
 
       - name: Install DevPod CLI

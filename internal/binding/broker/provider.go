@@ -14,6 +14,7 @@ import (
 	"github.com/ksteffe/pade/internal/binding"
 	"github.com/ksteffe/pade/internal/identity"
 	cursorid "github.com/ksteffe/pade/internal/identity/cursor"
+	"github.com/ksteffe/pade/internal/securehttp"
 )
 
 // Provider resolves capabilities through a remote PADE broker using Cursor OIDC.
@@ -115,14 +116,6 @@ func (p *Provider) Resolve(ctx context.Context, name string, b binding.Capabilit
 	return &binding.Material{Provider: p.Name(), Env: out.Env}, nil
 }
 
-func (p *Provider) httpDo() func(*http.Request) (*http.Response, error) {
-	if p.HTTPDo != nil {
-		return p.HTTPDo
-	}
-	client := &http.Client{Timeout: 30 * time.Second}
-	return client.Do
-}
-
 func requireConfig(b binding.CapabilityBinding) error {
 	if b.Broker == nil {
 		return fmt.Errorf("broker binding config is missing")
@@ -130,10 +123,20 @@ func requireConfig(b binding.CapabilityBinding) error {
 	if strings.TrimSpace(b.Broker.Endpoint) == "" {
 		return fmt.Errorf("broker.endpoint is required")
 	}
+	if err := securehttp.ValidateURL(b.Broker.Endpoint); err != nil {
+		return fmt.Errorf("broker.endpoint: %w", err)
+	}
 	if strings.TrimSpace(b.Broker.Audience) == "" {
 		return fmt.Errorf("broker.audience is required")
 	}
 	return nil
+}
+
+func (p *Provider) httpDo() func(*http.Request) (*http.Response, error) {
+	if p.HTTPDo != nil {
+		return p.HTTPDo
+	}
+	return securehttp.DefaultClient().Do
 }
 
 func brokerMeta(b binding.CapabilityBinding) map[string]string {

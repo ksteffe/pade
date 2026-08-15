@@ -73,8 +73,8 @@ echo "=== Keeper Secrets Manager live: plan/capabilities (no secret values) ==="
 "$PADE" validate -f "$MANIFEST"
 "$PADE" plan -f "$MANIFEST" --bindings "$BINDINGS_OUT" --json >/tmp/pade-ksm-live-plan.json
 "$PADE" capabilities -f "$MANIFEST" --bindings "$BINDINGS_OUT" --json >/tmp/pade-ksm-live-capabilities.json
-grep -Eq '"status"[[:space:]]*:[[:space:]]*"available"' /tmp/pade-ksm-live-capabilities.json \
-  || die "expected keeper-secrets-manager status available (check KSM_CONFIG + notation)"
+grep -Eq '"status"[[:space:]]*:[[:space:]]*"configured"' /tmp/pade-ksm-live-capabilities.json \
+  || die "expected keeper-secrets-manager status configured (check KSM_CONFIG + notation)"
 
 echo "=== pade exec → github-whoami (real GitHub API) ==="
 unset GITHUB_TOKEN || true

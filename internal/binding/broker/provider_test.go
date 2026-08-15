@@ -98,3 +98,19 @@ capabilities:
 		t.Fatalf("err=%v", err)
 	}
 }
+
+func TestRejectRemoteHTTPBrokerEndpoint(t *testing.T) {
+	t.Parallel()
+	_, err := binding.Parse([]byte(`
+version: "0.1"
+capabilities:
+  github.user.read:
+    provider: broker
+    broker:
+      endpoint: http://evil.example:8787
+      audience: https://pade-broker.local
+`), "bindings.yaml")
+	if err == nil || !strings.Contains(err.Error(), "insecure http") {
+		t.Fatalf("err=%v", err)
+	}
+}

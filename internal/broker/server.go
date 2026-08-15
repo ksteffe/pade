@@ -107,6 +107,8 @@ func (s *Server) handleResolve(w http.ResponseWriter, r *http.Request) {
 	}
 	s.logf("decision=allow subject=%q capability=%q cloud_agent=%q repos=%v", claims.Subject, capability, claims.CloudAgentID, claims.RepoURLs)
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
 	_ = json.NewEncoder(w).Encode(resolveResponse{Env: env})
 }
 
@@ -145,7 +147,10 @@ func ListenAndServe(ctx context.Context, cfg ListenConfig, h http.Handler) error
 		Addr:              strings.TrimSpace(cfg.Addr),
 		Handler:           h,
 		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      30 * time.Second,
 		IdleTimeout:       60 * time.Second,
+		MaxHeaderBytes:    1 << 20,
 	}
 	errCh := make(chan error, 1)
 	go func() {

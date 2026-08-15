@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/ksteffe/pade/internal/binding"
+	"github.com/ksteffe/pade/internal/securehttp"
 )
 
 // Provider resolves capabilities from HashiCorp Vault KV secrets.
@@ -25,7 +26,7 @@ type Provider struct {
 
 func New() *Provider {
 	return &Provider{
-		HTTPClient: &http.Client{Timeout: 10 * time.Second},
+		HTTPClient: securehttp.Client(10 * time.Second),
 		Addr:       strings.TrimRight(os.Getenv("VAULT_ADDR"), "/"),
 		Token:      os.Getenv("VAULT_TOKEN"),
 	}
@@ -100,6 +101,9 @@ func (p *Provider) requireConfig(b binding.CapabilityBinding) error {
 	}
 	if p.Addr == "" {
 		return fmt.Errorf("VAULT_ADDR is not set")
+	}
+	if err := securehttp.ValidateURL(p.Addr); err != nil {
+		return fmt.Errorf("VAULT_ADDR: %w", err)
 	}
 	if p.Token == "" {
 		return fmt.Errorf("VAULT_TOKEN is not set")

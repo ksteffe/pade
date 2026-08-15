@@ -58,11 +58,17 @@ func TestResolveMaterialsMissingBinding(t *testing.T) {
 // countingProvider records Resolve/Probe calls to prove exec materialization
 // does not Probe after a successful Resolve.
 type countingProvider struct {
+	name     string
 	resolves int
 	probes   int
 }
 
-func (p *countingProvider) Name() string { return "counting" }
+func (p *countingProvider) Name() string {
+	if p.name != "" {
+		return p.name
+	}
+	return "counting"
+}
 
 func (p *countingProvider) Probe(context.Context, string, binding.CapabilityBinding) (binding.ProbeResult, error) {
 	p.probes++
@@ -106,5 +112,25 @@ func TestResolveMaterialsDoesNotProbeAfterResolve(t *testing.T) {
 	}
 	if _, ok := results[0].Meta["fromProbe"]; ok {
 		t.Fatal("Meta must not come from Probe on the exec path")
+	}
+}
+
+func TestInspectBindingsDoesNotProbe(t *testing.T) {
+	t.Parallel()
+	cp := &countingProvider{name: "exec"}
+	reg := binding.NewRegistry(cp)
+	cfg := &binding.Config{
+		Capabilities: map[string]binding.CapabilityBinding{
+			"demo": {Provider: "exec", Exec: &binding.ExecBinding{Command: []string{"true"}}},
+		},
+	}
+	statuses := binding.InspectBindings(reg, map[string]binding.CapabilityRequestView{
+		"demo": {Access: "read", Required: true},
+	}, cfg)
+	if len(statuses) != 1 || statuses[0].Status != "configured" || !statuses[0].Bound {
+		t.Fatalf("unexpected: %+v", statuses)
+	}
+	if cp.probes != 0 || cp.resolves != 0 {
+		t.Fatalf("InspectBindings must not Probe/Resolve: probes=%d resolves=%d", cp.probes, cp.resolves)
 	}
 }

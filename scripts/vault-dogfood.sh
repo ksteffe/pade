@@ -147,8 +147,8 @@ run_shared_vault() {
 
   "$PADE" capabilities -f "$MANIFEST" --bindings "$SHARED_BINDINGS" --json >/tmp/pade-vault-capabilities.json
   assert_no_secret_leak /tmp/pade-vault-capabilities.json
-  grep -Eq '"status"[[:space:]]*:[[:space:]]*"available"' /tmp/pade-vault-capabilities.json \
-    || die "expected vault capability status available"
+  grep -Eq '"status"[[:space:]]*:[[:space:]]*"configured"' /tmp/pade-vault-capabilities.json \
+    || die "expected vault capability status configured"
 
   local out
   out="$(

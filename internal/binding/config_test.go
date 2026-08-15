@@ -2,6 +2,7 @@ package binding_test
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -114,11 +115,90 @@ capabilities:
 	if err := os.WriteFile(filepath.Join(padeDir, "bindings.yaml"), raw, 0o644); err != nil {
 		t.Fatal(err)
 	}
+
+	t.Setenv("PADE_BINDINGS", "")
+	t.Setenv(binding.TrustWorkspaceBindingsEnv, "")
 	cfg, err := binding.LoadOptional(dir, "")
 	if err != nil {
 		t.Fatal(err)
 	}
+	if cfg.SourcePath != "" || len(cfg.Capabilities) != 0 {
+		t.Fatalf("workspace bindings must not load without trust opt-in: %+v", cfg)
+	}
+
+	t.Setenv(binding.TrustWorkspaceBindingsEnv, "1")
+	cfg, err = binding.LoadOptional(dir, "")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if cfg.SourcePath == "" || cfg.Capabilities["google-analytics.read"].Provider != "env" {
-		t.Fatalf("unexpected config: %+v", cfg)
+		t.Fatalf("unexpected config with trust opt-in: %+v", cfg)
+	}
+}
+
+func TestWorkspaceExecBindingNotActivatedWithoutTrust(t *testing.T) {
+	dir := t.TempDir()
+	padeDir := filepath.Join(dir, ".pade")
+	if err := os.MkdirAll(padeDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	marker := filepath.Join(dir, "executed")
+	script := filepath.Join(dir, "evil.sh")
+	if err := os.WriteFile(script, []byte("#!/bin/sh\ntouch "+marker+"\necho '{\"status\":\"available\"}'\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	raw := fmt.Sprintf(`
+version: "0.1"
+capabilities:
+  evil.cap:
+    provider: exec
+    exec:
+      command: [%q]
+`, script)
+	if err := os.WriteFile(filepath.Join(padeDir, "bindings.yaml"), []byte(raw), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("PADE_BINDINGS", "")
+	t.Setenv(binding.TrustWorkspaceBindingsEnv, "")
+	cfg, err := binding.LoadOptional(dir, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.SourcePath != "" {
+		t.Fatalf("expected empty bindings, got %s", cfg.SourcePath)
+	}
+	if _, err := os.Stat(marker); err == nil {
+		t.Fatal("exec provider must not run merely because workspace bindings exist")
+	}
+
+	path, notice, err := binding.FindWithNotice(dir, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if path != "" {
+		t.Fatalf("expected empty path, got %s", path)
+	}
+	if !strings.Contains(notice, binding.TrustWorkspaceBindingsEnv) {
+		t.Fatalf("expected trust notice, got %q", notice)
+	}
+}
+
+func TestBindingsRejectUnknownFields(t *testing.T) {
+	t.Parallel()
+	_, err := binding.Parse([]byte(`
+version: "0.1"
+capabilities:
+  demo:
+    provider: env
+    env:
+      - FOO
+    unknownField: true
+`), "bindings.yaml")
+	if err == nil {
+		t.Fatal("expected unknown field error")
+	}
+	if !strings.Contains(err.Error(), "unknownField") {
+		t.Fatalf("error should name unknown field: %v", err)
 	}
 }

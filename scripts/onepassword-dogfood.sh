@@ -37,8 +37,8 @@ assert_no_secret_leak /tmp/pade-op-plan.json
 
 "$PADE" capabilities -f "$MANIFEST" --bindings "$SHARED_BINDINGS" --json >/tmp/pade-op-capabilities.json
 assert_no_secret_leak /tmp/pade-op-capabilities.json
-grep -Eq '"status"[[:space:]]*:[[:space:]]*"available"' /tmp/pade-op-capabilities.json \
-  || die "expected onepassword capability status available"
+grep -Eq '"status"[[:space:]]*:[[:space:]]*"configured"' /tmp/pade-op-capabilities.json \
+  || die "expected onepassword capability status configured"
 
 shared_out="$(
   "$PADE" exec \

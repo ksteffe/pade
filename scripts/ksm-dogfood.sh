@@ -39,8 +39,8 @@ assert_no_secret_leak /tmp/pade-ksm-plan.json
 
 "$PADE" capabilities -f "$MANIFEST" --bindings "$SHARED_BINDINGS" --json >/tmp/pade-ksm-capabilities.json
 assert_no_secret_leak /tmp/pade-ksm-capabilities.json
-grep -Eq '"status"[[:space:]]*:[[:space:]]*"available"' /tmp/pade-ksm-capabilities.json \
-  || die "expected keeper-secrets-manager capability status available"
+grep -Eq '"status"[[:space:]]*:[[:space:]]*"configured"' /tmp/pade-ksm-capabilities.json \
+  || die "expected keeper-secrets-manager capability status configured"
 
 shared_out="$(
   "$PADE" exec \

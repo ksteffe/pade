@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -50,7 +51,7 @@ type Status struct {
 	Required bool              `json:"required"`
 	Bound    bool              `json:"bound"`
 	Provider string            `json:"provider,omitempty"`
-	Status   string            `json:"status"` // unbound | available | unavailable | error
+	Status   string            `json:"status"` // unbound | configured | available | unavailable | error
 	Message  string            `json:"message,omitempty"`
 	Meta     map[string]string `json:"meta,omitempty"`
 }
@@ -73,6 +74,79 @@ func NewRegistry(providers ...Provider) *Registry {
 func (r *Registry) Get(name string) (Provider, bool) {
 	p, ok := r.providers[name]
 	return p, ok
+}
+
+// InspectBindings reports static binding configuration without probing or
+// resolving providers. Use for pade plan / capabilities so untrusted repos
+// cannot trigger exec or secret-manager lookups merely by being planned.
+func InspectBindings(reg *Registry, caps map[string]CapabilityRequestView, cfg *Config) []Status {
+	names := make([]string, 0, len(caps))
+	for name := range caps {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	out := make([]Status, 0, len(names))
+	for _, name := range names {
+		view := caps[name]
+		st := Status{
+			Name:     name,
+			Access:   view.Access,
+			Required: view.Required,
+			Status:   "unbound",
+			Message:  "no local binding configured",
+		}
+		if cfg == nil {
+			out = append(out, st)
+			continue
+		}
+		b, ok := cfg.Capabilities[name]
+		if !ok {
+			out = append(out, st)
+			continue
+		}
+		st.Bound = true
+		st.Provider = b.Provider
+		if reg != nil {
+			if _, ok := reg.Get(b.Provider); !ok {
+				st.Status = "error"
+				st.Message = fmt.Sprintf("unknown provider %q", b.Provider)
+				out = append(out, st)
+				continue
+			}
+		}
+		st.Status = "configured"
+		st.Message = "bound; availability unknown until runtime (plan/capabilities do not probe providers)"
+		st.Meta = staticMeta(b)
+		out = append(out, st)
+	}
+	return out
+}
+
+func staticMeta(b CapabilityBinding) map[string]string {
+	meta := map[string]string{}
+	switch b.Provider {
+	case "env":
+		if len(b.Env) > 0 {
+			meta["env"] = strings.Join(b.Env, ",")
+		}
+	case "vault":
+		if b.Vault != nil {
+			meta["path"] = b.Vault.Path
+		}
+	case "broker":
+		if b.Broker != nil {
+			meta["endpoint"] = b.Broker.Endpoint
+		}
+	case "exec":
+		if b.Exec != nil && len(b.Exec.Command) > 0 {
+			meta["command"] = b.Exec.Command[0]
+		}
+	}
+	if len(meta) == 0 {
+		return nil
+	}
+	return meta
 }
 
 // ResolveAll probes each manifest capability against local bindings.

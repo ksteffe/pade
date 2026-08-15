@@ -9,7 +9,7 @@ Demo capability: **`github.user.read`** → **`GITHUB_TOKEN`**.
 | Concern | Owner |
 |---------|--------|
 | Portable capability names | `DevelopmentSession` in `pade.yaml` (repo) |
-| How *this* identity resolves a capability | Local bindings (`--bindings` / `.pade/bindings.yaml`) |
+| How *this* identity resolves a capability | Local bindings (`--bindings` / `PADE_BINDINGS` / `~/.config/pade/`; workspace `.pade/bindings.yaml` only with trust opt-in) |
 | Secret values | Credential manager / ambient env (never in repo) |
 | Workspace lifecycle | DevPod (unchanged from Milestone 4) |
 

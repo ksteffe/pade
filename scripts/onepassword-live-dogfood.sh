@@ -110,8 +110,8 @@ run_pade() {
   if grep -E 'ghp_|github_pat_|gho_|ghu_' /tmp/pade-github-live-capabilities.json >/dev/null; then
     die "capabilities output appears to contain a GitHub token"
   fi
-  grep -Eq '"status"[[:space:]]*:[[:space:]]*"available"' /tmp/pade-github-live-capabilities.json \
-    || die "expected onepassword capability status available"
+  grep -Eq '"status"[[:space:]]*:[[:space:]]*"configured"' /tmp/pade-github-live-capabilities.json \
+    || die "expected onepassword capability status configured"
 
   echo "=== pade exec github-whoami (real GitHub API) ==="
   local out
