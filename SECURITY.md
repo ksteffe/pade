@@ -40,19 +40,40 @@ Repository Intent (`pade.yaml`) is **untrusted input**. A declaration *requests*
 | `pade.yaml` (Intent) | Untrusted project declaration |
 | Bindings (`--bindings`, `PADE_BINDINGS`, `~/.config/pade/bindings.yaml`) | Trusted developer/operator fulfillment configuration |
 | Workspace `.pade/bindings.yaml` | **Not** trusted by default; requires `PADE_TRUST_WORKSPACE_BINDINGS=1` |
-| Exec providers | Trusted local/operator code (deliberate env; not a sandbox) |
+| Exec providers | **Broker/operator only** — never development-side bindings |
 | Broker policy YAML | Trusted server/operator configuration |
 | Provider stdout/stderr | Untrusted data until validated; bounded; raw stderr not safe to display |
 | Workload JWT | Untrusted until cryptographically verified (`exp` required) |
 
-Repository-local bindings must not silently activate executable providers. Cloning an untrusted repository and running `pade plan` must not execute repository-selected commands.
+Repository-local bindings must not silently activate. Cloning an untrusted repository and running `pade plan` must not execute repository-selected commands.
+
+### Executable providers are broker-only
+
+PADE intentionally prevents development-side configuration from selecting arbitrary executable fulfillment code. Even explicitly trusted workspace bindings (`PADE_TRUST_WORKSPACE_BINDINGS=1`) or explicit `--bindings` / `PADE_BINDINGS` operate close to repository-controlled state and are intended to describe **local fulfillment configuration** (env, Vault paths, broker endpoint, etc.)—not a general code-execution extension mechanism.
+
+Therefore:
+
+- `PADE_TRUST_WORKSPACE_BINDINGS=1` trusts a workspace binding **file as configuration**; it does **not** grant that file permission to launch arbitrary executable providers.
+- `provider: exec` is rejected on all Consumer/development-side binding loads with an explicit error.
+- Only **broker/operator server-side bindings** may select `provider: exec`.
+- A broker administrator configuring an executable provider is effectively installing trusted credential/authorization plugin code and must treat that executable accordingly.
+- Provider **output** remains untrusted structured data until validated (bounded I/O, JSON checks, no raw stderr leakage)—even when the executable is operator-trusted.
+
+```text
+LOWER-TRUST DEVELOPMENT SIDE          TRUSTED OPERATOR SIDE
+pade.yaml / agent / Consumer    →     broker authn + authz
+workspace/user bindings               broker provider config
+(provider: broker, env, …)            (may include provider: exec)
+        │                                      │
+        └──────── request capability ──────────┘
+```
 
 ### Planning semantics
 
 `pade plan` and `pade capabilities` are **descriptive**. They inspect static binding configuration only. They must not:
 
 - Probe or Resolve providers;
-- execute `provider: exec` commands;
+- execute `provider: exec` commands (local or broker-side);
 - fetch credentials from Vault/1Password/Keeper/KSM/broker merely to describe status.
 
 Bound capabilities are reported as `configured` until a runtime path (for example `pade exec`) materializes them.

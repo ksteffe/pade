@@ -78,10 +78,10 @@ Derived from the repository as of this roadmap pass (reference Consumer/Broker c
 | Broker authentication | DONE (spike) | JWKS / RS256; iss/aud; JTI replay store still deferred |
 | Broker authorization | DONE (spike) | Server policy: subject + capability allowlist + optional `repo_urls` |
 | Provider materialization (in-tree adapters) | DONE | Server-side env/Vault/op/keeper/ksm via broker bindings |
-| External/independently packaged provider seam | PARTIAL | Draft `provider: exec` contract + adapter (`docs/provider-contract.md`, `internal/binding/exec`); stub dogfood in CI |
+| External/independently packaged provider seam | PARTIAL | Semantic provider contract + **broker-side** `provider: exec` adapter (`docs/provider-contract.md`, `internal/binding/exec`); Consumer rejects development-side exec |
 | GitHub App derived-credential dogfood | PARTIAL | Real App JWT → installation token in `examples/providers/github/` (httptest + fake CI); preferred repo-scoped dogfood path landed; live App install still optional/local (Milestone E) |
 | Google OAuth derivation dogfood (second provider test) | PARTIAL | SA JWT → access token in `examples/providers/google-analytics/` (httptest + fake CI); directory name is dogfood-only—not GA product support; live property proof optional/local (Milestone F) |
-| Two-provider same-seam validation | DONE (CI) | `make dogfood-exec-provider-two` — GitHub + GA on `provider: exec` without core vendor fields (Milestone G) |
+| Two-provider same-seam validation | DONE (CI) | `make dogfood-exec-provider-two` — GitHub + GA via **broker-side** exec without core vendor fields (Milestone G) |
 | Arbitrary Material / env injection | DONE (env maps) | `Material.Env map[string]string` only; sufficient for token/API credentials |
 | Structured / multiline credential Material | PARTIAL | String values may contain newlines; not dogfooded; **no anticipated PADE work** until a proven deficiency |
 | `pade exec` | DONE | Process-scoped resolve → inject → wait → discard |
@@ -103,7 +103,24 @@ Derived from the repository as of this roadmap pass (reference Consumer/Broker c
 2. Spec/docs tightening from D–G dogfood (Milestone H)
 3. Versioned release foundation gated on A–H (Milestone I)
 
-**Landed for B–G:** draft exec contract, `provider: exec` binding, stub + GitHub App + Google service-account reference providers (fake CI + httptest-tested real derivation), two-provider same-seam dogfood. Targets: `make dogfood-exec-provider{,-github,-ga,-two}`.
+**Landed for B–G:** semantic provider contract, **broker-only** `provider: exec` adapter, stub + GitHub App + Google service-account reference providers (fake CI + httptest-tested real derivation), two-provider same-seam dogfood through the broker. Targets: `make dogfood-exec-provider{,-github,-ga,-two}`.
+
+### Security narrowing: exec is broker-side only
+
+After the security review (trust-boundary hardening), development-side arbitrary execution was judged an unnecessary attack surface.
+
+| Phase | Shape |
+|-------|--------|
+| Initial experiment | `provider: exec` as a fast generic Consumer binding to prove external providers |
+| Security review | Development-side (workspace/user/`--bindings`) executable selection creates a code-execution trust boundary next to repository state |
+| Current | **Provider semantic abstraction retained**; **exec adapter restricted to broker/operator server-side bindings** |
+
+Consequences:
+
+- Subprocess execution was useful experimental scaffolding and successfully proved provider portability (GitHub + Google on one seam).
+- Subprocess execution itself is **not** intended to become the portable PADE standard.
+- Consumer registries omit exec; `LoadOptional` rejects `provider: exec` even when `PADE_TRUST_WORKSPACE_BINDINGS=1`.
+- PADE should remove or replace the exec adapter later if a stronger common mechanism emerges—without changing portable `DevelopmentSession` declarations.
 
 Do not roadmap work that is already DONE.
 

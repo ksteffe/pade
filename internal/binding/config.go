@@ -17,7 +17,8 @@ const (
 	UserConfigSubdir   = "pade"
 	// TrustWorkspaceBindingsEnv opts in to loading <manifestDir>/.pade/bindings.yaml.
 	// Workspace-local bindings are not trusted by default: a repository can track
-	// an ignored .pade/ file, and exec providers would otherwise run on plan/exec.
+	// an ignored .pade/ file. Opting in trusts the file as fulfillment configuration
+	// only — provider: exec is still rejected on all development-side loads.
 	TrustWorkspaceBindingsEnv = "PADE_TRUST_WORKSPACE_BINDINGS"
 )
 
@@ -246,6 +247,22 @@ func (c *Config) Validate() error {
 	return nil
 }
 
+// RejectDevelopmentSideExec fails if any binding selects provider: exec.
+// Development-side bindings (Consumer --bindings, PADE_BINDINGS, user config,
+// or opted-in workspace bindings) must not choose arbitrary executables.
+// Exec remains valid only in broker/operator server-side bindings.
+func (c *Config) RejectDevelopmentSideExec() error {
+	if c == nil {
+		return nil
+	}
+	for name, b := range c.Capabilities {
+		if b.Provider == "exec" {
+			return fmt.Errorf("binding %q: provider %q is broker-side only; DevelopmentSession and Consumer bindings must not select executable providers (configure exec on the broker host, and use provider: broker from the Consumer)", name, "exec")
+		}
+	}
+	return nil
+}
+
 // Find locates a bindings file. Explicit path wins, then PADE_BINDINGS,
 // then ~/.config/pade/bindings.yaml, then (only with PADE_TRUST_WORKSPACE_BINDINGS)
 // <manifestDir>/.pade/bindings.yaml.
@@ -313,8 +330,13 @@ func trustWorkspaceBindings() bool {
 	}
 }
 
-// LoadOptional finds and loads bindings, or returns an empty config when none exist.
-// When a workspace-local bindings file is skipped, a notice is written to stderr.
+// LoadOptional finds and loads development-side bindings, or returns an empty
+// config when none exist. When a workspace-local bindings file is skipped, a
+// notice is written to stderr.
+//
+// Development-side bindings always reject provider: exec — even when the file
+// is explicitly trusted via --bindings, PADE_BINDINGS, user config, or
+// PADE_TRUST_WORKSPACE_BINDINGS. Executable providers are broker-side only.
 func LoadOptional(manifestDir, explicit string) (*Config, error) {
 	path, notice, err := FindWithNotice(manifestDir, explicit)
 	if err != nil {
@@ -329,5 +351,12 @@ func LoadOptional(manifestDir, explicit string) (*Config, error) {
 			Capabilities: map[string]CapabilityBinding{},
 		}, nil
 	}
-	return Load(path)
+	cfg, err := Load(path)
+	if err != nil {
+		return nil, err
+	}
+	if err := cfg.RejectDevelopmentSideExec(); err != nil {
+		return nil, err
+	}
+	return cfg, nil
 }

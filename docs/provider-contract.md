@@ -1,4 +1,4 @@
-# Draft external provider contract (exec binding)
+# External provider contract (semantic + exec adapter)
 
 **Status:** Draft / dogfood — Milestones B–G. Not a frozen standard.  
 **Related:** [ROADMAP.md](../ROADMAP.md), [spec/broker.md](../spec/broker.md), Go adapters under [`internal/binding`](../internal/binding).
@@ -7,47 +7,81 @@ PADE core should understand only:
 
 > An authorized DevelopmentSession requests a capability, and a configured provider fulfills it.
 
-This document describes the **first dogfood binding** for independently implemented providers: **`provider: exec`**. The semantic abstraction is fulfill/derive a capability; exec/subprocess is one implementation binding—not “a generic shell hook” as the product definition.
+This document separates two layers that must not be collapsed:
+
+1. **Semantic provider contract** — what fulfillment means (portable idea).
+2. **Exec adapter** — one **broker-side** reference implementation mechanism (not normative PADE).
 
 In-tree reference providers under [`examples/providers/`](../examples/providers/) are **non-normative** and architecturally removable. Their presence does not make GitHub, Google Analytics, or any other vendor part of the PADE standard.
 
-## Binding configuration (reference Consumer / Broker)
+## Semantic provider contract
 
-Local/admin bindings (never portable Intent):
+A provider is a **fulfillment abstraction**:
+
+> Given an authorized capability request and trusted broker-side context, produce bounded, validated Material or a structured failure.
+
+Independent of transport or process mechanics, a provider:
+
+| Concern | Expectation |
+|---------|-------------|
+| Input | Authorized capability identity; broker/operator context (not client-chosen executables) |
+| Success | Bounded Material (env map for current dogfood) plus optional expiration metadata |
+| Failure | Structured failure without secret leakage |
+| Trust | Provider **code/config** is operator-trusted; provider **output** is untrusted until validated |
+
+Portable `DevelopmentSession` / `pade.yaml` must not encode executable paths, argv, shell fragments, bootstrap credentials, or adapter choice. Those belong to broker/operator configuration.
+
+Future implementations MAY fulfill the same semantic contract without subprocesses (for example in-process adapters, mature credential brokers, or workload-identity systems). Do not treat stdin/stdout as the definition of “provider.”
+
+## Exec adapter (broker-side reference only)
+
+**`provider: exec`** is a reference **Broker** materialization adapter: invoke an operator-installed process that speaks a JSON stdin/stdout protocol.
+
+| Rule | Meaning |
+|------|---------|
+| Broker-side only | Consumer / workspace / user / `PADE_BINDINGS` / `--bindings` must not select `provider: exec` |
+| Operator configured | Executable path and `exec.config` live in **server-side** broker bindings |
+| Trusted executable | A broker administrator configuring exec is installing trusted credential/authorization plugin code |
+| Untrusted output | Stdout/stderr are bounded and validated; raw stderr is not surfaced in user-facing errors |
+| Not portable Intent | Never put command paths or bootstrap secrets in `pade.yaml` |
+| Not normative | Subprocess invocation is experimental scaffolding—not the portable PADE standard |
+
+### Server-side binding example
 
 ```yaml
+# broker host bindings (operator-owned) — NOT Consumer/workspace bindings
 version: "0.1"
 capabilities:
   demo.derived:
     provider: exec
     exec:
       command: ["./bin/pade-provider-stub"]
-      # Opaque to PADE core — provider-defined keys only:
       config:
         tokenEnv: "DEMO_TOKEN"
         value: "stub-derived-token"
 ```
 
+Consumer-side bindings for the same capability use `provider: broker` (endpoint + audience only).
+
 | Field | Meaning |
 |-------|---------|
-| `exec.command` | Argv to invoke (required). First element is the executable. |
+| `exec.command` | Argv to invoke (required). First element is the executable. No shell interpolation. |
 | `exec.dir` | Optional working directory for the process. |
 | `exec.config` | Optional opaque object. PADE core must not interpret vendor-specific keys. |
 
-Durable authority (private keys, bootstrap secrets) stays on the broker/host side via ambient env, files, or secret-store refs that the **provider** understands. PADE core does not grow fields such as `githubInstallationId` or `googleServiceAccount` as protocol semantics.
+Durable authority (private keys, bootstrap secrets) stays on the broker/host side via ambient env, files, or secret-store refs that the **provider process** understands.
 
-## Process protocol
+### Process protocol (exec adapter only)
 
-The reference Consumer/Broker invokes `command` with:
+The reference Broker invokes `command` with:
 
 - **stdin:** one JSON object (`Request`)
 - **stdout:** one JSON object (`Response`) — must not include unrelated chatter
 - **stderr:** optional human diagnostics (must not include secret values)
 - **exit code:** `0` on success; non-zero on failure
-
-Environment: the child receives a **deliberate** environment (PATH/HOME and documented ambient auth prefixes such as `VAULT_*`, `OP_*`, `KSM_*`, `PADE_*`, etc.)—not the full caller environment. Exec providers remain **operator-trusted** code. Resolved Material is returned to PADE; bootstrap secrets should not be copied into Material unless that is the intended deliverable.
-
-Stdout and stderr are each capped (reference: 1 MiB). Oversized output fails closed. On provider failure, user-facing errors must not include raw stderr (which may contain bootstrap secrets).
+- **timeout:** process cancelled via context/`CommandContext`
+- **environment:** deliberate allowlist (PATH/HOME and documented ambient auth prefixes such as `VAULT_*`, `OP_*`, `KSM_*`, `PADE_*`)—not the full caller environment
+- **I/O bounds:** stdout and stderr each capped (reference: 1 MiB); oversized output fails closed
 
 ### Request
 
@@ -65,6 +99,8 @@ Stdout and stderr are each capped (reference: 1 MiB). Oversized output fails clo
 | `operation` | `probe` or `resolve` |
 | `config` | Opaque object from `exec.config` (may be omitted/empty) |
 
+Clients cannot supply `command`, argv, or executable paths on the broker resolve request.
+
 ### Probe response
 
 ```json
@@ -76,6 +112,8 @@ Stdout and stderr are each capped (reference: 1 MiB). Oversized output fails clo
 ```
 
 `status` is one of `available`, `unavailable`, `error`. Never put secret values in `message` or `meta`.
+
+Note: `pade plan` / `pade capabilities` do **not** probe providers (static inspection only).
 
 ### Resolve response
 
@@ -90,19 +128,26 @@ Stdout and stderr are each capped (reference: 1 MiB). Oversized output fails clo
 
 | Field | Meaning |
 |-------|---------|
-| `env` | Process environment entries to inject as `Material` (required for dogfood; may be empty only if a future mediation mode is defined) |
+| `env` | Process environment entries to inject as `Material` |
 | `expiresAt` | Optional RFC3339 timestamp for derived credential lifetime |
 
 ## Relationship to existing Go `Provider` interface
 
-[`internal/binding.Provider`](../internal/binding/provider.go) remains the in-process adapter surface for env/Vault/op/keeper/ksm/broker/**exec**. Third-party providers need not be written in Go; they speak this stdin/stdout JSON contract when invoked via `provider: exec`.
+[`internal/binding.Provider`](../internal/binding/provider.go) remains the in-process adapter surface. Reference registries:
+
+- Consumer: env / Vault / op / keeper / ksm / **broker** (no exec) — [`internal/providerset`](../internal/providerset)
+- Broker: env / Vault / op / keeper / ksm / **exec** (no nested broker)
+
+Third-party providers need not be written in Go; when using the exec adapter they speak this stdin/stdout JSON contract on the **broker host**.
 
 ## Reference providers (architectural tests)
 
 In-tree providers under [`examples/providers/`](../examples/providers/) are **non-normative architectural tests**—not integration goals. Full rationale: [ROADMAP.md — Why two derived-token providers before v0.1.0](../ROADMAP.md#why-two-derived-token-providers-before-v010).
 
-- [`examples/providers/stub`](../examples/providers/stub) — contract dogfood only
-- [`examples/providers/github`](../examples/providers/github) — first test: App JWT → installation token (fake mode for CI)
-- [`examples/providers/google-analytics`](../examples/providers/google-analytics) — second **structural** test: SA JWT → OAuth access token (fake mode for CI; directory name is dogfood convenience—not GA product support)
+Dogfood runs through the broker (`make dogfood-exec-provider{,-github,-ga,-two}`):
 
-Milestone G dogfood (`make dogfood-exec-provider-two`) runs GitHub + Google on this same seam without vendor fields in PADE core. If a future vendor forces new **normative** core fields, revisit this contract rather than leaking vendor semantics into PADE.
+```text
+DevelopmentSession → Consumer (provider: broker) → Broker → exec adapter → trusted provider binary → Material
+```
+
+Milestone G proves GitHub + Google on the same **semantic** seam without vendor fields in PADE core. If a future vendor forces new **normative** core fields, revisit this contract rather than leaking vendor semantics into PADE.

@@ -77,7 +77,7 @@ In the reference CLI:
 
 Related reference commands: `pade validate`, `pade plan`, `pade capabilities` (static binding inspection without probing providers or secret values), `pade identity` (safe Cursor OIDC claims for dogfood).
 
-`pade plan` and `pade capabilities` are descriptive: they must not probe providers, execute `provider: exec` commands, or materialize credentials.
+`pade plan` and `pade capabilities` are descriptive: they must not probe providers, execute `provider: exec` commands, or materialize credentials. `provider: exec` is broker/operator-side only; Consumer bindings that select it are rejected.
 
 ### Direct provider mode
 
