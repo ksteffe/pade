@@ -101,9 +101,11 @@ The Broker (reference: `pade-broker`) is an **authorization boundary**. It:
 
 It must not authorize a capability merely because Intent declared it or a client requested it. See [spec/broker.md](spec/broker.md).
 
-Broker policy and binding YAML are decoded with unknown fields rejected. Security-sensitive booleans such as `requireRepoURLs` must be set explicitly (omission or typos fail closed).
+Broker policy and binding YAML are decoded with unknown fields rejected. Security-sensitive booleans such as `requireRepoURLs` must be set explicitly (omission or typos fail closed). Capability identifiers are case-sensitive exact matches after trim. Policy files reject duplicate subjects. Repo confinement compares canonical host/path identities (scheme+host lowercased; path case preserved; userinfo/query/fragment stripped for comparison and logs).
 
-Successful `/v1/resolve` responses that may carry credential material include `Cache-Control: no-store`. The reference broker does **not** implement application-level rate limiting; deployments should enforce abuse controls at ingress.
+Successful `/v1/resolve` responses that may carry credential material include `Cache-Control: no-store`. Request bodies are size-capped with strict JSON (unknown fields and trailing values rejected). The reference broker applies a per-request resolve timeout (default 25s) and a max in-flight resolve limit (default 32; excess returns `503 busy`). It does **not** implement distributed rate limiting or JTI replay stores; deployments should enforce abuse controls at ingress.
+
+Resolved Material is validated (non-nil env; no empty/`=` keys; entry and size caps). Merging materials fails closed when the same env key is assigned conflicting values (identical values are allowed).
 
 ### Provider / resource boundary
 
@@ -189,7 +191,7 @@ Important distinctions:
 - The security boundary for capability resolution therefore lives at **broker authorization**.
 - A capability name in `pade.yaml` is a **request**, not authorization. The broker must not trust capability names merely because a client asks or a repo declares them.
 - For single-repo confinement, require complete `repo_urls` attestation. Missing `repo_urls` means unknown, not single-repo. Do not authorize from `repo_url` alone. Managed Cloud Agents have been observed with `repo_url` but without `repo_urls`; until complete attestation exists, broker dogfood uses subject + capability (`requireRepoURLs: false`) rather than weakening policy to trust `repo_url`. Policy YAML must set `requireRepoURLs` explicitly; typos/omission fail closed.
-- Broker logs must contain identity/capability decision metadata only — never JWTs or resolved credentials.
+- Broker logs must contain identity/capability decision metadata only — never JWTs or resolved credentials. Repo URLs in authz logs are sanitized to canonical host/path form (no userinfo/query/fragment).
 - JWT expiration is mandatory. JTI replay tracking remains deferred; this spike relies on short-lived tokens, a 24h maximum remaining lifetime ceiling, and exact audience binding.
 - The PADE contract still does not replace resource-level authorization (GitHub, IAM, databases, etc.).
 
@@ -248,6 +250,7 @@ The repo-root `Dockerfile` builds a minimal `pade-broker` image (`gcr.io/distrol
 - Trusted-upstream-TLS mode (`-tls-termination=proxy` + `PORT`) assumes the operator has established a secure deployment boundary.
 - Cursor OIDC and broker authorization remain required regardless of container transport.
 - No Docker `HEALTHCHECK`: distroless has no HTTP client; platforms should probe `/healthz`.
+- **Digest pinning deferred:** base images are currently tagged (`golang:1.26-bookworm`, `gcr.io/distroless/static-debian12:nonroot`) rather than digest-pinned. Pinning digests is desirable for rebuild reproducibility; it is deferred until image-refresh tooling is in place so tags can be updated without brittle manual digest churn.
 
 ## Scope
 
@@ -255,4 +258,4 @@ PADE is **experimental** interoperability software. This document describes trus
 
 PADE does not replace OAuth, OIDC, IAM, SPIFFE, or resource-level authorization. Downstream systems remain authoritative.
 
-CI runs `govulncheck ./...` against the supported Go toolchain. As of this hardening pass, `golang.org/x/text@v0.22.0` (indirect via jsonschema) reports [GO-2026-5970](https://pkg.go.dev/vuln/GO-2026-5970); symbol analysis shows PADE code does not call the vulnerable APIs. Bumping `x/text` to a fixed release currently forces a higher `go` language floor than the intentional `go 1.22` compatibility line, so the bump is deferred.
+CI runs `govulncheck@v1.7.0` (pinned CLI version; vulnerability DB remains dynamic) against the supported Go toolchain. GitHub Actions `checkout` / `setup-go` are pinned to full commit SHAs. As of this hardening pass, `golang.org/x/text@v0.22.0` (indirect via jsonschema) reports [GO-2026-5970](https://pkg.go.dev/vuln/GO-2026-5970); symbol analysis shows PADE code does not call the vulnerable APIs. Bumping `x/text` to a fixed release currently forces a higher `go` language floor than the intentional `go 1.22` compatibility line, so the bump is deferred.

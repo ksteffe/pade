@@ -4,7 +4,49 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 )
+
+const (
+	materialMaxEntries    = 64
+	materialMaxKeyBytes   = 256
+	materialMaxValueBytes = 1 << 20 // 1 MiB
+	materialMaxTotalBytes = 2 << 20 // 2 MiB
+)
+
+// Validate checks Material shape and size caps before merge/injection.
+// It never includes env values in returned errors.
+func (m *Material) Validate() error {
+	if m == nil {
+		return fmt.Errorf("material is nil")
+	}
+	if m.Env == nil {
+		return fmt.Errorf("material env is nil")
+	}
+	if len(m.Env) > materialMaxEntries {
+		return fmt.Errorf("material env exceeds entry limit (%d)", materialMaxEntries)
+	}
+	total := 0
+	for k, v := range m.Env {
+		if k == "" {
+			return fmt.Errorf("material env key is empty")
+		}
+		if strings.Contains(k, "=") {
+			return fmt.Errorf("material env key must not contain '='")
+		}
+		if len(k) > materialMaxKeyBytes {
+			return fmt.Errorf("material env key exceeds length limit (%d)", materialMaxKeyBytes)
+		}
+		if len(v) > materialMaxValueBytes {
+			return fmt.Errorf("material env value exceeds size limit")
+		}
+		total += len(k) + len(v)
+		if total > materialMaxTotalBytes {
+			return fmt.Errorf("material env exceeds total size limit")
+		}
+	}
+	return nil
+}
 
 // ResolveRequest names a capability to materialize for scoped execution.
 type ResolveRequest struct {
@@ -52,6 +94,9 @@ func ResolveMaterials(ctx context.Context, reg *Registry, cfg *Config, names []s
 			// Do not wrap provider errors with secret-bearing context.
 			return nil, fmt.Errorf("capability %q: resolve failed: %w", name, err)
 		}
+		if err := mat.Validate(); err != nil {
+			return nil, fmt.Errorf("capability %q: invalid material: %w", name, err)
+		}
 		// Do not Probe after a successful Resolve: remote providers (vault,
 		// onepassword, keeper, keeper-secrets-manager) would re-fetch secrets
 		// just to build Meta. Plan/capabilities still use Probe via ResolveAll.
@@ -67,18 +112,24 @@ func ResolveMaterials(ctx context.Context, reg *Registry, cfg *Config, names []s
 }
 
 // MergeEnv overlays resolved materials onto a base environment list (os.Environ style).
-// Later capabilities override earlier keys on conflict.
-func MergeEnv(base []string, results []ResolveResult) []string {
+// If two materials assign the same key to different values, MergeEnv fails closed.
+// Identical values are allowed (idempotent). Materials still overlay base keys.
+func MergeEnv(base []string, results []ResolveResult) ([]string, error) {
 	envMap := environToMap(base)
+	fromMaterial := map[string]string{}
 	for _, r := range results {
 		if r.Material == nil {
 			continue
 		}
 		for k, v := range r.Material.Env {
+			if prev, ok := fromMaterial[k]; ok && prev != v {
+				return nil, fmt.Errorf("conflicting env key %q across capabilities", k)
+			}
+			fromMaterial[k] = v
 			envMap[k] = v
 		}
 	}
-	return mapToEnviron(envMap)
+	return mapToEnviron(envMap), nil
 }
 
 // ClearMaterials best-effort zeroes resolved secret maps after use.

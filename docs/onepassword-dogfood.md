@@ -65,6 +65,8 @@ onepassword:
     GITHUB_TOKEN: "op://pade-demo/pade-github/credential"
 ```
 
+The reference adapter runs `op` with a deliberate environment (PATH/HOME/USER/TMPDIR/XDG_/LC_ plus `OP_*`), 1 MiB stdout/stderr caps, and context cancellation (`WaitDelay`). Errors never include raw CLI stderr.
+
 ## Out of scope
 
 - Embedding the 1Password SDK in portable packages (CLI adapter only)

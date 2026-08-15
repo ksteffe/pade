@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ksteffe/pade/internal/binding"
 	onepassword "github.com/ksteffe/pade/internal/binding/onepassword"
@@ -131,4 +132,120 @@ func writeFakeOp(t *testing.T, values map[string]string) string {
 		t.Fatal(err)
 	}
 	return path
+}
+
+func TestOnePasswordFailureDoesNotLeakStderr(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	script := filepath.Join(dir, "fail-op")
+	if err := os.WriteFile(script, []byte("#!/bin/sh\necho 'OP_SESSION_SECRET=leaked' >&2\nexit 2\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	p := &onepassword.Provider{
+		OpBin:    script,
+		LookPath: func(file string) (string, error) { return file, nil },
+		CommandContext: func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+			return exec.CommandContext(ctx, name, arg...)
+		},
+	}
+	_, err := p.Resolve(context.Background(), "cap", binding.CapabilityBinding{
+		Provider: "onepassword",
+		OnePassword: &binding.OnePasswordBinding{
+			Refs: map[string]string{"T": "op://v/i/f"},
+		},
+	})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if strings.Contains(err.Error(), "OP_SESSION_SECRET") || strings.Contains(err.Error(), "leaked") {
+		t.Fatalf("stderr leaked: %v", err)
+	}
+}
+
+func TestOnePasswordOversizedStdout(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	script := filepath.Join(dir, "big-op")
+	line := strings.Repeat("x", 1024)
+	body := "#!/bin/sh\n" +
+		"i=0\n" +
+		"while [ \"$i\" -lt 1100 ]; do\n" +
+		"  printf '%s\\n' '" + line + "'\n" +
+		"  i=$((i+1))\n" +
+		"done\n"
+	if err := os.WriteFile(script, []byte(body), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	p := &onepassword.Provider{
+		OpBin:    script,
+		LookPath: func(file string) (string, error) { return file, nil },
+		CommandContext: func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+			return exec.CommandContext(ctx, name, arg...)
+		},
+	}
+	_, err := p.Resolve(context.Background(), "cap", binding.CapabilityBinding{
+		Provider:    "onepassword",
+		OnePassword: &binding.OnePasswordBinding{Refs: map[string]string{"T": "op://v/i/f"}},
+	})
+	if err == nil || !strings.Contains(err.Error(), "exceeded") {
+		t.Fatalf("expected size limit error, got %v", err)
+	}
+}
+
+func TestOnePasswordEnvironOmitsAmbientSecrets(t *testing.T) {
+	t.Setenv("UNRELATED_SECRET", "should-not-pass")
+	t.Setenv("OP_SESSION_demo", "ok-prefix")
+	dir := t.TempDir()
+	script := filepath.Join(dir, "check-op")
+	if err := os.WriteFile(script, []byte("#!/bin/sh\nif [ -n \"$UNRELATED_SECRET\" ]; then echo present >&2; exit 9; fi\nif [ -z \"$OP_SESSION_demo\" ]; then echo missing-op >&2; exit 8; fi\nprintf 'token\\n'\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	p := &onepassword.Provider{
+		OpBin:    script,
+		LookPath: func(file string) (string, error) { return file, nil },
+		CommandContext: func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+			return exec.CommandContext(ctx, name, arg...)
+		},
+	}
+	mat, err := p.Resolve(context.Background(), "cap", binding.CapabilityBinding{
+		Provider:    "onepassword",
+		OnePassword: &binding.OnePasswordBinding{Refs: map[string]string{"T": "op://v/i/f"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mat.Env["T"] != "token" {
+		t.Fatalf("%v", mat.Env)
+	}
+}
+
+func TestOnePasswordRespectsCancel(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	script := filepath.Join(dir, "slow-op")
+	if err := os.WriteFile(script, []byte("#!/bin/sh\nsleep 30\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	p := &onepassword.Provider{
+		OpBin:    script,
+		LookPath: func(file string) (string, error) { return file, nil },
+		CommandContext: func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+			cmd := exec.CommandContext(ctx, name, arg...)
+			cmd.WaitDelay = 100 * time.Millisecond
+			return cmd
+		},
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	_, err := p.Resolve(ctx, "cap", binding.CapabilityBinding{
+		Provider:    "onepassword",
+		OnePassword: &binding.OnePasswordBinding{Refs: map[string]string{"T": "op://v/i/f"}},
+	})
+	if err == nil {
+		t.Fatal("expected cancel error")
+	}
+	if time.Since(start) > 3*time.Second {
+		t.Fatalf("cancel did not bound runtime: %v", time.Since(start))
+	}
 }

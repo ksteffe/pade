@@ -29,7 +29,10 @@ capabilities:
 	}
 	defer binding.ClearMaterials(results)
 
-	merged := binding.MergeEnv([]string{"PATH=/bin", "PADE_EXEC_TEST_KEY=old"}, results)
+	merged, err := binding.MergeEnv([]string{"PATH=/bin", "PADE_EXEC_TEST_KEY=old"}, results)
+	if err != nil {
+		t.Fatal(err)
+	}
 	found := false
 	for _, e := range merged {
 		if strings.HasPrefix(e, "PADE_EXEC_TEST_KEY=") {
@@ -41,6 +44,43 @@ capabilities:
 	}
 	if !found {
 		t.Fatal("missing injected key")
+	}
+}
+
+func TestMergeEnvConflictFailsClosed(t *testing.T) {
+	t.Parallel()
+	results := []binding.ResolveResult{
+		{Name: "a", Material: &binding.Material{Env: map[string]string{"TOKEN": "one"}}},
+		{Name: "b", Material: &binding.Material{Env: map[string]string{"TOKEN": "two"}}},
+	}
+	_, err := binding.MergeEnv(nil, results)
+	if err == nil || !strings.Contains(err.Error(), `conflicting env key "TOKEN"`) {
+		t.Fatalf("expected conflict error, got %v", err)
+	}
+	// Identical values are idempotent.
+	results[1].Material.Env["TOKEN"] = "one"
+	out, err := binding.MergeEnv(nil, results)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out) != 1 || out[0] != "TOKEN=one" {
+		t.Fatalf("out=%v", out)
+	}
+}
+
+func TestMaterialValidate(t *testing.T) {
+	t.Parallel()
+	m := &binding.Material{Env: map[string]string{"OK": "v"}}
+	if err := m.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	bad := &binding.Material{Env: map[string]string{"A=B": "v"}}
+	if err := bad.Validate(); err == nil {
+		t.Fatal("expected '=' key rejection")
+	}
+	nilEnv := &binding.Material{}
+	if err := nilEnv.Validate(); err == nil {
+		t.Fatal("expected nil env rejection")
 	}
 }
 

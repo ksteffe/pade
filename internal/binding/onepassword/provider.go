@@ -1,15 +1,16 @@
 package onepassword
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/ksteffe/pade/internal/binding"
+	"github.com/ksteffe/pade/internal/binding/cliproc"
 )
 
 // Provider resolves capabilities via the 1Password CLI (`op read`).
@@ -147,12 +148,30 @@ func (p *Provider) readRef(ctx context.Context, ref string) (string, error) {
 		cmdFn = exec.CommandContext
 	}
 	cmd := cmdFn(ctx, bin, "read", ref)
-	var stdout, stderr bytes.Buffer
+	cmd.Env = cliproc.Environ(nil, []string{"OP_"})
+	if cmd.WaitDelay == 0 {
+		cmd.WaitDelay = 5 * time.Second
+	}
+	var stdout, stderr cliproc.LimitedBuffer
+	stdout.Limit = cliproc.MaxOutput
+	stderr.Limit = cliproc.MaxOutput
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
+		if stdout.Exceed {
+			return "", fmt.Errorf("onepassword read stdout exceeded size limit for ref %s: %w", ref, cliproc.ErrOutputLimit)
+		}
+		if stderr.Exceed {
+			return "", fmt.Errorf("onepassword read stderr exceeded size limit for ref %s: %w", ref, cliproc.ErrOutputLimit)
+		}
 		// Never include stdout/stderr bodies — they may contain secret material.
 		return "", fmt.Errorf("onepassword read failed for ref %s", ref)
+	}
+	if stdout.Exceed {
+		return "", fmt.Errorf("onepassword read stdout exceeded size limit for ref %s: %w", ref, cliproc.ErrOutputLimit)
+	}
+	if stderr.Exceed {
+		return "", fmt.Errorf("onepassword read stderr exceeded size limit for ref %s: %w", ref, cliproc.ErrOutputLimit)
 	}
 	val := strings.TrimRight(stdout.String(), "\r\n")
 	if val == "" {

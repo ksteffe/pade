@@ -2,6 +2,7 @@ package broker_test
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/base64"
@@ -421,4 +422,236 @@ func mustWrite(t *testing.T, dir, name, contents string) string {
 		t.Fatal(err)
 	}
 	return path
+}
+
+type hangProvider struct {
+	started chan struct{}
+}
+
+func (p *hangProvider) Name() string { return "hang" }
+
+func (p *hangProvider) Probe(context.Context, string, binding.CapabilityBinding) (binding.ProbeResult, error) {
+	return binding.ProbeResult{Provider: "hang", Status: "available"}, nil
+}
+
+func (p *hangProvider) Resolve(ctx context.Context, _ string, _ binding.CapabilityBinding) (*binding.Material, error) {
+	if p.started != nil {
+		select {
+		case p.started <- struct{}{}:
+		default:
+		}
+	}
+	<-ctx.Done()
+	return nil, ctx.Err()
+}
+
+func testBrokerFixture(t *testing.T, key *rsa.PrivateKey, jwksURL string, reg *binding.Registry, capName string, maxConcurrent int, resolveTimeout time.Duration) (*broker.Server, string) {
+	t.Helper()
+	policy, err := broker.ParsePolicy([]byte(`
+version: "0.1"
+oidc:
+  issuer: https://api.cursor.com
+  audience: https://pade-broker.local
+  jwksURL: ` + jwksURL + `
+policies:
+  - subject: "user:42"
+    requireRepoURLs: false
+    capabilities: ["demo.hang", "github.user.read"]
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	bindings := &binding.Config{
+		Version: "0.1",
+		Capabilities: map[string]binding.CapabilityBinding{
+			capName: {Provider: "hang"},
+		},
+	}
+	srv := &broker.Server{
+		Policy: policy,
+		Verifier: &broker.Verifier{
+			Issuer: testIssuer, Audience: testAudience, JWKSURL: jwksURL, HTTPDo: http.DefaultClient.Do,
+		},
+		Registry:       reg,
+		Bindings:       bindings,
+		MaxConcurrent:  maxConcurrent,
+		ResolveTimeout: resolveTimeout,
+	}
+	return srv, mustSign(t, key, "test-kid", jwt.MapClaims{
+		"iss": testIssuer, "sub": testSubject, "aud": testAudience,
+		"iat": time.Now().Unix(), "exp": time.Now().Add(2 * time.Minute).Unix(),
+	})
+}
+
+func TestResolveTimeoutCancelsHangingProvider(t *testing.T) {
+	key := mustKey(t)
+	jwks := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(jwksFor(key, "test-kid"))
+	}))
+	t.Cleanup(jwks.Close)
+
+	hp := &hangProvider{started: make(chan struct{}, 1)}
+	srv, tok := testBrokerFixture(t, key, jwks.URL, binding.NewRegistry(hp), "demo.hang", 4, 200*time.Millisecond)
+	srv.Verifier.HTTPDo = jwks.Client().Do
+	hs := httptest.NewServer(srv.Handler())
+	t.Cleanup(hs.Close)
+
+	start := time.Now()
+	resp := postResolve(t, hs.URL, tok, "demo.hang")
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if time.Since(start) > 3*time.Second {
+		t.Fatalf("resolve hung too long: %v", time.Since(start))
+	}
+	if resp.StatusCode != http.StatusGatewayTimeout {
+		t.Fatalf("status=%d body=%s", resp.StatusCode, body)
+	}
+	if !bytes.Contains(body, []byte(`"error":"resolve_timeout"`)) {
+		t.Fatalf("body=%s", body)
+	}
+}
+
+func TestResolveConcurrencyBusy(t *testing.T) {
+	key := mustKey(t)
+	jwks := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(jwksFor(key, "test-kid"))
+	}))
+	t.Cleanup(jwks.Close)
+
+	hp := &hangProvider{started: make(chan struct{}, 8)}
+	srv, tok := testBrokerFixture(t, key, jwks.URL, binding.NewRegistry(hp), "demo.hang", 2, 2*time.Second)
+	srv.Verifier.HTTPDo = jwks.Client().Do
+	hs := httptest.NewServer(srv.Handler())
+	t.Cleanup(hs.Close)
+
+	type outcome struct {
+		code int
+		body string
+	}
+	results := make(chan outcome, 3)
+	for i := 0; i < 3; i++ {
+		go func() {
+			resp := postResolve(t, hs.URL, tok, "demo.hang")
+			defer resp.Body.Close()
+			b, _ := io.ReadAll(resp.Body)
+			results <- outcome{code: resp.StatusCode, body: string(b)}
+		}()
+	}
+
+	// Wait until both slots are occupied, then the third should be busy.
+	for i := 0; i < 2; i++ {
+		select {
+		case <-hp.started:
+		case <-time.After(2 * time.Second):
+			t.Fatal("hanging resolves did not start")
+		}
+	}
+
+	var codes []int
+	for i := 0; i < 3; i++ {
+		select {
+		case o := <-results:
+			codes = append(codes, o.code)
+			if o.code == http.StatusServiceUnavailable && !strings.Contains(o.body, "busy") {
+				t.Fatalf("503 without busy: %s", o.body)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatal("timed out waiting for resolve outcomes")
+		}
+	}
+	busy := 0
+	for _, c := range codes {
+		if c == http.StatusServiceUnavailable {
+			busy++
+		}
+	}
+	if busy < 1 {
+		t.Fatalf("expected at least one busy response, codes=%v", codes)
+	}
+}
+
+func TestResolveBodyStrictness(t *testing.T) {
+	t.Setenv("PADE_KSM_FAKE", "1")
+	key := mustKey(t)
+	jwks := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(jwksFor(key, "test-kid"))
+	}))
+	t.Cleanup(jwks.Close)
+
+	policy, err := broker.ParsePolicy([]byte(`
+version: "0.1"
+oidc:
+  issuer: https://api.cursor.com
+  audience: https://pade-broker.local
+  jwksURL: ` + jwks.URL + `
+policies:
+  - subject: "user:42"
+    requireRepoURLs: false
+    capabilities: ["github.user.read"]
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	bindings, err := binding.Parse([]byte(`
+version: "0.1"
+capabilities:
+  github.user.read:
+    provider: keeper-secrets-manager
+    keeperSecretsManager:
+      refs:
+        GITHUB_TOKEN: "keeper://pade-demo-github/field/password"
+`), "broker-bindings.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := &broker.Server{
+		Policy: policy,
+		Verifier: &broker.Verifier{
+			Issuer: testIssuer, Audience: testAudience, JWKSURL: jwks.URL, HTTPDo: jwks.Client().Do,
+		},
+		Registry: binding.NewRegistry(keepersm.New()),
+		Bindings: bindings,
+	}
+	hs := httptest.NewServer(srv.Handler())
+	t.Cleanup(hs.Close)
+
+	tok := mustSign(t, key, "test-kid", jwt.MapClaims{
+		"iss": testIssuer, "sub": testSubject, "aud": testAudience,
+		"iat": time.Now().Unix(), "exp": time.Now().Add(2 * time.Minute).Unix(),
+	})
+
+	postRaw := func(raw []byte) (int, string) {
+		t.Helper()
+		req, err := http.NewRequest(http.MethodPost, hs.URL+"/v1/resolve", bytes.NewReader(raw))
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+tok)
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		b, _ := io.ReadAll(resp.Body)
+		return resp.StatusCode, string(b)
+	}
+
+	if code, body := postRaw([]byte(`{"capability":"github.user.read"}`)); code != 200 {
+		t.Fatalf("valid body: status=%d body=%s", code, body)
+	}
+	if code, _ := postRaw([]byte(`{"capability":"github.user.read","extra":1}`)); code != 400 {
+		t.Fatalf("unknown field: status=%d", code)
+	}
+	if code, body := postRaw([]byte(`{"capability":"github.user.read"}{"capability":"x"}`)); code != 400 {
+		t.Fatalf("two objects: status=%d body=%s", code, body)
+	}
+	if code, body := postRaw([]byte(`{"capability":"github.user.read"} trailing`)); code != 400 {
+		t.Fatalf("trailing garbage: status=%d body=%s", code, body)
+	}
+	oversized := append([]byte(`{"capability":"`), bytes.Repeat([]byte("a"), 1<<16)...)
+	oversized = append(oversized, []byte(`"}`)...)
+	if code, body := postRaw(oversized); code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("oversized: status=%d body=%s", code, body)
+	}
 }

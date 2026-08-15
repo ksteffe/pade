@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ksteffe/pade/internal/binding"
 	keeper "github.com/ksteffe/pade/internal/binding/keeper"
@@ -191,4 +192,120 @@ func writeFakeKeeper(t *testing.T, values map[string]string) string {
 		t.Fatal(err)
 	}
 	return path
+}
+
+func TestKeeperFailureDoesNotLeakStderr(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	script := filepath.Join(dir, "fail-keeper")
+	if err := os.WriteFile(script, []byte("#!/bin/sh\necho 'KEEPER_PASSWORD=leaked' >&2\nexit 2\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	p := &keeper.Provider{
+		KeeperBin: script,
+		LookPath:  func(file string) (string, error) { return file, nil },
+		CommandContext: func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+			return exec.CommandContext(ctx, name, arg...)
+		},
+	}
+	_, err := p.Resolve(context.Background(), "cap", binding.CapabilityBinding{
+		Provider: "keeper",
+		Keeper:   &binding.KeeperBinding{Refs: map[string]string{"T": "keeper://uid"}},
+	})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if strings.Contains(err.Error(), "KEEPER_PASSWORD") || strings.Contains(err.Error(), "leaked") {
+		t.Fatalf("stderr leaked: %v", err)
+	}
+}
+
+func TestKeeperOversizedStdout(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	script := filepath.Join(dir, "big-keeper")
+	// PATH-independent emitter: do not rely on `dd` being resolvable under the
+	// deliberate cliproc environment (CI runners may differ from local PATH).
+	line := strings.Repeat("x", 1024)
+	body := "#!/bin/sh\n" +
+		"i=0\n" +
+		"while [ \"$i\" -lt 1100 ]; do\n" +
+		"  printf '%s\\n' '" + line + "'\n" +
+		"  i=$((i+1))\n" +
+		"done\n"
+	if err := os.WriteFile(script, []byte(body), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	p := &keeper.Provider{
+		KeeperBin: script,
+		LookPath:  func(file string) (string, error) { return file, nil },
+		CommandContext: func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+			return exec.CommandContext(ctx, name, arg...)
+		},
+	}
+	_, err := p.Resolve(context.Background(), "cap", binding.CapabilityBinding{
+		Provider: "keeper",
+		Keeper:   &binding.KeeperBinding{Refs: map[string]string{"T": "keeper://uid"}},
+	})
+	if err == nil || !strings.Contains(err.Error(), "exceeded") {
+		t.Fatalf("expected size limit error, got %v", err)
+	}
+}
+
+func TestKeeperEnvironOmitsAmbientSecrets(t *testing.T) {
+	t.Setenv("UNRELATED_SECRET", "should-not-pass")
+	t.Setenv("KEEPER_CONFIG", "ok-prefix")
+	dir := t.TempDir()
+	script := filepath.Join(dir, "check-keeper")
+	if err := os.WriteFile(script, []byte("#!/bin/sh\nif [ -n \"$UNRELATED_SECRET\" ]; then echo present >&2; exit 9; fi\nif [ -z \"$KEEPER_CONFIG\" ]; then echo missing-keeper >&2; exit 8; fi\nprintf 'token\\n'\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	p := &keeper.Provider{
+		KeeperBin: script,
+		LookPath:  func(file string) (string, error) { return file, nil },
+		CommandContext: func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+			return exec.CommandContext(ctx, name, arg...)
+		},
+	}
+	mat, err := p.Resolve(context.Background(), "cap", binding.CapabilityBinding{
+		Provider: "keeper",
+		Keeper:   &binding.KeeperBinding{Refs: map[string]string{"T": "keeper://uid"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mat.Env["T"] != "token" {
+		t.Fatalf("%v", mat.Env)
+	}
+}
+
+func TestKeeperRespectsCancel(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	script := filepath.Join(dir, "slow-keeper")
+	if err := os.WriteFile(script, []byte("#!/bin/sh\nsleep 30\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	p := &keeper.Provider{
+		KeeperBin: script,
+		LookPath:  func(file string) (string, error) { return file, nil },
+		CommandContext: func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+			cmd := exec.CommandContext(ctx, name, arg...)
+			cmd.WaitDelay = 100 * time.Millisecond
+			return cmd
+		},
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	_, err := p.Resolve(ctx, "cap", binding.CapabilityBinding{
+		Provider: "keeper",
+		Keeper:   &binding.KeeperBinding{Refs: map[string]string{"T": "keeper://uid"}},
+	})
+	if err == nil {
+		t.Fatal("expected cancel error")
+	}
+	if time.Since(start) > 3*time.Second {
+		t.Fatalf("cancel did not bound runtime: %v", time.Since(start))
+	}
 }

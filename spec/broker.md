@@ -129,10 +129,12 @@ Server-owned policy (YAML in the reference impl) is **not** portable Intent. Unk
 
 Reference policy model (`PolicyRule` semantics):
 
-- Match **exact** token `subject`.
-- Capability must appear on the matched rule’s allowlist (case-insensitive match in the reference).
-- Optional repository confinement: when `requireRepoURLs` is true, require non-empty complete `repo_urls` attestation and **exact set equality** against the rule’s repository list (normalized in the reference: lower-case, trim trailing `.git`).
+- Match **exact** token `subject` (duplicate subjects in a policy file are rejected at load).
+- Capability identifiers are **case-sensitive exact** matches after `TrimSpace`. Request capability, policy allowlist entry, and bindings map key must use the same string.
+- Optional repository confinement: when `requireRepoURLs` is true, require non-empty complete `repo_urls` attestation and **exact set equality** against the rule’s repository list. The reference normalizes repo identities by lowercasing **scheme and hostname only**, preserving path case, trimming one trailing `.git`, and stripping userinfo/query/fragment for comparison and logging. Opaque `host/path` forms lowercase the host segment only.
 - Do **not** treat a sole `repo_url` claim as sufficient for single-repo confinement.
+
+The reference broker also bounds `/v1/resolve` with a resolve timeout (default 25s) and a concurrency limit (default 32 in-flight; excess requests get `503 busy`). Resolved Material is validated (entry/key/value size caps) and conflicting env keys across materials fail closed.
 
 Cursor-specific `repo_urls` / managed-agent attestation nuances belong in [../docs/cursor-oidc-broker-dogfood.md](../docs/cursor-oidc-broker-dogfood.md), not as generic PADE claims.
 
