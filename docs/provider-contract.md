@@ -45,7 +45,9 @@ The reference Consumer/Broker invokes `command` with:
 - **stderr:** optional human diagnostics (must not include secret values)
 - **exit code:** `0` on success; non-zero on failure
 
-Environment: the child inherits the parent environment (so broker-side durable credentials can be ambient). Resolved Material is returned to PADE; bootstrap secrets should not be copied into Material unless that is the intended deliverable.
+Environment: the child receives a **deliberate** environment (PATH/HOME and documented ambient auth prefixes such as `VAULT_*`, `OP_*`, `KSM_*`, `PADE_*`, etc.)—not the full caller environment. Exec providers remain **operator-trusted** code. Resolved Material is returned to PADE; bootstrap secrets should not be copied into Material unless that is the intended deliverable.
+
+Stdout and stderr are each capped (reference: 1 MiB). Oversized output fails closed. On provider failure, user-facing errors must not include raw stderr (which may contain bootstrap secrets).
 
 ### Request
 

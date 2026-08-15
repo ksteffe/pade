@@ -29,7 +29,7 @@ INSTALL_KEEPER_CLI := $(CURDIR)/scripts/install-keeper-cli.sh
 	dogfood-devpod dogfood-devpod-check dogfood-devpod-provider dogfood-devpod-up \
 	dogfood-devpod-install dogfood-devpod-smoke dogfood-devpod-down dogfood-devpod-delete \
 	dogfood-devpod-ci \
-	vet fmt-check ci-unit ci-smoke ci
+	vet fmt-check govulncheck ci-unit ci-smoke ci
 
 check-go:
 	@v="$$( $(GO) env GOVERSION 2>/dev/null || true )"; \
@@ -242,7 +242,10 @@ dogfood-devpod-ci:
 	@$(DEVPOD_DOGFOOD) ci
 
 # Fast path: mirrors the GitHub Actions "Unit tests" job.
-ci-unit: check-go fmt-check vet test build
+ci-unit: check-go fmt-check vet test govulncheck build
+
+govulncheck: check-go
+	GOTOOLCHAIN=go1.26.6 $(GO) run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
 # Smoke path: mirrors the GitHub Actions "Smoke" job (env + Vault + 1Password + Keeper + KSM + broker + exec-provider dogfood).
 ci-smoke: check-go build dogfood dogfood-identity dogfood-vault dogfood-onepassword dogfood-keeper dogfood-ksm dogfood-broker dogfood-exec-provider dogfood-exec-provider-github dogfood-exec-provider-ga dogfood-exec-provider-two

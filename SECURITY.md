@@ -33,6 +33,30 @@ Downstream resource
 
 Repository Intent (`pade.yaml`) is **untrusted input**. A declaration *requests* a capability. It does **not** grant authority. A malicious repository must not gain authority merely by listing capability names.
 
+### Bindings and fulfillment configuration
+
+| Surface | Trust |
+|---------|--------|
+| `pade.yaml` (Intent) | Untrusted project declaration |
+| Bindings (`--bindings`, `PADE_BINDINGS`, `~/.config/pade/bindings.yaml`) | Trusted developer/operator fulfillment configuration |
+| Workspace `.pade/bindings.yaml` | **Not** trusted by default; requires `PADE_TRUST_WORKSPACE_BINDINGS=1` |
+| Exec providers | Trusted local/operator code (deliberate env; not a sandbox) |
+| Broker policy YAML | Trusted server/operator configuration |
+| Provider stdout/stderr | Untrusted data until validated; bounded; raw stderr not safe to display |
+| Workload JWT | Untrusted until cryptographically verified (`exp` required) |
+
+Repository-local bindings must not silently activate executable providers. Cloning an untrusted repository and running `pade plan` must not execute repository-selected commands.
+
+### Planning semantics
+
+`pade plan` and `pade capabilities` are **descriptive**. They inspect static binding configuration only. They must not:
+
+- Probe or Resolve providers;
+- execute `provider: exec` commands;
+- fetch credentials from Vault/1Password/Keeper/KSM/broker merely to describe status.
+
+Bound capabilities are reported as `configured` until a runtime path (for example `pade exec`) materializes them.
+
 ### Consumer boundary
 
 The Consumer (reference: `pade`):
@@ -56,11 +80,19 @@ The Broker (reference: `pade-broker`) is an **authorization boundary**. It:
 
 It must not authorize a capability merely because Intent declared it or a client requested it. See [spec/broker.md](spec/broker.md).
 
+Broker policy and binding YAML are decoded with unknown fields rejected. Security-sensitive booleans such as `requireRepoURLs` must be set explicitly (omission or typos fail closed).
+
+Successful `/v1/resolve` responses that may carry credential material include `Cache-Control: no-store`. The reference broker does **not** implement application-level rate limiting; deployments should enforce abuse controls at ingress.
+
 ### Provider / resource boundary
 
 Credential managers, IAM systems, service providers, and downstream APIs retain their own authorization responsibilities. PADE does not replace downstream authorization.
 
 Draft specs: [spec/README.md](spec/README.md), [spec/intent.md](spec/intent.md), [spec/consumer.md](spec/consumer.md), [spec/broker.md](spec/broker.md).
+
+### Transport expectations (clients)
+
+Remote authority traffic (broker client endpoint, Vault address, JWKS URL, and similar) requires **TLS**. Plain HTTP is allowed **only** for loopback (`localhost`, `127.0.0.1`, `[::1]`). HTTPS→HTTP redirects are rejected when credentials or authentication material would follow.
 
 ## Prototype invariants
 
@@ -123,7 +155,7 @@ Keeper Secrets Manager is one **reference materialization provider**. It is not 
 ```text
 agent VM has no KSM_CONFIG
 → workload can mint Cursor OIDC identity (local socket)
-→ pade-broker verifies JWT (issuer, audience, signature, nbf/exp)
+→ pade-broker verifies JWT (issuer, audience, signature, nbf; **exp required**; reference also rejects tokens whose `exp` is more than 24h ahead)
 → server-side policy authorizes subject + repo_urls + capability
 → Keeper bootstrap stays on the broker host
 → only requested env material returns to the agent
@@ -135,9 +167,9 @@ Important distinctions:
 - Any process able to reach Cursor’s local identity socket can mint an identity token for that workload.
 - The security boundary for capability resolution therefore lives at **broker authorization**.
 - A capability name in `pade.yaml` is a **request**, not authorization. The broker must not trust capability names merely because a client asks or a repo declares them.
-- For single-repo confinement, require complete `repo_urls` attestation. Missing `repo_urls` means unknown, not single-repo. Do not authorize from `repo_url` alone. Managed Cloud Agents have been observed with `repo_url` but without `repo_urls`; until complete attestation exists, broker dogfood uses subject + capability (`requireRepoURLs: false`) rather than weakening policy to trust `repo_url`.
+- For single-repo confinement, require complete `repo_urls` attestation. Missing `repo_urls` means unknown, not single-repo. Do not authorize from `repo_url` alone. Managed Cloud Agents have been observed with `repo_url` but without `repo_urls`; until complete attestation exists, broker dogfood uses subject + capability (`requireRepoURLs: false`) rather than weakening policy to trust `repo_url`. Policy YAML must set `requireRepoURLs` explicitly; typos/omission fail closed.
 - Broker logs must contain identity/capability decision metadata only — never JWTs or resolved credentials.
-- JTI replay tracking is deferred; this spike relies on short-lived tokens and exact audience binding.
+- JWT expiration is mandatory. JTI replay tracking remains deferred; this spike relies on short-lived tokens, a 24h maximum remaining lifetime ceiling, and exact audience binding.
 - The PADE contract still does not replace resource-level authorization (GitHub, IAM, databases, etc.).
 
 ### Broker transport modes
@@ -198,4 +230,8 @@ The repo-root `Dockerfile` builds a minimal `pade-broker` image (`gcr.io/distrol
 
 ## Scope
 
+PADE is **experimental** interoperability software. This document describes trust boundaries and hardening in the reference implementation; it is not a compliance claim or a statement that PADE is “secure” in an absolute sense.
+
 PADE does not replace OAuth, OIDC, IAM, SPIFFE, or resource-level authorization. Downstream systems remain authoritative.
+
+CI runs `govulncheck ./...` against the supported Go toolchain. As of this hardening pass, `golang.org/x/text@v0.22.0` (indirect via jsonschema) reports [GO-2026-5970](https://pkg.go.dev/vuln/GO-2026-5970); symbol analysis shows PADE code does not call the vulnerable APIs. Bumping `x/text` to a fixed release currently forces a higher `go` language floor than the intentional `go 1.22` compatibility line, so the bump is deferred.

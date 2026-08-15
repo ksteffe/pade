@@ -52,23 +52,76 @@ func TestExecResolveAndProbe(t *testing.T) {
 	}
 }
 
-func TestExecFailureSurfacesStderr(t *testing.T) {
-	stub := buildStub(t)
+func TestExecFailureDoesNotLeakStderr(t *testing.T) {
+	script := filepath.Join(t.TempDir(), "fail.sh")
+	if err := os.WriteFile(script, []byte("#!/bin/sh\necho 'BOOTSTRAP_SECRET=super-secret' >&2\nexit 2\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	b := binding.CapabilityBinding{
 		Provider: "exec",
 		Exec: &binding.ExecBinding{
-			Command: []string{stub},
-			Config: map[string]interface{}{
-				"fail": true,
-			},
+			Command: []string{script},
 		},
 	}
 	_, err := New().Resolve(context.Background(), "demo.derived", b)
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	if strings.Contains(err.Error(), "derived-secret") {
-		t.Fatalf("error must not leak secrets: %v", err)
+	msg := err.Error()
+	if strings.Contains(msg, "BOOTSTRAP_SECRET") || strings.Contains(msg, "super-secret") {
+		t.Fatalf("error must not leak stderr: %v", err)
+	}
+	if !strings.Contains(msg, "failed") {
+		t.Fatalf("expected failure message: %v", err)
+	}
+}
+
+func TestExecOversizedStdout(t *testing.T) {
+	script := filepath.Join(t.TempDir(), "big.sh")
+	// Write more than 1 MiB to stdout.
+	if err := os.WriteFile(script, []byte("#!/bin/sh\ndd if=/dev/zero bs=1024 count=1100 2>/dev/null\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_, err := New().Resolve(context.Background(), "demo", binding.CapabilityBinding{
+		Provider: "exec",
+		Exec:     &binding.ExecBinding{Command: []string{script}},
+	})
+	if err == nil || !strings.Contains(err.Error(), "stdout exceeded") {
+		t.Fatalf("expected stdout limit error, got %v", err)
+	}
+}
+
+func TestExecOversizedStderr(t *testing.T) {
+	script := filepath.Join(t.TempDir(), "bigerr.sh")
+	if err := os.WriteFile(script, []byte("#!/bin/sh\ndd if=/dev/zero bs=1024 count=1100 >&2\nexit 1\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_, err := New().Resolve(context.Background(), "demo", binding.CapabilityBinding{
+		Provider: "exec",
+		Exec:     &binding.ExecBinding{Command: []string{script}},
+	})
+	if err == nil || !strings.Contains(err.Error(), "stderr exceeded") {
+		t.Fatalf("expected stderr limit error, got %v", err)
+	}
+}
+
+func TestProviderEnvironOmitsAmbientSecrets(t *testing.T) {
+	t.Setenv("UNRELATED_SECRET", "should-not-pass")
+	t.Setenv("PADE_TEST_OK", "1")
+	env := providerEnviron()
+	for _, e := range env {
+		if strings.HasPrefix(e, "UNRELATED_SECRET=") {
+			t.Fatal("unrelated ambient secret leaked to provider env")
+		}
+	}
+	found := false
+	for _, e := range env {
+		if e == "PADE_TEST_OK=1" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("expected PADE_ prefix to be allowlisted")
 	}
 }
 

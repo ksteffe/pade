@@ -2,6 +2,8 @@ module github.com/ksteffe/pade
 
 go 1.22
 
+toolchain go1.26.6
+
 require (
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/keeper-security/secrets-manager-go/core v1.7.0

@@ -102,3 +102,26 @@ func TestVaultMissingField(t *testing.T) {
 		t.Fatalf("status=%q", probe.Status)
 	}
 }
+
+func TestVaultRejectsRemoteHTTPAddr(t *testing.T) {
+	t.Parallel()
+	p := &vaultprovider.Provider{
+		HTTPClient: http.DefaultClient,
+		Addr:       "http://vault.example.com:8200",
+		Token:      "t",
+	}
+	b := binding.CapabilityBinding{
+		Provider: "vault",
+		Vault: &binding.VaultBinding{
+			Path:   "secret/data/x",
+			Fields: map[string]string{"k": "ENV"},
+		},
+	}
+	probe, err := p.Probe(context.Background(), "cap", b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if probe.Status != "unavailable" || !strings.Contains(probe.Message, "insecure http") {
+		t.Fatalf("probe=%+v", probe)
+	}
+}

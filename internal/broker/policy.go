@@ -1,6 +1,7 @@
 package broker
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"strings"
@@ -24,9 +25,11 @@ type OIDCConfig struct {
 }
 
 // PolicyRule authorizes one subject (optionally confined to repos) for capabilities.
+// RequireRepoURLs is a pointer so omission is distinguishable from explicit false;
+// Validate requires the field to be set on every rule (fail closed).
 type PolicyRule struct {
 	Subject         string   `yaml:"subject"`
-	RequireRepoURLs bool     `yaml:"requireRepoURLs"`
+	RequireRepoURLs *bool    `yaml:"requireRepoURLs"`
 	Repositories    []string `yaml:"repositories"`
 	Capabilities    []string `yaml:"capabilities"`
 }
@@ -40,10 +43,12 @@ func LoadPolicy(path string) (*PolicyFile, error) {
 	return ParsePolicy(data)
 }
 
-// ParsePolicy unmarshals policy YAML.
+// ParsePolicy unmarshals policy YAML with unknown fields rejected.
 func ParsePolicy(data []byte) (*PolicyFile, error) {
 	var p PolicyFile
-	if err := yaml.Unmarshal(data, &p); err != nil {
+	dec := yaml.NewDecoder(bytes.NewReader(data))
+	dec.KnownFields(true)
+	if err := dec.Decode(&p); err != nil {
 		return nil, fmt.Errorf("parse broker policy: %w", err)
 	}
 	if err := p.Validate(); err != nil {
@@ -73,7 +78,10 @@ func (p *PolicyFile) Validate() error {
 		if len(rule.Capabilities) == 0 {
 			return fmt.Errorf("policies[%d]: capabilities are required", i)
 		}
-		if rule.RequireRepoURLs && len(rule.Repositories) == 0 {
+		if rule.RequireRepoURLs == nil {
+			return fmt.Errorf("policies[%d]: requireRepoURLs must be explicitly set (true or false)", i)
+		}
+		if *rule.RequireRepoURLs && len(rule.Repositories) == 0 {
 			return fmt.Errorf("policies[%d]: repositories required when requireRepoURLs is true", i)
 		}
 	}
@@ -116,7 +124,7 @@ func (p *PolicyFile) Authorize(claims Claims, capability string) AuthzDecision {
 		dec.Reason = "capability not authorized for subject"
 		return dec
 	}
-	if matched.RequireRepoURLs {
+	if matched.RequireRepoURLs != nil && *matched.RequireRepoURLs {
 		if len(claims.RepoURLs) == 0 {
 			dec.Reason = "repo_urls required but absent (complete repo set unknown)"
 			return dec

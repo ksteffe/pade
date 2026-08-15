@@ -14,9 +14,15 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/ksteffe/pade/internal/securehttp"
 )
 
-const defaultSkew = 30 * time.Second
+const (
+	defaultSkew      = 30 * time.Second
+	maxTokenLifetime = 24 * time.Hour
+	jwksTimeout      = 15 * time.Second
+	jwksMaxBytes     = 1 << 20
+)
 
 // Verifier validates Cursor (or test) OIDC JWTs against JWKS.
 type Verifier struct {
@@ -87,7 +93,13 @@ func (v *Verifier) Verify(ctx context.Context, rawToken string) (Claims, error) 
 			return nil, fmt.Errorf("unknown signing key")
 		}
 		return key, nil
-	}, jwt.WithIssuer(v.Issuer), jwt.WithAudience(v.Audience), jwt.WithValidMethods([]string{jwt.SigningMethodRS256.Alg()}), jwt.WithTimeFunc(nowFn), jwt.WithLeeway(skew))
+	}, jwt.WithIssuer(v.Issuer),
+		jwt.WithAudience(v.Audience),
+		jwt.WithValidMethods([]string{jwt.SigningMethodRS256.Alg()}),
+		jwt.WithTimeFunc(nowFn),
+		jwt.WithLeeway(skew),
+		jwt.WithExpirationRequired(),
+	)
 	if err != nil {
 		// Do not wrap with token material.
 		return Claims{}, fmt.Errorf("token verification failed: %w", err)
@@ -95,6 +107,14 @@ func (v *Verifier) Verify(ctx context.Context, rawToken string) (Claims, error) 
 	cc, ok := parsed.Claims.(*cursorClaims)
 	if !ok || !parsed.Valid {
 		return Claims{}, fmt.Errorf("token verification failed")
+	}
+	exp, err := cc.GetExpirationTime()
+	if err != nil || exp == nil {
+		return Claims{}, fmt.Errorf("token verification failed: missing exp")
+	}
+	now := nowFn()
+	if exp.After(now.Add(maxTokenLifetime + skew)) {
+		return Claims{}, fmt.Errorf("token verification failed: exp exceeds maximum lifetime")
 	}
 	sub, err := cc.GetSubject()
 	if err != nil || sub == "" {
@@ -130,13 +150,16 @@ func (v *Verifier) refreshKeys(ctx context.Context) error {
 	if url == "" {
 		return fmt.Errorf("jwks URL is required")
 	}
+	if err := securehttp.ValidateURL(url); err != nil {
+		return fmt.Errorf("jwks URL: %w", err)
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return fmt.Errorf("jwks request failed")
 	}
 	do := v.HTTPDo
 	if do == nil {
-		do = http.DefaultClient.Do
+		do = securehttp.Client(jwksTimeout).Do
 	}
 	resp, err := do(req)
 	if err != nil {
@@ -146,18 +169,40 @@ func (v *Verifier) refreshKeys(ctx context.Context) error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("jwks fetch http %d", resp.StatusCode)
 	}
-	raw, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	raw, err := io.ReadAll(io.LimitReader(resp.Body, jwksMaxBytes))
 	if err != nil {
 		return fmt.Errorf("jwks read failed")
 	}
+	keys, err := parseJWKS(raw)
+	if err != nil {
+		return err
+	}
+	v.mu.Lock()
+	v.keys = keys
+	v.fetchedAt = time.Now()
+	v.mu.Unlock()
+	return nil
+}
+
+// parseJWKS parses a JWKS document into RSA public keys keyed by kid.
+func parseJWKS(raw []byte) (map[string]*rsa.PublicKey, error) {
 	var doc jwksDoc
 	if err := json.Unmarshal(raw, &doc); err != nil {
-		return fmt.Errorf("jwks parse failed")
+		return nil, fmt.Errorf("jwks parse failed")
 	}
 	keys := map[string]*rsa.PublicKey{}
 	for _, k := range doc.Keys {
 		if k.Kty != "RSA" || k.Kid == "" || k.N == "" || k.E == "" {
 			continue
+		}
+		if alg := strings.TrimSpace(k.Alg); alg != "" && !strings.EqualFold(alg, jwt.SigningMethodRS256.Alg()) {
+			return nil, fmt.Errorf("jwks key %q declares unsupported alg %q", k.Kid, alg)
+		}
+		if use := strings.TrimSpace(k.Use); use != "" && !strings.EqualFold(use, "sig") {
+			return nil, fmt.Errorf("jwks key %q declares unsupported use %q", k.Kid, use)
+		}
+		if _, exists := keys[k.Kid]; exists {
+			return nil, fmt.Errorf("jwks contains duplicate kid %q", k.Kid)
 		}
 		pub, err := rsaPublicKeyFromJWK(k)
 		if err != nil {
@@ -166,13 +211,9 @@ func (v *Verifier) refreshKeys(ctx context.Context) error {
 		keys[k.Kid] = pub
 	}
 	if len(keys) == 0 {
-		return fmt.Errorf("jwks contained no usable RSA keys")
+		return nil, fmt.Errorf("jwks contained no usable RSA keys")
 	}
-	v.mu.Lock()
-	v.keys = keys
-	v.fetchedAt = time.Now()
-	v.mu.Unlock()
-	return nil
+	return keys, nil
 }
 
 func rsaPublicKeyFromJWK(k jwkKey) (*rsa.PublicKey, error) {

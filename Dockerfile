@@ -1,7 +1,7 @@
 # Multi-stage build for the pade-broker runtime image only (not the pade CLI).
 # No secrets, policy, or bindings are baked into the image.
 
-FROM golang:1.22-bookworm AS build
+FROM golang:1.26-bookworm AS build
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download

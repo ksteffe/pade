@@ -70,12 +70,14 @@ In the reference CLI:
 
 1. Load and validate Intent (`validate` / load path used by `exec`).
 2. Select one or more capability ids (`--capability` / `-c`).
-3. Load **local bindings** (not part of portable Intent): `--bindings`, `PADE_BINDINGS`, `<manifestDir>/.pade/bindings.yaml`, or `~/.config/pade/bindings.yaml`.
+3. Load **trusted local bindings** (not part of portable Intent): `--bindings`, `PADE_BINDINGS`, or `~/.config/pade/bindings.yaml`. Workspace `<manifestDir>/.pade/bindings.yaml` is loaded only when `PADE_TRUST_WORKSPACE_BINDINGS=1` (or `true`/`yes`).
 4. Resolve via the configured provider for each capability.
 5. Inject resolved env into the **child process only**; clear in-memory material afterward.
 6. Apply best-effort stdout/stderr redaction and related defenses (see [../SECURITY.md](../SECURITY.md)—do not treat redaction as a security boundary).
 
-Related reference commands: `pade validate`, `pade plan`, `pade capabilities` (status without secret values), `pade identity` (safe Cursor OIDC claims for dogfood).
+Related reference commands: `pade validate`, `pade plan`, `pade capabilities` (static binding inspection without probing providers or secret values), `pade identity` (safe Cursor OIDC claims for dogfood).
+
+`pade plan` and `pade capabilities` are descriptive: they must not probe providers, execute `provider: exec` commands, or materialize credentials.
 
 ### Direct provider mode
 

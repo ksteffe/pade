@@ -38,7 +38,7 @@ func main() {
 	)
 
 	root.PersistentFlags().StringVarP(&file, "file", "f", "", "path to pade.yaml (default: ./pade.yaml)")
-	root.PersistentFlags().StringVar(&bindings, "bindings", "", "path to local bindings.yaml (default: .pade/bindings.yaml, PADE_BINDINGS, or ~/.config/pade/bindings.yaml)")
+	root.PersistentFlags().StringVar(&bindings, "bindings", "", "path to trusted local bindings.yaml (default: PADE_BINDINGS, then ~/.config/pade/bindings.yaml; workspace .pade/bindings.yaml only with PADE_TRUST_WORKSPACE_BINDINGS=1)")
 	root.PersistentFlags().BoolVar(&jsonOut, "json", false, "emit machine-readable JSON")
 
 	root.AddCommand(newValidateCmd(&file, &jsonOut))
@@ -183,7 +183,7 @@ Example:
 				return err
 			}
 			if cfg.SourcePath == "" {
-				return fmt.Errorf("no bindings file found; configure --bindings, PADE_BINDINGS, .pade/bindings.yaml, or ~/.config/pade/bindings.yaml")
+				return fmt.Errorf("no bindings file found; configure --bindings, PADE_BINDINGS, ~/.config/pade/bindings.yaml, or set PADE_TRUST_WORKSPACE_BINDINGS=1 for .pade/bindings.yaml")
 			}
 			reg := defaultRegistry()
 			runner := &execution.Runner{Registry: reg}
@@ -219,7 +219,7 @@ func loadAndValidate(file string) (*manifest.Manifest, *manifest.Result, error) 
 	return m, res, nil
 }
 
-func resolveBindings(ctx context.Context, m *manifest.Manifest, bindingsPath string) (*binding.Config, []binding.Status, error) {
+func resolveBindings(_ context.Context, m *manifest.Manifest, bindingsPath string) (*binding.Config, []binding.Status, error) {
 	cfg, err := binding.LoadOptional(filepath.Dir(m.SourcePath), bindingsPath)
 	if err != nil {
 		return nil, nil, err
@@ -232,10 +232,8 @@ func resolveBindings(ctx context.Context, m *manifest.Manifest, bindingsPath str
 			Required: cap.IsRequired(),
 		}
 	}
-	statuses, err := binding.ResolveAll(ctx, reg, views, cfg)
-	if err != nil {
-		return nil, nil, err
-	}
+	// Static inspection only: plan/capabilities must not Probe or Resolve.
+	statuses := binding.InspectBindings(reg, views, cfg)
 	return cfg, statuses, nil
 }
 

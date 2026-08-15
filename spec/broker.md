@@ -117,7 +117,7 @@ workload authentication mechanism
 
 The broker MAY support different workload identity technologies over time.
 
-**Current reference adapter:** Cursor OIDC JWTs verified with configured issuer, audience, and JWKS (default JWKS URL when omitted in policy: `https://api.cursor.com/keys`). Verification expectations in the spike include signature/algorithm checks and time skew handling as implemented in `internal/broker`.
+**Current reference adapter:** Cursor OIDC JWTs verified with configured issuer, audience, and JWKS (default JWKS URL when omitted in policy: `https://api.cursor.com/keys`). Verification expectations in the spike include signature/algorithm checks, required `exp`, a maximum remaining lifetime ceiling, and time skew handling as implemented in `internal/broker`. Remote JWKS URLs must use HTTPS (loopback HTTP only for local tests).
 
 Cursor OIDC is **not** a normative PADE-wide identity requirement. Audience binding is part of the reference dogfood; see [../docs/cursor-oidc-broker-dogfood.md](../docs/cursor-oidc-broker-dogfood.md).
 
@@ -125,7 +125,7 @@ Deferred in the spike (not specified here as required): JTI replay stores, multi
 
 ## Authorization
 
-Server-owned policy (YAML in the reference impl) is **not** portable Intent.
+Server-owned policy (YAML in the reference impl) is **not** portable Intent. Unknown YAML fields are rejected. `requireRepoURLs` must be set explicitly on each rule.
 
 Reference policy model (`PolicyRule` semantics):
 

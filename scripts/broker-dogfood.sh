@@ -60,8 +60,8 @@ echo "=== plan/capabilities via broker (no secret values) ==="
 if grep -E 'pade-demo-ksm-token|broker-secret|eyJ' "$WORK/plan.json" "$WORK/capabilities.json" >/dev/null; then
   die "plan/capabilities appear to contain secrets or JWTs"
 fi
-grep -Eq '"status"[[:space:]]*:[[:space:]]*"available"' "$WORK/capabilities.json" \
-  || die "expected broker capability available"
+grep -Eq '"status"[[:space:]]*:[[:space:]]*"configured"' "$WORK/capabilities.json" \
+  || die "expected broker capability configured"
 
 echo "=== pade exec through broker ==="
 out="$(

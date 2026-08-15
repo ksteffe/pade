@@ -37,8 +37,8 @@ assert_no_secret_leak /tmp/pade-keeper-plan.json
 
 "$PADE" capabilities -f "$MANIFEST" --bindings "$SHARED_BINDINGS" --json >/tmp/pade-keeper-capabilities.json
 assert_no_secret_leak /tmp/pade-keeper-capabilities.json
-grep -Eq '"status"[[:space:]]*:[[:space:]]*"available"' /tmp/pade-keeper-capabilities.json \
-  || die "expected keeper capability status available"
+grep -Eq '"status"[[:space:]]*:[[:space:]]*"configured"' /tmp/pade-keeper-capabilities.json \
+  || die "expected keeper capability status configured"
 
 shared_out="$(
   "$PADE" exec \

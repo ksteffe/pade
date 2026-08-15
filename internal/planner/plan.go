@@ -60,9 +60,9 @@ func Build(m *manifest.Manifest, opts BuildOptions) *Plan {
 			OwnedBy: "DevPod (or equivalent existing runtime); PADE does not own workspace lifecycle",
 		},
 		Notes: []string{
-			"Plan is side-effect free: no credentials are resolved or displayed.",
+			"Plan is side-effect free: no providers are probed, and no credentials are resolved or displayed.",
 			"Start workspaces with DevPod (for example: devpod up .).",
-			"Capability bindings live in local config (.pade/bindings.yaml or ~/.config/pade/bindings.yaml), not in pade.yaml.",
+			"Capability bindings are trusted operator config (--bindings, PADE_BINDINGS, ~/.config/pade/bindings.yaml); workspace .pade/bindings.yaml requires PADE_TRUST_WORKSPACE_BINDINGS=1.",
 		},
 	}
 	if opts.Bindings != nil && opts.Bindings.SourcePath != "" {

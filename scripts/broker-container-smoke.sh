@@ -40,6 +40,7 @@ oidc:
   audience: https://pade-broker.local
 policies:
   - subject: "user:container-smoke"
+    requireRepoURLs: false
     capabilities:
       - github.user.read
 EOF

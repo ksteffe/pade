@@ -1,11 +1,13 @@
 package binding
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/ksteffe/pade/internal/securehttp"
 	"gopkg.in/yaml.v3"
 )
 
@@ -13,6 +15,10 @@ const (
 	DefaultFileName    = "bindings.yaml"
 	WorkspaceConfigDir = ".pade"
 	UserConfigSubdir   = "pade"
+	// TrustWorkspaceBindingsEnv opts in to loading <manifestDir>/.pade/bindings.yaml.
+	// Workspace-local bindings are not trusted by default: a repository can track
+	// an ignored .pade/ file, and exec providers would otherwise run on plan/exec.
+	TrustWorkspaceBindingsEnv = "PADE_TRUST_WORKSPACE_BINDINGS"
 )
 
 // Config is local, developer-specific capability binding configuration.
@@ -89,10 +95,12 @@ func Load(path string) (*Config, error) {
 	return Parse(data, path)
 }
 
-// Parse unmarshals bindings YAML.
+// Parse unmarshals bindings YAML with unknown fields rejected.
 func Parse(data []byte, sourcePath string) (*Config, error) {
 	var c Config
-	if err := yaml.Unmarshal(data, &c); err != nil {
+	dec := yaml.NewDecoder(bytes.NewReader(data))
+	dec.KnownFields(true)
+	if err := dec.Decode(&c); err != nil {
 		return nil, fmt.Errorf("parse bindings YAML: %w", err)
 	}
 	c.SourcePath = sourcePath
@@ -209,6 +217,9 @@ func (c *Config) Validate() error {
 			if strings.TrimSpace(b.Broker.Endpoint) == "" {
 				return fmt.Errorf("binding %q: broker.endpoint is required", name)
 			}
+			if err := securehttp.ValidateURL(b.Broker.Endpoint); err != nil {
+				return fmt.Errorf("binding %q: broker.endpoint: %w", name, err)
+			}
 			if strings.TrimSpace(b.Broker.Audience) == "" {
 				return fmt.Errorf("binding %q: broker.audience is required", name)
 			}
@@ -236,53 +247,81 @@ func (c *Config) Validate() error {
 }
 
 // Find locates a bindings file. Explicit path wins, then PADE_BINDINGS,
-// then <manifestDir>/.pade/bindings.yaml, then ~/.config/pade/bindings.yaml.
-// Missing optional files return (nil, "", nil).
+// then ~/.config/pade/bindings.yaml, then (only with PADE_TRUST_WORKSPACE_BINDINGS)
+// <manifestDir>/.pade/bindings.yaml.
+// Missing optional files return ("", nil).
 func Find(manifestDir, explicit string) (path string, err error) {
+	path, _, err = FindWithNotice(manifestDir, explicit)
+	return path, err
+}
+
+// FindWithNotice is like Find but also returns a non-secret notice when a
+// workspace-local bindings file exists but was skipped for lack of trust opt-in.
+func FindWithNotice(manifestDir, explicit string) (path string, notice string, err error) {
 	if explicit != "" {
 		abs, err := filepath.Abs(explicit)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 		if _, err := os.Stat(abs); err != nil {
-			return "", fmt.Errorf("bindings file not found: %w", err)
+			return "", "", fmt.Errorf("bindings file not found: %w", err)
 		}
-		return abs, nil
+		return abs, "", nil
 	}
 	if v := strings.TrimSpace(os.Getenv("PADE_BINDINGS")); v != "" {
 		abs, err := filepath.Abs(v)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 		if _, err := os.Stat(abs); err != nil {
-			return "", fmt.Errorf("PADE_BINDINGS not found: %w", err)
+			return "", "", fmt.Errorf("PADE_BINDINGS not found: %w", err)
 		}
-		return abs, nil
-	}
-	if manifestDir != "" {
-		candidate := filepath.Join(manifestDir, WorkspaceConfigDir, DefaultFileName)
-		if abs, err := filepath.Abs(candidate); err == nil {
-			if _, err := os.Stat(abs); err == nil {
-				return abs, nil
-			}
-		}
+		return abs, "", nil
 	}
 	if home, err := os.UserHomeDir(); err == nil {
 		candidate := filepath.Join(home, ".config", UserConfigSubdir, DefaultFileName)
 		if abs, err := filepath.Abs(candidate); err == nil {
 			if _, err := os.Stat(abs); err == nil {
-				return abs, nil
+				return abs, "", nil
 			}
 		}
 	}
-	return "", nil
+	if manifestDir != "" {
+		candidate := filepath.Join(manifestDir, WorkspaceConfigDir, DefaultFileName)
+		if abs, err := filepath.Abs(candidate); err == nil {
+			if _, err := os.Stat(abs); err == nil {
+				if trustWorkspaceBindings() {
+					return abs, "", nil
+				}
+				return "", fmt.Sprintf(
+					"ignoring untrusted workspace bindings %s (set %s=1 to load, or use --bindings / PADE_BINDINGS / ~/.config/pade/bindings.yaml)",
+					abs, TrustWorkspaceBindingsEnv,
+				), nil
+			}
+		}
+	}
+	return "", "", nil
+}
+
+func trustWorkspaceBindings() bool {
+	v := strings.TrimSpace(strings.ToLower(os.Getenv(TrustWorkspaceBindingsEnv)))
+	switch v {
+	case "1", "true", "yes":
+		return true
+	default:
+		return false
+	}
 }
 
 // LoadOptional finds and loads bindings, or returns an empty config when none exist.
+// When a workspace-local bindings file is skipped, a notice is written to stderr.
 func LoadOptional(manifestDir, explicit string) (*Config, error) {
-	path, err := Find(manifestDir, explicit)
+	path, notice, err := FindWithNotice(manifestDir, explicit)
 	if err != nil {
 		return nil, err
+	}
+	if notice != "" {
+		fmt.Fprintln(os.Stderr, notice)
 	}
 	if path == "" {
 		return &Config{

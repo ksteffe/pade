@@ -138,6 +138,9 @@ capabilities:
 		b, _ := io.ReadAll(resp.Body)
 		t.Fatalf("status=%d body=%s", resp.StatusCode, b)
 	}
+	if cc := resp.Header.Get("Cache-Control"); cc != "no-store" {
+		t.Fatalf("Cache-Control=%q want no-store", cc)
+	}
 	var out struct {
 		Env map[string]string `json:"env"`
 	}
