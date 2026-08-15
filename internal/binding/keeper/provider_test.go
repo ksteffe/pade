@@ -224,7 +224,16 @@ func TestKeeperOversizedStdout(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	script := filepath.Join(dir, "big-keeper")
-	if err := os.WriteFile(script, []byte("#!/bin/sh\ndd if=/dev/zero bs=1024 count=1100 2>/dev/null\n"), 0o755); err != nil {
+	// PATH-independent emitter: do not rely on `dd` being resolvable under the
+	// deliberate cliproc environment (CI runners may differ from local PATH).
+	line := strings.Repeat("x", 1024)
+	body := "#!/bin/sh\n" +
+		"i=0\n" +
+		"while [ \"$i\" -lt 1100 ]; do\n" +
+		"  printf '%s\\n' '" + line + "'\n" +
+		"  i=$((i+1))\n" +
+		"done\n"
+	if err := os.WriteFile(script, []byte(body), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	p := &keeper.Provider{

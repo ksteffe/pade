@@ -166,7 +166,14 @@ func TestOnePasswordOversizedStdout(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	script := filepath.Join(dir, "big-op")
-	if err := os.WriteFile(script, []byte("#!/bin/sh\ndd if=/dev/zero bs=1024 count=1100 2>/dev/null\n"), 0o755); err != nil {
+	line := strings.Repeat("x", 1024)
+	body := "#!/bin/sh\n" +
+		"i=0\n" +
+		"while [ \"$i\" -lt 1100 ]; do\n" +
+		"  printf '%s\\n' '" + line + "'\n" +
+		"  i=$((i+1))\n" +
+		"done\n"
+	if err := os.WriteFile(script, []byte(body), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	p := &onepassword.Provider{

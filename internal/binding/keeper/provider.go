@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -191,6 +192,9 @@ func shouldNotFallback(ctx context.Context, err error) bool {
 	if ctx.Err() != nil {
 		return true
 	}
+	if errors.Is(err, cliproc.ErrOutputLimit) {
+		return true
+	}
 	msg := err.Error()
 	return strings.Contains(msg, "exceeded size limit") || strings.Contains(msg, "not found")
 }
@@ -210,13 +214,13 @@ func (p *Provider) runPasswordCmd(ctx context.Context, cmdFn func(context.Contex
 	cmd.Stdin = nil
 	if err := cmd.Run(); err != nil {
 		if stdout.Exceed || stderr.Exceed {
-			return "", fmt.Errorf("keeper %s output exceeded size limit for ref %s", args[0], ref)
+			return "", fmt.Errorf("keeper %s output exceeded size limit for ref %s: %w", args[0], ref, cliproc.ErrOutputLimit)
 		}
 		// Never include stdout/stderr bodies — they may contain secret material.
 		return "", fmt.Errorf("keeper %s failed for ref %s", args[0], ref)
 	}
 	if stdout.Exceed || stderr.Exceed {
-		return "", fmt.Errorf("keeper %s output exceeded size limit for ref %s", args[0], ref)
+		return "", fmt.Errorf("keeper %s output exceeded size limit for ref %s: %w", args[0], ref, cliproc.ErrOutputLimit)
 	}
 	val := passwordFromCLIOutput(stdout.String())
 	if val == "" {
@@ -239,12 +243,12 @@ func (p *Provider) readPasswordFromJSON(ctx context.Context, cmdFn func(context.
 	cmd.Stdin = nil
 	if err := cmd.Run(); err != nil {
 		if stdout.Exceed || stderr.Exceed {
-			return "", fmt.Errorf("keeper get --format=json output exceeded size limit for ref %s", ref)
+			return "", fmt.Errorf("keeper get --format=json output exceeded size limit for ref %s: %w", ref, cliproc.ErrOutputLimit)
 		}
 		return "", fmt.Errorf("keeper get --format=json failed for ref %s", ref)
 	}
 	if stdout.Exceed || stderr.Exceed {
-		return "", fmt.Errorf("keeper get --format=json output exceeded size limit for ref %s", ref)
+		return "", fmt.Errorf("keeper get --format=json output exceeded size limit for ref %s: %w", ref, cliproc.ErrOutputLimit)
 	}
 	val, err := secretFromKeeperJSON(stdout.Bytes())
 	if err != nil {
