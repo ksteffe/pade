@@ -245,7 +245,7 @@ dogfood-devpod-ci:
 ci-unit: check-go fmt-check vet test govulncheck build
 
 govulncheck: check-go
-	GOTOOLCHAIN=go1.26.6 $(GO) run golang.org/x/vuln/cmd/govulncheck@latest ./...
+	GOTOOLCHAIN=go1.26.6 $(GO) run golang.org/x/vuln/cmd/govulncheck@v1.7.0 ./...
 
 # Smoke path: mirrors the GitHub Actions "Smoke" job (env + Vault + 1Password + Keeper + KSM + broker + exec-provider dogfood).
 ci-smoke: check-go build dogfood dogfood-identity dogfood-vault dogfood-onepassword dogfood-keeper dogfood-ksm dogfood-broker dogfood-exec-provider dogfood-exec-provider-github dogfood-exec-provider-ga dogfood-exec-provider-two

@@ -1,6 +1,7 @@
 package broker_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -92,6 +93,36 @@ func TestVerifyRequiresExpiration(t *testing.T) {
 	}
 	if _, err := v.Verify(ctx, hsTok); err == nil {
 		t.Fatal("expected unexpected algorithm rejection")
+	}
+}
+
+func TestJWKSRejectsOversized(t *testing.T) {
+	key := mustKey(t)
+	pub := &key.PublicKey
+	n := base64.RawURLEncoding.EncodeToString(pub.N.Bytes())
+	e := base64.RawURLEncoding.EncodeToString(big.NewInt(int64(pub.E)).Bytes())
+	base, _ := json.Marshal(map[string]interface{}{
+		"keys": []map[string]string{
+			{"kty": "RSA", "kid": "k1", "alg": "RS256", "use": "sig", "n": n, "e": e},
+		},
+	})
+	// Pad past 1 MiB while remaining syntactically closer to JWKS (trailing garbage is fine; size check is first).
+	oversized := append(bytes.Repeat([]byte(" "), (1<<20)+16), base...)
+	v := &broker.Verifier{
+		Issuer:   testIssuer,
+		Audience: testAudience,
+		JWKSURL:  "http://127.0.0.1/keys",
+		HTTPDo: func(*http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: 200,
+				Body:       io.NopCloser(bytes.NewReader(oversized)),
+				Header:     make(http.Header),
+			}, nil
+		},
+	}
+	_, err := v.Verify(context.Background(), "x.y.z")
+	if err == nil || !strings.Contains(err.Error(), "exceeds size limit") {
+		t.Fatalf("expected size limit error, got %v", err)
 	}
 }
 

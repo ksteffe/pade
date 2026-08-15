@@ -3,6 +3,7 @@ package broker
 import (
 	"bytes"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 
@@ -71,10 +72,16 @@ func (p *PolicyFile) Validate() error {
 	if len(p.Policies) == 0 {
 		return fmt.Errorf("at least one policy rule is required")
 	}
+	seenSubjects := make(map[string]struct{}, len(p.Policies))
 	for i, rule := range p.Policies {
-		if strings.TrimSpace(rule.Subject) == "" {
+		subj := strings.TrimSpace(rule.Subject)
+		if subj == "" {
 			return fmt.Errorf("policies[%d]: subject is required", i)
 		}
+		if _, dup := seenSubjects[subj]; dup {
+			return fmt.Errorf("policies: duplicate subject %q", subj)
+		}
+		seenSubjects[subj] = struct{}{}
 		if len(rule.Capabilities) == 0 {
 			return fmt.Errorf("policies[%d]: capabilities are required", i)
 		}
@@ -97,6 +104,8 @@ type AuthzDecision struct {
 }
 
 // Authorize checks whether claims may resolve capability. Fail closed.
+// Capability identifiers are case-sensitive exact matches after TrimSpace.
+// Repo comparison uses normalizeRepoIdentity (scheme+host lowercased; path case preserved).
 func (p *PolicyFile) Authorize(claims Claims, capability string) AuthzDecision {
 	capability = strings.TrimSpace(capability)
 	dec := AuthzDecision{Subject: claims.Subject, Capability: capability}
@@ -111,7 +120,7 @@ func (p *PolicyFile) Authorize(claims Claims, capability string) AuthzDecision {
 
 	var matched *PolicyRule
 	for i := range p.Policies {
-		if p.Policies[i].Subject == claims.Subject {
+		if strings.TrimSpace(p.Policies[i].Subject) == claims.Subject {
 			matched = &p.Policies[i]
 			break
 		}
@@ -120,7 +129,7 @@ func (p *PolicyFile) Authorize(claims Claims, capability string) AuthzDecision {
 		dec.Reason = "subject not authorized"
 		return dec
 	}
-	if !containsFold(matched.Capabilities, capability) {
+	if !containsExact(matched.Capabilities, capability) {
 		dec.Reason = "capability not authorized for subject"
 		return dec
 	}
@@ -129,7 +138,17 @@ func (p *PolicyFile) Authorize(claims Claims, capability string) AuthzDecision {
 			dec.Reason = "repo_urls required but absent (complete repo set unknown)"
 			return dec
 		}
-		if !sameStringSet(normalizeRepos(matched.Repositories), normalizeRepos(claims.RepoURLs)) {
+		allowed, err := normalizeRepoSet(matched.Repositories)
+		if err != nil {
+			dec.Reason = "policy repositories invalid"
+			return dec
+		}
+		claimed, err := normalizeRepoSet(claims.RepoURLs)
+		if err != nil {
+			dec.Reason = "token repo_urls invalid or malformed"
+			return dec
+		}
+		if !sameStringSet(allowed, claimed) {
 			dec.Reason = "repository set not authorized"
 			return dec
 		}
@@ -139,43 +158,113 @@ func (p *PolicyFile) Authorize(claims Claims, capability string) AuthzDecision {
 	return dec
 }
 
-func containsFold(list []string, want string) bool {
+func containsExact(list []string, want string) bool {
+	want = strings.TrimSpace(want)
 	for _, v := range list {
-		if strings.EqualFold(strings.TrimSpace(v), want) {
+		if strings.TrimSpace(v) == want {
 			return true
 		}
 	}
 	return false
 }
 
-func normalizeRepos(in []string) []string {
-	out := make([]string, 0, len(in))
-	seen := map[string]struct{}{}
-	for _, r := range in {
-		r = strings.ToLower(strings.TrimSpace(r))
-		r = strings.TrimSuffix(r, ".git")
-		if r == "" {
+func normalizeRepoSet(repos []string) (map[string]struct{}, error) {
+	out := make(map[string]struct{}, len(repos))
+	for _, r := range repos {
+		n, err := normalizeRepoIdentity(r)
+		if err != nil {
+			return nil, err
+		}
+		if n == "" {
 			continue
 		}
-		if _, ok := seen[r]; ok {
+		out[n] = struct{}{}
+	}
+	if len(out) == 0 {
+		return nil, fmt.Errorf("empty repo set after normalization")
+	}
+	return out, nil
+}
+
+// NormalizeRepoIdentity canonicalizes a repo URL for policy comparison and logging.
+// With a URL scheme: lowercase scheme and hostname only; preserve path case; trim one
+// trailing ".git" on the path; strip userinfo, query, and fragment.
+// Opaque "host/path" forms: lowercase the host segment only; preserve path case.
+func NormalizeRepoIdentity(s string) (string, error) {
+	return normalizeRepoIdentity(s)
+}
+
+// SanitizeRepos returns canonical repo identities for logging (no userinfo/query/fragment).
+func SanitizeRepos(repos []string) []string {
+	return sanitizeRepos(repos)
+}
+
+func normalizeRepoIdentity(s string) (string, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return "", fmt.Errorf("empty repo identity")
+	}
+	if strings.Contains(s, "://") {
+		u, err := url.Parse(s)
+		if err != nil {
+			return "", fmt.Errorf("parse repo URL: %w", err)
+		}
+		host := strings.ToLower(u.Hostname())
+		if host == "" {
+			return "", fmt.Errorf("repo URL missing host")
+		}
+		port := u.Port()
+		if port != "" {
+			host = host + ":" + port
+		}
+		path := u.EscapedPath()
+		if path == "" {
+			path = u.Path
+		}
+		path = strings.TrimSuffix(path, ".git")
+		path = strings.TrimSuffix(path, "/")
+		scheme := strings.ToLower(u.Scheme)
+		if path == "" || path == "/" {
+			return scheme + "://" + host, nil
+		}
+		if !strings.HasPrefix(path, "/") {
+			path = "/" + path
+		}
+		return scheme + "://" + host + path, nil
+	}
+
+	// Opaque host/path (no scheme): lowercase host segment only.
+	s = strings.TrimSuffix(s, ".git")
+	s = strings.TrimSuffix(s, "/")
+	slash := strings.IndexByte(s, '/')
+	if slash < 0 {
+		return strings.ToLower(s), nil
+	}
+	host := strings.ToLower(s[:slash])
+	path := s[slash:]
+	return host + path, nil
+}
+
+// sanitizeRepos returns canonical repo identities for logging (no userinfo/query/fragment).
+func sanitizeRepos(repos []string) []string {
+	out := make([]string, 0, len(repos))
+	for _, r := range repos {
+		n, err := normalizeRepoIdentity(r)
+		if err != nil || n == "" {
+			out = append(out, "(invalid-repo)")
 			continue
 		}
-		seen[r] = struct{}{}
-		out = append(out, r)
+		out = append(out, n)
 	}
 	return out
 }
 
-func sameStringSet(a, b []string) bool {
+func sameStringSet(a, b map[string]struct{}) bool {
 	if len(a) != len(b) {
 		return false
 	}
-	m := map[string]struct{}{}
-	for _, v := range a {
-		m[v] = struct{}{}
-	}
-	for _, v := range b {
-		if _, ok := m[v]; !ok {
+	for k := range a {
+		if _, ok := b[k]; !ok {
 			return false
 		}
 	}

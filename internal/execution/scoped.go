@@ -63,7 +63,10 @@ func (r *Runner) Run(ctx context.Context, cfg *binding.Config, capabilityNames [
 	if base == nil {
 		base = os.Environ()
 	}
-	childEnv := binding.MergeEnv(base, results)
+	childEnv, err := binding.MergeEnv(base, results)
+	if err != nil {
+		return nil, err
+	}
 	if omit := childEnvOmitKeys(r.Registry, results); len(omit) > 0 {
 		childEnv = stripEnvKeys(childEnv, omit...)
 	}

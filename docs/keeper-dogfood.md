@@ -76,6 +76,7 @@ keeper:
 
 - Handles only: values must start with `keeper://`.
 - v0.1 resolves the **password** field of the record (Commander `--unmask` / `clipboard-copy --output stdout`, with JSON fallback for `secret` / `credential` fields).
+- The reference adapter runs `keeper` with a deliberate environment (PATH/HOME/USER/TMPDIR/XDG_/LC_ plus `KEEPER_*`), 1 MiB stdout/stderr caps, and context cancellation. Hard failures (size limit, cancel) do not fall through to the JSON path. Errors never include raw CLI stderr.
 
 ## Override binary
 

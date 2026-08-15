@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/ksteffe/pade/internal/binding"
 	"github.com/ksteffe/pade/internal/broker"
@@ -27,10 +28,14 @@ func main() {
 				`proxy asserts that a trusted upstream (Cloud Run, ingress, load balancer, etc.) terminates TLS `+
 				`and that this plaintext listener is reachable only inside that deployment boundary. `+
 				`PADE does not verify the proxy. Incompatible with -tls-cert/-tls-key.`)
+		resolveTimeout = flag.Duration("resolve-timeout", 25*time.Second,
+			"maximum time for a single /v1/resolve after accepting the request (default 25s, under HTTP write timeout)")
+		maxConcurrent = flag.Int("max-concurrent-resolves", 32,
+			"maximum in-flight /v1/resolve handlers; excess requests get 503 busy (no queue)")
 	)
 	flag.Parse()
 	if *policy == "" || *bindings == "" {
-		fmt.Fprintln(os.Stderr, "usage: pade-broker -policy FILE -bindings FILE [-listen ADDR] [-tls-cert FILE -tls-key FILE | -tls-termination=proxy]")
+		fmt.Fprintln(os.Stderr, "usage: pade-broker -policy FILE -bindings FILE [-listen ADDR] [-tls-cert FILE -tls-key FILE | -tls-termination=proxy] [-resolve-timeout DURATION] [-max-concurrent-resolves N]")
 		os.Exit(2)
 	}
 
@@ -70,9 +75,11 @@ func main() {
 			Audience: pol.OIDC.Audience,
 			JWKSURL:  jwksURL,
 		},
-		Registry: providerset.Broker(),
-		Bindings: bindCfg,
-		Logger:   log.New(os.Stderr, "pade-broker: ", log.LstdFlags),
+		Registry:       providerset.Broker(),
+		Bindings:       bindCfg,
+		Logger:         log.New(os.Stderr, "pade-broker: ", log.LstdFlags),
+		ResolveTimeout: *resolveTimeout,
+		MaxConcurrent:  *maxConcurrent,
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

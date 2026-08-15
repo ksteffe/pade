@@ -9,8 +9,10 @@ import (
 	"os/exec"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/ksteffe/pade/internal/binding"
+	"github.com/ksteffe/pade/internal/binding/cliproc"
 )
 
 const refPrefix = "keeper://"
@@ -171,23 +173,50 @@ func (p *Provider) readRef(ctx context.Context, ref string) (string, error) {
 	// single JSON fallback for records that store the PAT outside "password".
 	if val, err := p.runPasswordCmd(ctx, cmdFn, bin, ref, "get", "--format=password", "--unmask", uid); err == nil {
 		return val, nil
+	} else if shouldNotFallback(ctx, err) {
+		return "", err
 	}
 	if val, err := p.readPasswordFromJSON(ctx, cmdFn, bin, ref, uid); err == nil {
 		return val, nil
+	} else if shouldNotFallback(ctx, err) {
+		return "", err
 	}
 	return "", fmt.Errorf("keeper returned empty password for ref %s (try get --format=password --unmask / password|secret|credential field)", ref)
 }
 
+func shouldNotFallback(ctx context.Context, err error) bool {
+	if err == nil {
+		return false
+	}
+	if ctx.Err() != nil {
+		return true
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "exceeded size limit") || strings.Contains(msg, "not found")
+}
+
 func (p *Provider) runPasswordCmd(ctx context.Context, cmdFn func(context.Context, string, ...string) *exec.Cmd, bin, ref string, args ...string) (string, error) {
 	cmd := cmdFn(ctx, bin, args...)
-	var stdout, stderr bytes.Buffer
+	cmd.Env = cliproc.Environ(nil, []string{"KEEPER_"})
+	if cmd.WaitDelay == 0 {
+		cmd.WaitDelay = 5 * time.Second
+	}
+	var stdout, stderr cliproc.LimitedBuffer
+	stdout.Limit = cliproc.MaxOutput
+	stderr.Limit = cliproc.MaxOutput
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	// Avoid inheriting a TTY so Commander does not mix interactive prompts into stdout.
 	cmd.Stdin = nil
 	if err := cmd.Run(); err != nil {
+		if stdout.Exceed || stderr.Exceed {
+			return "", fmt.Errorf("keeper %s output exceeded size limit for ref %s", args[0], ref)
+		}
 		// Never include stdout/stderr bodies — they may contain secret material.
 		return "", fmt.Errorf("keeper %s failed for ref %s", args[0], ref)
+	}
+	if stdout.Exceed || stderr.Exceed {
+		return "", fmt.Errorf("keeper %s output exceeded size limit for ref %s", args[0], ref)
 	}
 	val := passwordFromCLIOutput(stdout.String())
 	if val == "" {
@@ -198,12 +227,24 @@ func (p *Provider) runPasswordCmd(ctx context.Context, cmdFn func(context.Contex
 
 func (p *Provider) readPasswordFromJSON(ctx context.Context, cmdFn func(context.Context, string, ...string) *exec.Cmd, bin, ref, uid string) (string, error) {
 	cmd := cmdFn(ctx, bin, "get", "--format=json", "--unmask", uid)
-	var stdout, stderr bytes.Buffer
+	cmd.Env = cliproc.Environ(nil, []string{"KEEPER_"})
+	if cmd.WaitDelay == 0 {
+		cmd.WaitDelay = 5 * time.Second
+	}
+	var stdout, stderr cliproc.LimitedBuffer
+	stdout.Limit = cliproc.MaxOutput
+	stderr.Limit = cliproc.MaxOutput
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	cmd.Stdin = nil
 	if err := cmd.Run(); err != nil {
+		if stdout.Exceed || stderr.Exceed {
+			return "", fmt.Errorf("keeper get --format=json output exceeded size limit for ref %s", ref)
+		}
 		return "", fmt.Errorf("keeper get --format=json failed for ref %s", ref)
+	}
+	if stdout.Exceed || stderr.Exceed {
+		return "", fmt.Errorf("keeper get --format=json output exceeded size limit for ref %s", ref)
 	}
 	val, err := secretFromKeeperJSON(stdout.Bytes())
 	if err != nil {

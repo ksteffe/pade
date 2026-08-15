@@ -1,16 +1,23 @@
 package broker
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ksteffe/pade/internal/binding"
+)
+
+const (
+	defaultResolveTimeout = 25 * time.Second
+	defaultMaxConcurrent  = 32
+	resolveBodyMaxBytes   = 1 << 16
 )
 
 // Server is the minimal PADE capability broker HTTP API.
@@ -21,6 +28,15 @@ type Server struct {
 	Bindings *binding.Config
 	Logger   *log.Logger
 	Now      func() time.Time
+
+	// ResolveTimeout bounds materialization after authn/authz. Zero uses 25s.
+	ResolveTimeout time.Duration
+	// MaxConcurrent limits in-flight /v1/resolve handlers. Zero uses 32.
+	// At capacity the broker returns 503 busy (no queue).
+	MaxConcurrent int
+
+	resolveSemOnce sync.Once
+	resolveSem     chan struct{}
 }
 
 type resolveRequest struct {
@@ -46,23 +62,64 @@ func (s *Server) Handler() http.Handler {
 	return mux
 }
 
+func (s *Server) resolveTimeout() time.Duration {
+	if s.ResolveTimeout > 0 {
+		return s.ResolveTimeout
+	}
+	return defaultResolveTimeout
+}
+
+func (s *Server) maxConcurrent() int {
+	if s.MaxConcurrent > 0 {
+		return s.MaxConcurrent
+	}
+	return defaultMaxConcurrent
+}
+
+func (s *Server) acquireResolveSlot() bool {
+	s.resolveSemOnce.Do(func() {
+		s.resolveSem = make(chan struct{}, s.maxConcurrent())
+	})
+	select {
+	case s.resolveSem <- struct{}{}:
+		return true
+	default:
+		return false
+	}
+}
+
+func (s *Server) releaseResolveSlot() {
+	select {
+	case <-s.resolveSem:
+	default:
+	}
+}
+
 func (s *Server) handleResolve(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		s.writeError(w, http.StatusMethodNotAllowed, "method_not_allowed")
 		return
 	}
-	raw, err := io.ReadAll(io.LimitReader(r.Body, 1<<16))
-	if err != nil {
-		s.writeError(w, http.StatusBadRequest, "invalid_body")
-		return
-	}
+
+	r.Body = http.MaxBytesReader(w, r.Body, resolveBodyMaxBytes)
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
 	var req resolveRequest
-	jsonDec := json.NewDecoder(bytes.NewReader(raw))
-	jsonDec.DisallowUnknownFields()
-	if err := jsonDec.Decode(&req); err != nil {
+	if err := dec.Decode(&req); err != nil {
+		var maxErr *http.MaxBytesError
+		if errors.As(err, &maxErr) {
+			s.writeError(w, http.StatusRequestEntityTooLarge, "body_too_large")
+			return
+		}
 		s.writeError(w, http.StatusBadRequest, "invalid_json")
 		return
 	}
+	// Reject trailing JSON (second value or garbage after the first object).
+	if err := dec.Decode(&struct{}{}); err != io.EOF {
+		s.writeError(w, http.StatusBadRequest, "invalid_json")
+		return
+	}
+
 	capability := strings.TrimSpace(req.Capability)
 	authzHeader := r.Header.Get("Authorization")
 	token, ok := bearerToken(authzHeader)
@@ -72,16 +129,26 @@ func (s *Server) handleResolve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims, err := s.Verifier.Verify(r.Context(), token)
+	if !s.acquireResolveSlot() {
+		s.logf("decision=deny capability=%q reason=busy", capability)
+		s.writeError(w, http.StatusServiceUnavailable, "busy")
+		return
+	}
+	defer s.releaseResolveSlot()
+
+	ctx, cancel := context.WithTimeout(r.Context(), s.resolveTimeout())
+	defer cancel()
+
+	claims, err := s.Verifier.Verify(ctx, token)
 	if err != nil {
 		s.logf("decision=deny capability=%q reason=verify_failed", capability)
 		s.writeError(w, http.StatusUnauthorized, "token_invalid")
 		return
 	}
 
-	dec := s.Policy.Authorize(claims, capability)
-	if !dec.Allowed {
-		s.logf("decision=deny subject=%q capability=%q reason=%s repos=%v", claims.Subject, capability, dec.Reason, claims.RepoURLs)
+	decAuthz := s.Policy.Authorize(claims, capability)
+	if !decAuthz.Allowed {
+		s.logf("decision=deny subject=%q capability=%q reason=%s repos=%v", claims.Subject, capability, decAuthz.Reason, sanitizeRepos(claims.RepoURLs))
 		s.writeError(w, http.StatusForbidden, "not_authorized")
 		return
 	}
@@ -92,8 +159,13 @@ func (s *Server) handleResolve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	results, err := binding.ResolveMaterials(r.Context(), s.Registry, s.Bindings, []string{capability})
+	results, err := binding.ResolveMaterials(ctx, s.Registry, s.Bindings, []string{capability})
 	if err != nil {
+		if ctx.Err() != nil {
+			s.logf("decision=deny subject=%q capability=%q reason=resolve_timeout", claims.Subject, capability)
+			s.writeError(w, http.StatusGatewayTimeout, "resolve_timeout")
+			return
+		}
 		s.logf("decision=deny subject=%q capability=%q reason=resolve_failed", claims.Subject, capability)
 		s.writeError(w, http.StatusBadGateway, "resolve_failed")
 		return
@@ -108,7 +180,7 @@ func (s *Server) handleResolve(w http.ResponseWriter, r *http.Request) {
 	for k, v := range results[0].Material.Env {
 		env[k] = v
 	}
-	s.logf("decision=allow subject=%q capability=%q cloud_agent=%q repos=%v", claims.Subject, capability, claims.CloudAgentID, claims.RepoURLs)
+	s.logf("decision=allow subject=%q capability=%q cloud_agent=%q repos=%v", claims.Subject, capability, claims.CloudAgentID, sanitizeRepos(claims.RepoURLs))
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Pragma", "no-cache")

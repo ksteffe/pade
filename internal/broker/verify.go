@@ -169,9 +169,12 @@ func (v *Verifier) refreshKeys(ctx context.Context) error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("jwks fetch http %d", resp.StatusCode)
 	}
-	raw, err := io.ReadAll(io.LimitReader(resp.Body, jwksMaxBytes))
+	raw, err := io.ReadAll(io.LimitReader(resp.Body, jwksMaxBytes+1))
 	if err != nil {
 		return fmt.Errorf("jwks read failed")
+	}
+	if len(raw) > jwksMaxBytes {
+		return fmt.Errorf("jwks response exceeds size limit")
 	}
 	keys, err := parseJWKS(raw)
 	if err != nil {
