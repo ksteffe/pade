@@ -770,6 +770,21 @@ This convention supports the design principle:
 
 Standardize portable intent. Leave runtimes, credential managers, brokers, and ingress systems as pluggable conforming implementations. See [docs/manifest-conventions.md](docs/manifest-conventions.md) and [spec/intent.md](spec/intent.md).
 
+## 38. Implementation experiments may narrow after proving a seam
+
+PADE uses implementation experiments to discover interoperability seams. Mechanisms that prove unnecessary or create disproportionate security burden may intentionally be narrowed or removed after they have served that purpose. Having functionality replaced by stronger standards or mature implementations is considered success.
+
+Concrete example — external provider subprocess (`provider: exec`):
+
+| Stage | Outcome |
+|-------|---------|
+| Experiment | Subprocess adapter to prove independently packaged providers |
+| Lesson | A generic semantic provider contract works (GitHub App and Google SA OAuth on one seam) |
+| Security finding | Development-side arbitrary execution is an unnecessary trust boundary next to repository state |
+| Result | Exec retained only as a **broker-side** reference adapter; Consumer/development bindings cannot select it |
+
+Portable `DevelopmentSession` declarations never needed to name executables. The semantic claim (“authorized capability → Material”) remains; the process adapter is optional scaffolding.
+
 ### Non-normative note: adjacent CNCF discussion
 
 This direction was influenced methodologically by adjacent CNCF discussion of project-agnostic declarative specifications for application integration dependencies ([cncf/toc#1797](https://github.com/cncf/toc/issues/1797)): declare requirements independently of implementations, prefer existing specifications when possible, keep formats programmatically consumable, and let conforming systems choose how requirements are satisfied.

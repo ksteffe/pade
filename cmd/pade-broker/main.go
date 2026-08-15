@@ -10,13 +10,8 @@ import (
 	"syscall"
 
 	"github.com/ksteffe/pade/internal/binding"
-	envprovider "github.com/ksteffe/pade/internal/binding/env"
-	execprovider "github.com/ksteffe/pade/internal/binding/exec"
-	keeperprovider "github.com/ksteffe/pade/internal/binding/keeper"
-	keepersmprovider "github.com/ksteffe/pade/internal/binding/keepersm"
-	onepasswordprovider "github.com/ksteffe/pade/internal/binding/onepassword"
-	vaultprovider "github.com/ksteffe/pade/internal/binding/vault"
 	"github.com/ksteffe/pade/internal/broker"
+	"github.com/ksteffe/pade/internal/providerset"
 )
 
 func main() {
@@ -75,14 +70,7 @@ func main() {
 			Audience: pol.OIDC.Audience,
 			JWKSURL:  jwksURL,
 		},
-		Registry: binding.NewRegistry(
-			envprovider.New(),
-			vaultprovider.New(),
-			onepasswordprovider.New(),
-			keeperprovider.New(),
-			keepersmprovider.New(),
-			execprovider.New(),
-		),
+		Registry: providerset.Broker(),
 		Bindings: bindCfg,
 		Logger:   log.New(os.Stderr, "pade-broker: ", log.LstdFlags),
 	}

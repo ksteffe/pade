@@ -1,5 +1,10 @@
-// Broker dogfood helper: starts JWKS + pade-broker with fake KSM, prints a signed JWT, exits.
-// Invoked by scripts/broker-dogfood.sh. Not a production tool.
+// Broker dogfood helper: starts JWKS + pade-broker, writes agent bindings + JWT, blocks.
+// Invoked by scripts/broker-dogfood.sh and scripts/exec-provider-dogfood.sh.
+// Not a production tool.
+//
+// If work/broker-bindings.yaml already exists, it is used (exec-provider dogfood).
+// Otherwise a KSM demo binding is written. Policy is always generated to match
+// this process's JWKS listener and the binding capability set.
 package main
 
 import (
@@ -14,12 +19,13 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/ksteffe/pade/internal/binding"
-	keepersm "github.com/ksteffe/pade/internal/binding/keepersm"
 	"github.com/ksteffe/pade/internal/broker"
+	"github.com/ksteffe/pade/internal/providerset"
 )
 
 func main() {
@@ -50,8 +56,28 @@ func main() {
 	issuer := "https://api.cursor.com"
 	policyPath := filepath.Join(work, "broker-policy.yaml")
 	bindingsPath := filepath.Join(work, "broker-bindings.yaml")
-	must(os.WriteFile(policyPath, []byte(fmt.Sprintf(`
+
+	if _, err := os.Stat(bindingsPath); err != nil {
+		must(os.WriteFile(bindingsPath, []byte(`
 version: "0.1"
+capabilities:
+  github.user.read:
+    provider: keeper-secrets-manager
+    keeperSecretsManager:
+      refs:
+        GITHUB_TOKEN: "keeper://pade-demo-github/field/password"
+`), 0o600))
+	}
+	bindCfg, err := binding.Load(bindingsPath)
+	must(err)
+
+	caps := make([]string, 0, len(bindCfg.Capabilities))
+	for name := range bindCfg.Capabilities {
+		caps = append(caps, name)
+	}
+	sort.Strings(caps)
+
+	policy := fmt.Sprintf(`version: "0.1"
 oidc:
   issuer: %s
   audience: %s
@@ -62,21 +88,13 @@ policies:
     repositories:
       - github.com/ksteffe/pade
     capabilities:
-      - github.user.read
-`, issuer, audience, jwksURL+"/keys")), 0o600))
-	must(os.WriteFile(bindingsPath, []byte(`
-version: "0.1"
-capabilities:
-  github.user.read:
-    provider: keeper-secrets-manager
-    keeperSecretsManager:
-      refs:
-        GITHUB_TOKEN: "keeper://pade-demo-github/field/password"
-`), 0o600))
+`, issuer, audience, jwksURL+"/keys")
+	for _, c := range caps {
+		policy += fmt.Sprintf("      - %s\n", c)
+	}
+	must(os.WriteFile(policyPath, []byte(policy), 0o600))
 
 	pol, err := broker.LoadPolicy(policyPath)
-	must(err)
-	bindCfg, err := binding.Load(bindingsPath)
 	must(err)
 
 	brokerLn, err := net.Listen("tcp", "127.0.0.1:0")
@@ -89,7 +107,7 @@ capabilities:
 			Audience: audience,
 			JWKSURL:  jwksURL + "/keys",
 		},
-		Registry: binding.NewRegistry(keepersm.New()),
+		Registry: providerset.Broker(),
 		Bindings: bindCfg,
 	}
 	go http.Serve(brokerLn, srv.Handler())
@@ -105,16 +123,17 @@ capabilities:
 	signed, err := tok.SignedString(key)
 	must(err)
 
-	agentBindings := filepath.Join(work, "agent-bindings.yaml")
-	must(os.WriteFile(agentBindings, []byte(fmt.Sprintf(`
-version: "0.1"
-capabilities:
-  github.user.read:
+	agent := "version: \"0.1\"\ncapabilities:\n"
+	for _, c := range caps {
+		agent += fmt.Sprintf(`  %s:
     provider: broker
     broker:
       endpoint: %s
       audience: %s
-`, brokerURL, audience)), 0o600))
+`, c, brokerURL, audience)
+	}
+	agentBindings := filepath.Join(work, "agent-bindings.yaml")
+	must(os.WriteFile(agentBindings, []byte(agent), 0o600))
 
 	out := filepath.Join(work, "dogfood.env")
 	must(os.WriteFile(out, []byte(fmt.Sprintf("BROKER_URL=%s\nPADE_BROKER_FAKE_JWT=%s\nPADE_BINDINGS=%s\n", brokerURL, signed, agentBindings)), 0o600))

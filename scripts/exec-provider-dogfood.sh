@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Dogfood provider: exec (B–C), GitHub App (D–E), Google Analytics (F), two-provider seam (G).
+# Dogfood broker-side provider: exec (B–C), GitHub App (D–E), Google Analytics (F),
+# and two-provider same-seam (G). Consumer uses provider: broker only; exec runs
+# on the broker host via operator-owned server bindings.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -19,11 +21,47 @@ STUB_OUT="${ROOT}/bin/pade-provider-stub"
 GH_OUT="${ROOT}/bin/pade-provider-github"
 GA_OUT="${ROOT}/bin/pade-provider-google-analytics"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/pade-exec-provider.XXXXXX")"
-trap 'rm -rf "$TMP"' EXIT
+HELPER_LOG="$TMP/helper.log"
+HELPER_PID=""
+
+cleanup() {
+  if [[ -n "${HELPER_PID:-}" ]] && kill -0 "$HELPER_PID" 2>/dev/null; then
+    kill "$HELPER_PID" 2>/dev/null || true
+    wait "$HELPER_PID" 2>/dev/null || true
+  fi
+  rm -rf "$TMP"
+}
+trap cleanup EXIT
 mkdir -p "${ROOT}/bin"
 
+start_broker() {
+  # Expects $TMP/broker-bindings.yaml already written with provider: exec.
+  echo "=== starting broker with operator-side exec bindings ==="
+  "$GO" run "$ROOT/scripts/broker-dogfood-helper" "$TMP" >"$HELPER_LOG" 2>&1 &
+  HELPER_PID=$!
+
+  ENV_FILE=""
+  for _ in $(seq 1 50); do
+    if [[ -f "$TMP/dogfood.env" ]]; then
+      ENV_FILE="$TMP/dogfood.env"
+      break
+    fi
+    if ! kill -0 "$HELPER_PID" 2>/dev/null; then
+      cat "$HELPER_LOG" >&2 || true
+      die "broker dogfood helper exited early"
+    fi
+    sleep 0.1
+  done
+  [[ -n "$ENV_FILE" ]] || die "timed out waiting for dogfood.env"
+  # shellcheck disable=SC1090
+  source "$ENV_FILE"
+  [[ -n "${PADE_BROKER_FAKE_JWT:-}" ]] || die "PADE_BROKER_FAKE_JWT missing"
+  [[ -n "${PADE_BINDINGS:-}" ]] || die "PADE_BINDINGS missing"
+  export PADE_BROKER_FAKE_JWT PADE_BINDINGS
+}
+
 run_two_provider_seam() {
-  echo "=== Milestone G: two-provider same-seam architectural test ==="
+  echo "=== Milestone G: two-provider same-seam architectural test (broker-side exec) ==="
   echo "=== github + google-analytics unit tests ==="
   "$GO" test ./examples/providers/github/ ./examples/providers/google-analytics/ -count=1
   "$GO" build -o "${GH_OUT}" ./examples/providers/github
@@ -43,7 +81,7 @@ spec:
       access: read
 EOF
 
-  cat >"${TMP}/bindings.yaml" <<EOF
+  cat >"${TMP}/broker-bindings.yaml" <<EOF
 version: "0.1"
 capabilities:
   github.repo.read:
@@ -68,13 +106,18 @@ capabilities:
         propertyId: properties/000000000
 EOF
 
+  start_broker
+
   echo "=== two-provider: validate ==="
   "$PADE" validate -f "${TMP}/pade.yaml"
 
-  echo "=== two-provider: capabilities (both on provider: exec) ==="
-  out="$("$PADE" capabilities -f "${TMP}/pade.yaml" --bindings "${TMP}/bindings.yaml")"
+  echo "=== two-provider: capabilities (Consumer sees provider: broker only) ==="
+  out="$("$PADE" capabilities -f "${TMP}/pade.yaml" --bindings "$PADE_BINDINGS")"
   echo "$out"
-  echo "$out" | grep -q 'provider: exec' || die "expected provider: exec"
+  echo "$out" | grep -q 'provider: broker' || die "expected provider: broker on Consumer"
+  if echo "$out" | grep -q 'provider: exec'; then
+    die "Consumer must not expose provider: exec"
+  fi
   echo "$out" | grep -q 'github.repo.read' || die "missing github.repo.read"
   echo "$out" | grep -q 'google-analytics.read' || die "missing google-analytics.read"
 
@@ -82,17 +125,17 @@ EOF
     "${ROOT}/examples/demo-project/scripts/github-repo-meta" \
     "${ROOT}/examples/demo-project/scripts/ga-property-meta"
 
-  echo "=== two-provider: resolve github.repo.read ==="
-  "$PADE" exec -f "${TMP}/pade.yaml" --bindings "${TMP}/bindings.yaml" \
+  echo "=== two-provider: resolve github.repo.read via broker ==="
+  "$PADE" exec -f "${TMP}/pade.yaml" --bindings "$PADE_BINDINGS" \
     --capability github.repo.read --quiet -- \
     env GITHUB_REPOSITORY=ksteffe/pade "${ROOT}/examples/demo-project/scripts/github-repo-meta"
 
-  echo "=== two-provider: resolve google-analytics.read ==="
-  "$PADE" exec -f "${TMP}/pade.yaml" --bindings "${TMP}/bindings.yaml" \
+  echo "=== two-provider: resolve google-analytics.read via broker ==="
+  "$PADE" exec -f "${TMP}/pade.yaml" --bindings "$PADE_BINDINGS" \
     --capability google-analytics.read --quiet -- \
     "${ROOT}/examples/demo-project/scripts/ga-property-meta"
 
-  echo "ok: two-provider same-seam dogfood (no vendor fields in PADE core)"
+  echo "ok: two-provider same-seam dogfood (broker-side exec; no vendor fields in PADE core)"
 }
 
 case "$MODE" in
@@ -154,7 +197,7 @@ spec:
       access: use
 EOF
 
-cat >"${TMP}/bindings.yaml" <<EOF
+cat >"${TMP}/broker-bindings.yaml" <<EOF
 version: "0.1"
 capabilities:
   ${CAP}:
@@ -166,14 +209,27 @@ capabilities:
 ${CONFIG_YAML}
 EOF
 
+start_broker
+
 echo "=== exec provider dogfood (${MODE}): validate ==="
 "$PADE" validate -f "${TMP}/pade.yaml"
 
-echo "=== exec provider dogfood (${MODE}): capabilities ==="
-"$PADE" capabilities -f "${TMP}/pade.yaml" --bindings "${TMP}/bindings.yaml"
+echo "=== exec provider dogfood (${MODE}): capabilities (broker; no local exec) ==="
+caps_out="$("$PADE" capabilities -f "${TMP}/pade.yaml" --bindings "$PADE_BINDINGS")"
+echo "$caps_out"
+echo "$caps_out" | grep -q 'provider: broker' || die "expected provider: broker"
+if echo "$caps_out" | grep -q 'provider: exec'; then
+  die "Consumer must not expose provider: exec"
+fi
 
-echo "=== exec provider dogfood (${MODE}): exec (assert env; do not print secret) ==="
-"$PADE" exec -f "${TMP}/pade.yaml" --bindings "${TMP}/bindings.yaml" \
+echo "=== assert development-side exec bindings are rejected ==="
+if "$PADE" capabilities -f "${TMP}/pade.yaml" --bindings "${TMP}/broker-bindings.yaml" >/dev/null 2>"$TMP/reject.err"; then
+  die "expected Consumer to reject provider: exec bindings"
+fi
+grep -q 'broker-side only' "$TMP/reject.err" || die "expected broker-side only error, got: $(cat "$TMP/reject.err")"
+
+echo "=== exec provider dogfood (${MODE}): exec via broker (assert env; do not print secret) ==="
+"$PADE" exec -f "${TMP}/pade.yaml" --bindings "$PADE_BINDINGS" \
   --capability "${CAP}" --quiet -- \
   /bin/sh -c "test \"\$${CHECK_ENV}\" = '${EXPECT}'"
 
@@ -181,7 +237,7 @@ if [[ "$MODE" == "github" ]]; then
   REPO_META="${ROOT}/examples/demo-project/scripts/github-repo-meta"
   chmod +x "$REPO_META"
   echo "=== exec provider dogfood (github): repo-scoped validation (Milestone E; fake skips network) ==="
-  "$PADE" exec -f "${TMP}/pade.yaml" --bindings "${TMP}/bindings.yaml" \
+  "$PADE" exec -f "${TMP}/pade.yaml" --bindings "$PADE_BINDINGS" \
     --capability "${CAP}" --quiet -- \
     env GITHUB_REPOSITORY=ksteffe/pade "$REPO_META"
 fi
@@ -190,9 +246,9 @@ if [[ "$MODE" == "ga" ]]; then
   GA_META="${ROOT}/examples/demo-project/scripts/ga-property-meta"
   chmod +x "$GA_META"
   echo "=== exec provider dogfood (ga): property validation (Milestone F; fake skips network) ==="
-  "$PADE" exec -f "${TMP}/pade.yaml" --bindings "${TMP}/bindings.yaml" \
+  "$PADE" exec -f "${TMP}/pade.yaml" --bindings "$PADE_BINDINGS" \
     --capability "${CAP}" --quiet -- \
     "$GA_META"
 fi
 
-echo "ok: exec provider dogfood (${MODE})"
+echo "ok: exec provider dogfood (${MODE}) via broker-side exec"

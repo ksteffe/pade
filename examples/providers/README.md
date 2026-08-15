@@ -12,4 +12,4 @@ Prefer this `examples/providers/` layout over an `extensions/` name (avoids coll
 | [github/](github/) | First architectural test (GitHub App → installation token; fake mode for CI) |
 | [google-analytics/](google-analytics/) | Second structural test (service account → OAuth access token; fake mode for CI; not GA product support) |
 
-Bindings use `provider: exec` with opaque `exec.config`. Same-seam proof: `make dogfood-exec-provider-two`. See ROADMAP Milestones B–G.
+Bindings use **broker-side** `provider: exec` with opaque `exec.config`; the Consumer uses `provider: broker`. Same-seam proof: `make dogfood-exec-provider-two`. See ROADMAP Milestones B–G and [SECURITY.md](../../SECURITY.md) (exec is broker-only).

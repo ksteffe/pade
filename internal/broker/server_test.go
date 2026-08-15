@@ -6,10 +6,13 @@ import (
 	"crypto/rsa"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -18,6 +21,7 @@ import (
 	"github.com/ksteffe/pade/internal/binding"
 	keepersm "github.com/ksteffe/pade/internal/binding/keepersm"
 	"github.com/ksteffe/pade/internal/broker"
+	"github.com/ksteffe/pade/internal/providerset"
 )
 
 const (
@@ -268,4 +272,153 @@ func mustSign(t *testing.T, key *rsa.PrivateKey, kid string, claims jwt.MapClaim
 		t.Fatal(err)
 	}
 	return s
+}
+
+func TestResolveRejectsUnknownRequestFields(t *testing.T) {
+	t.Setenv("PADE_KSM_FAKE", "1")
+	key := mustKey(t)
+	jwks := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(jwksFor(key, "test-kid"))
+	}))
+	t.Cleanup(jwks.Close)
+
+	policy, err := broker.ParsePolicy([]byte(`
+version: "0.1"
+oidc:
+  issuer: https://api.cursor.com
+  audience: https://pade-broker.local
+  jwksURL: ` + jwks.URL + `
+policies:
+  - subject: "user:42"
+    requireRepoURLs: false
+    capabilities: ["github.user.read"]
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	bindings, err := binding.Parse([]byte(`
+version: "0.1"
+capabilities:
+  github.user.read:
+    provider: keeper-secrets-manager
+    keeperSecretsManager:
+      refs:
+        GITHUB_TOKEN: "keeper://pade-demo-github/field/password"
+`), "broker-bindings.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := &broker.Server{
+		Policy: policy,
+		Verifier: &broker.Verifier{
+			Issuer: testIssuer, Audience: testAudience, JWKSURL: jwks.URL, HTTPDo: jwks.Client().Do,
+		},
+		Registry: binding.NewRegistry(keepersm.New()),
+		Bindings: bindings,
+	}
+	hs := httptest.NewServer(srv.Handler())
+	t.Cleanup(hs.Close)
+
+	tok := mustSign(t, key, "test-kid", jwt.MapClaims{
+		"iss": testIssuer, "sub": testSubject, "aud": testAudience,
+		"iat": time.Now().Unix(), "exp": time.Now().Add(2 * time.Minute).Unix(),
+	})
+	body, _ := json.Marshal(map[string]interface{}{
+		"capability": "github.user.read",
+		"command":    []string{"/evil"},
+		"exec":       map[string]string{"path": "/evil"},
+	})
+	req, err := http.NewRequest(http.MethodPost, hs.URL+"/v1/resolve", bytes.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+tok)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		b, _ := io.ReadAll(resp.Body)
+		t.Fatalf("status=%d want 400 body=%s", resp.StatusCode, b)
+	}
+}
+
+func TestBrokerExecMaterialization(t *testing.T) {
+	dir := t.TempDir()
+	script := filepath.Join(dir, "provider.sh")
+	if err := os.WriteFile(script, []byte("#!/bin/sh\ncat >/dev/null\necho '{\"env\":{\"DEMO_TOKEN\":\"broker-exec-secret\"}}'\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	key := mustKey(t)
+	jwks := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(jwksFor(key, "test-kid"))
+	}))
+	t.Cleanup(jwks.Close)
+
+	policy, err := broker.ParsePolicy([]byte(`
+version: "0.1"
+oidc:
+  issuer: https://api.cursor.com
+  audience: https://pade-broker.local
+  jwksURL: ` + jwks.URL + `
+policies:
+  - subject: "user:42"
+    requireRepoURLs: false
+    capabilities: ["demo.derived"]
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	bindings, err := binding.Load(mustWrite(t, dir, "bb.yaml", fmt.Sprintf(`
+version: "0.1"
+capabilities:
+  demo.derived:
+    provider: exec
+    exec:
+      command: [%q]
+`, script)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := &broker.Server{
+		Policy: policy,
+		Verifier: &broker.Verifier{
+			Issuer: testIssuer, Audience: testAudience, JWKSURL: jwks.URL, HTTPDo: jwks.Client().Do,
+		},
+		Registry: providerset.Broker(),
+		Bindings: bindings,
+	}
+	hs := httptest.NewServer(srv.Handler())
+	t.Cleanup(hs.Close)
+
+	tok := mustSign(t, key, "test-kid", jwt.MapClaims{
+		"iss": testIssuer, "sub": testSubject, "aud": testAudience,
+		"iat": time.Now().Unix(), "exp": time.Now().Add(2 * time.Minute).Unix(),
+	})
+	resp := postResolve(t, hs.URL, tok, "demo.derived")
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		b, _ := io.ReadAll(resp.Body)
+		t.Fatalf("status=%d body=%s", resp.StatusCode, b)
+	}
+	var out struct {
+		Env map[string]string `json:"env"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		t.Fatal(err)
+	}
+	if out.Env["DEMO_TOKEN"] != "broker-exec-secret" {
+		t.Fatalf("%v", out.Env)
+	}
+}
+
+func mustWrite(t *testing.T, dir, name, contents string) string {
+	t.Helper()
+	path := filepath.Join(dir, name)
+	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return path
 }

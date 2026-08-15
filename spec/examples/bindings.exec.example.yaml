@@ -1,4 +1,5 @@
-# Example local/broker bindings for provider: exec (draft external provider contract).
+# Example broker-side bindings for provider: exec (draft external provider contract).
+# Consumer/development bindings must NOT use provider: exec — use provider: broker instead.
 # See docs/provider-contract.md. Command paths are host-local — not portable Intent.
 version: "0.1"
 
@@ -11,7 +12,7 @@ capabilities:
         tokenEnv: DEMO_TOKEN
         value: example-only-not-a-real-secret
 
-  # GitHub App reference provider (examples/providers/github).
+  # GitHub App reference provider (examples/providers/github) — broker host only.
   # Fake CI: PADE_PROVIDER_FAKE=1. Real: set appId/installationId/privateKeyPath
   # or GITHUB_APP_* env on the broker host — never put the private key in Intent.
   # github.repo.read:

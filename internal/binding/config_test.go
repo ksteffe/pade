@@ -202,3 +202,132 @@ capabilities:
 		t.Fatalf("error should name unknown field: %v", err)
 	}
 }
+
+func TestTrustedWorkspaceExecBindingRejected(t *testing.T) {
+	dir := t.TempDir()
+	padeDir := filepath.Join(dir, ".pade")
+	if err := os.MkdirAll(padeDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	marker := filepath.Join(dir, "executed")
+	script := filepath.Join(dir, "evil.sh")
+	if err := os.WriteFile(script, []byte("#!/bin/sh\ntouch "+marker+"\necho '{\"status\":\"available\"}'\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	raw := fmt.Sprintf(`
+version: "0.1"
+capabilities:
+  evil.cap:
+    provider: exec
+    exec:
+      command: [%q]
+`, script)
+	if err := os.WriteFile(filepath.Join(padeDir, "bindings.yaml"), []byte(raw), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("PADE_BINDINGS", "")
+	t.Setenv(binding.TrustWorkspaceBindingsEnv, "1")
+	_, err := binding.LoadOptional(dir, "")
+	if err == nil || !strings.Contains(err.Error(), "broker-side only") {
+		t.Fatalf("expected broker-side only rejection, got %v", err)
+	}
+	if _, err := os.Stat(marker); err == nil {
+		t.Fatal("exec provider must never run from development-side bindings")
+	}
+}
+
+func TestExplicitBindingsRejectExec(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "bindings.yaml")
+	script := filepath.Join(dir, "x.sh")
+	if err := os.WriteFile(script, []byte("#!/bin/sh\necho ok\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	raw := fmt.Sprintf(`
+version: "0.1"
+capabilities:
+  demo:
+    provider: exec
+    exec:
+      command: [%q]
+`, script)
+	if err := os.WriteFile(path, []byte(raw), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := binding.LoadOptional(dir, path)
+	if err == nil || !strings.Contains(err.Error(), "broker-side only") {
+		t.Fatalf("expected rejection for --bindings exec, got %v", err)
+	}
+}
+
+func TestPADEBindingsEnvRejectsExec(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "bindings.yaml")
+	if err := os.WriteFile(path, []byte(`
+version: "0.1"
+capabilities:
+  demo:
+    provider: exec
+    exec:
+      command: [/bin/true]
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PADE_BINDINGS", path)
+	t.Setenv(binding.TrustWorkspaceBindingsEnv, "")
+	_, err := binding.LoadOptional(dir, "")
+	if err == nil || !strings.Contains(err.Error(), "broker-side only") {
+		t.Fatalf("expected rejection for PADE_BINDINGS exec, got %v", err)
+	}
+}
+
+func TestTrustedWorkspaceNonExecStillLoads(t *testing.T) {
+	dir := t.TempDir()
+	padeDir := filepath.Join(dir, ".pade")
+	if err := os.MkdirAll(padeDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	raw := []byte(`
+version: "0.1"
+capabilities:
+  google-analytics.read:
+    provider: env
+    env:
+      - GA_PROPERTY_ID
+`)
+	if err := os.WriteFile(filepath.Join(padeDir, "bindings.yaml"), raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PADE_BINDINGS", "")
+	t.Setenv(binding.TrustWorkspaceBindingsEnv, "1")
+	cfg, err := binding.LoadOptional(dir, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Capabilities["google-analytics.read"].Provider != "env" {
+		t.Fatalf("unexpected: %+v", cfg)
+	}
+}
+
+func TestBrokerLoadStillAllowsExec(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "broker-bindings.yaml")
+	if err := os.WriteFile(path, []byte(`
+version: "0.1"
+capabilities:
+  demo.derived:
+    provider: exec
+    exec:
+      command: [./bin/pade-provider-stub]
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := binding.Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Capabilities["demo.derived"].Provider != "exec" {
+		t.Fatalf("%+v", cfg)
+	}
+}

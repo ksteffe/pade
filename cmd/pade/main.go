@@ -8,17 +8,11 @@ import (
 	"path/filepath"
 
 	"github.com/ksteffe/pade/internal/binding"
-	brokerprovider "github.com/ksteffe/pade/internal/binding/broker"
-	envprovider "github.com/ksteffe/pade/internal/binding/env"
-	execprovider "github.com/ksteffe/pade/internal/binding/exec"
-	keeperprovider "github.com/ksteffe/pade/internal/binding/keeper"
-	keepersmprovider "github.com/ksteffe/pade/internal/binding/keepersm"
-	onepasswordprovider "github.com/ksteffe/pade/internal/binding/onepassword"
-	vaultprovider "github.com/ksteffe/pade/internal/binding/vault"
 	"github.com/ksteffe/pade/internal/execution"
 	"github.com/ksteffe/pade/internal/manifest"
 	"github.com/ksteffe/pade/internal/output"
 	"github.com/ksteffe/pade/internal/planner"
+	"github.com/ksteffe/pade/internal/providerset"
 	"github.com/spf13/cobra"
 )
 
@@ -185,7 +179,7 @@ Example:
 			if cfg.SourcePath == "" {
 				return fmt.Errorf("no bindings file found; configure --bindings, PADE_BINDINGS, ~/.config/pade/bindings.yaml, or set PADE_TRUST_WORKSPACE_BINDINGS=1 for .pade/bindings.yaml")
 			}
-			reg := defaultRegistry()
+			reg := providerset.Consumer()
 			runner := &execution.Runner{Registry: reg}
 			_, err = runner.Run(cmd.Context(), cfg, capabilities, execution.Options{
 				Command: args,
@@ -224,7 +218,7 @@ func resolveBindings(_ context.Context, m *manifest.Manifest, bindingsPath strin
 	if err != nil {
 		return nil, nil, err
 	}
-	reg := defaultRegistry()
+	reg := providerset.Consumer()
 	views := map[string]binding.CapabilityRequestView{}
 	for name, cap := range m.Spec.Capabilities {
 		views[name] = binding.CapabilityRequestView{
@@ -235,16 +229,4 @@ func resolveBindings(_ context.Context, m *manifest.Manifest, bindingsPath strin
 	// Static inspection only: plan/capabilities must not Probe or Resolve.
 	statuses := binding.InspectBindings(reg, views, cfg)
 	return cfg, statuses, nil
-}
-
-func defaultRegistry() *binding.Registry {
-	return binding.NewRegistry(
-		envprovider.New(),
-		vaultprovider.New(),
-		onepasswordprovider.New(),
-		keeperprovider.New(),
-		keepersmprovider.New(),
-		brokerprovider.New(),
-		execprovider.New(),
-	)
 }

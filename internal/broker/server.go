@@ -1,6 +1,7 @@
 package broker
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"io"
@@ -56,7 +57,9 @@ func (s *Server) handleResolve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req resolveRequest
-	if err := json.Unmarshal(raw, &req); err != nil {
+	jsonDec := json.NewDecoder(bytes.NewReader(raw))
+	jsonDec.DisallowUnknownFields()
+	if err := jsonDec.Decode(&req); err != nil {
 		s.writeError(w, http.StatusBadRequest, "invalid_json")
 		return
 	}

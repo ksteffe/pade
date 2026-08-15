@@ -175,7 +175,7 @@ Earlier sections of [DESIGN.md](DESIGN.md) and [docs/go-reference.md](docs/go-re
 | Path | Purpose |
 |------|---------|
 | [ROADMAP.md](ROADMAP.md) | Authoritative planned work (releases, external dogfood, open decisions) |
-| [docs/provider-contract.md](docs/provider-contract.md) | Draft external `provider: exec` fulfill/derive contract |
+| [docs/provider-contract.md](docs/provider-contract.md) | Semantic provider contract + broker-side `provider: exec` adapter |
 | [spec/README.md](spec/README.md) | Specification entry (Intent / Consumer / Broker) |
 | [spec/intent.md](spec/intent.md) | Intent Specification |
 | [spec/consumer.md](spec/consumer.md) | Consumer Specification |
