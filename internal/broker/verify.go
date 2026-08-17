@@ -18,11 +18,12 @@ import (
 )
 
 const (
-	defaultSkew      = 30 * time.Second
-	maxTokenLifetime = 24 * time.Hour
-	jwksTimeout      = 15 * time.Second
-	jwksMaxBytes     = 1 << 20
-	jwksCacheTTL     = 5 * time.Minute
+	defaultSkew               = 30 * time.Second
+	maxTokenLifetime          = 24 * time.Hour
+	jwksTimeout               = 15 * time.Second
+	jwksMaxBytes              = 1 << 20
+	jwksCacheTTL              = 5 * time.Minute
+	jwksUnknownKidMinInterval = 30 * time.Second
 )
 
 // Verifier validates Cursor (or test) OIDC JWTs against JWKS.
@@ -34,10 +35,11 @@ type Verifier struct {
 	Skew     time.Duration
 	Now      func() time.Time
 
-	mu        sync.Mutex
-	keys      map[string]*rsa.PublicKey
-	fetchedAt time.Time
-	refreshMu sync.Mutex
+	mu                sync.Mutex
+	keys              map[string]*rsa.PublicKey
+	fetchedAt         time.Time
+	refreshMu         sync.Mutex
+	lastForcedRefresh time.Time // guarded by refreshMu; unknown-kid path only
 }
 
 type jwksDoc struct {
@@ -168,13 +170,25 @@ func (v *Verifier) ensureKeys(ctx context.Context) error {
 	return v.refreshKeys(ctx)
 }
 
+// refreshForKid performs at most one forced JWKS fetch so a newly rotated
+// signing key can be observed. Repeated unknown-key misses (same or different
+// kid) are suppressed for jwksUnknownKidMinInterval so unauthenticated JWT
+// headers cannot amplify traffic to the JWKS endpoint.
 func (v *Verifier) refreshForKid(ctx context.Context, kid string) error {
 	v.refreshMu.Lock()
 	defer v.refreshMu.Unlock()
 	if v.lookupKey(kid) != nil {
 		return nil
 	}
-	return v.fetchKeys(ctx)
+	now := v.nowFn()()
+	if !v.lastForcedRefresh.IsZero() && now.Sub(v.lastForcedRefresh) < jwksUnknownKidMinInterval {
+		return nil
+	}
+	if err := v.fetchKeys(ctx); err != nil {
+		return err
+	}
+	v.lastForcedRefresh = v.nowFn()()
+	return nil
 }
 
 func (v *Verifier) refreshKeys(ctx context.Context) error {
