@@ -174,3 +174,53 @@ func TestInspectBindingsDoesNotProbe(t *testing.T) {
 		t.Fatalf("InspectBindings must not Probe/Resolve: probes=%d resolves=%d", cp.probes, cp.resolves)
 	}
 }
+
+type statusProvider struct {
+	status binding.ProbeStatus
+}
+
+func (p *statusProvider) Name() string { return "status" }
+
+func (p *statusProvider) Probe(context.Context, string, binding.CapabilityBinding) (binding.ProbeResult, error) {
+	return binding.ProbeResult{Provider: p.Name(), Status: p.status}, nil
+}
+
+func (p *statusProvider) Resolve(context.Context, string, binding.CapabilityBinding) (*binding.Material, error) {
+	return nil, nil
+}
+
+func TestCapabilityStatusFromProbe(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		probe binding.ProbeStatus
+		want  binding.CapabilityStatus
+	}{
+		{binding.ProbeAvailable, binding.StatusAvailable},
+		{binding.ProbeUnavailable, binding.StatusUnavailable},
+		{binding.ProbeError, binding.StatusError},
+		{binding.ProbeStatus("bogus"), binding.StatusError},
+	}
+	for _, tc := range tests {
+		t.Run(string(tc.probe), func(t *testing.T) {
+			p := &statusProvider{status: tc.probe}
+			reg := binding.NewRegistry(p)
+			cfg := &binding.Config{
+				Capabilities: map[string]binding.CapabilityBinding{
+					"demo": {Provider: "status"},
+				},
+			}
+			statuses, err := binding.ResolveAll(context.Background(), reg, map[string]binding.CapabilityRequestView{
+				"demo": {Required: true},
+			}, cfg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(statuses) != 1 {
+				t.Fatalf("len=%d", len(statuses))
+			}
+			if statuses[0].Status != tc.want {
+				t.Fatalf("status=%q want %q", statuses[0].Status, tc.want)
+			}
+		})
+	}
+}

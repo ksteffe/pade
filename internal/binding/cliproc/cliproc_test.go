@@ -86,14 +86,13 @@ func TestEnvironPrefixAllowlist(t *testing.T) {
 	t.Setenv("RANDOM_SECRET", "nope")
 
 	env := Environ(nil, []string{"KEEPER_"})
-	hasPADE := false
 	hasKeeper := false
 	for _, e := range env {
 		if strings.HasPrefix(e, "RANDOM_SECRET=") {
 			t.Fatal("random secret leaked")
 		}
 		if strings.HasPrefix(e, "PADE_OK=") {
-			hasPADE = false // PADE_ not in default extraPrefix here
+			t.Fatal("PADE_ variable included without PADE_ prefix allowlist")
 		}
 		if strings.HasPrefix(e, "KEEPER_TOKEN=") {
 			hasKeeper = true
@@ -102,7 +101,6 @@ func TestEnvironPrefixAllowlist(t *testing.T) {
 	if !hasKeeper {
 		t.Fatal("expected KEEPER_ prefix")
 	}
-	_ = hasPADE
 
 	env2 := Environ(nil, []string{"PADE_"})
 	found := false

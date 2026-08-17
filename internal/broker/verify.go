@@ -89,7 +89,7 @@ func (v *Verifier) Verify(ctx context.Context, rawToken string) (Claims, error) 
 		key := v.lookupKey(kid)
 		if key == nil && !refreshedForKid {
 			refreshedForKid = true
-			if err := v.forceRefresh(ctx); err != nil {
+			if err := v.refreshForKid(ctx, kid); err != nil {
 				return nil, fmt.Errorf("unknown signing key")
 			}
 			key = v.lookupKey(kid)
@@ -168,9 +168,12 @@ func (v *Verifier) ensureKeys(ctx context.Context) error {
 	return v.refreshKeys(ctx)
 }
 
-func (v *Verifier) forceRefresh(ctx context.Context) error {
+func (v *Verifier) refreshForKid(ctx context.Context, kid string) error {
 	v.refreshMu.Lock()
 	defer v.refreshMu.Unlock()
+	if v.lookupKey(kid) != nil {
+		return nil
+	}
 	return v.fetchKeys(ctx)
 }
 
