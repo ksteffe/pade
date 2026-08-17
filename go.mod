@@ -5,7 +5,7 @@ go 1.22
 toolchain go1.26.6
 
 require (
-	github.com/golang-jwt/jwt/v5 v5.2.2
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/keeper-security/secrets-manager-go/core v1.7.0
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
 	github.com/spf13/cobra v1.10.2
