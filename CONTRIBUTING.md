@@ -45,6 +45,8 @@ Pull requests and pushes to `main` run [`.github/workflows/ci.yml`](.github/work
 
 ## Pull requests
 
+- Branch from current `main`. Open PRs that target `main` unless the maintainer asks otherwise.
+- Do not merge PRs or push to `main` unless the maintainer explicitly asks to merge *and* CI on that PR is green.
 - Keep changes focused and explained against the design hypotheses.
 - Update docs and [spec/](spec/) when behavior or schema changes.
 - Do not commit `.env`, credential files, or `.pade/` state.

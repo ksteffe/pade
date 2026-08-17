@@ -14,7 +14,6 @@ import (
 )
 
 func TestKeeperProbeAndResolve(t *testing.T) {
-	t.Parallel()
 	fake := writeFakeKeeper(t, map[string]string{
 		"pade-demo-github": "keeper-secret",
 	})
@@ -59,7 +58,6 @@ func TestKeeperProbeAndResolve(t *testing.T) {
 }
 
 func TestKeeperMissingCLI(t *testing.T) {
-	t.Parallel()
 	p := &keeper.Provider{
 		KeeperBin: "keeper-does-not-exist-for-pade-test",
 		LookPath:  func(file string) (string, error) { return "", os.ErrNotExist },
@@ -80,7 +78,6 @@ func TestKeeperMissingCLI(t *testing.T) {
 }
 
 func TestParseKeeperBinding(t *testing.T) {
-	t.Parallel()
 	cfg, err := binding.Parse([]byte(`
 version: "0.1"
 capabilities:
@@ -100,7 +97,6 @@ capabilities:
 }
 
 func TestRejectNonKeeperRef(t *testing.T) {
-	t.Parallel()
 	_, err := binding.Parse([]byte(`
 version: "0.1"
 capabilities:
@@ -116,7 +112,6 @@ capabilities:
 }
 
 func TestPasswordFromNoisyStdout(t *testing.T) {
-	t.Parallel()
 	fake := writeFakeKeeperNoisy(t, "pade-demo-github", "keeper-secret")
 	p := &keeper.Provider{
 		KeeperBin: fake,
@@ -195,7 +190,6 @@ func writeFakeKeeper(t *testing.T, values map[string]string) string {
 }
 
 func TestKeeperFailureDoesNotLeakStderr(t *testing.T) {
-	t.Parallel()
 	dir := t.TempDir()
 	script := filepath.Join(dir, "fail-keeper")
 	if err := os.WriteFile(script, []byte("#!/bin/sh\necho 'KEEPER_PASSWORD=leaked' >&2\nexit 2\n"), 0o755); err != nil {
@@ -221,19 +215,9 @@ func TestKeeperFailureDoesNotLeakStderr(t *testing.T) {
 }
 
 func TestKeeperOversizedStdout(t *testing.T) {
-	t.Parallel()
 	dir := t.TempDir()
 	script := filepath.Join(dir, "big-keeper")
-	// PATH-independent emitter: do not rely on `dd` being resolvable under the
-	// deliberate cliproc environment (CI runners may differ from local PATH).
-	line := strings.Repeat("x", 1024)
-	body := "#!/bin/sh\n" +
-		"i=0\n" +
-		"while [ \"$i\" -lt 1100 ]; do\n" +
-		"  printf '%s\\n' '" + line + "'\n" +
-		"  i=$((i+1))\n" +
-		"done\n"
-	if err := os.WriteFile(script, []byte(body), 0o755); err != nil {
+	if err := os.WriteFile(script, []byte(oversizedStdoutScript()), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	p := &keeper.Provider{
@@ -250,6 +234,30 @@ func TestKeeperOversizedStdout(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "exceeded") {
 		t.Fatalf("expected size limit error, got %v", err)
 	}
+}
+
+// oversizedStdoutScript writes more than cliproc.MaxOutput (1 MiB) using an
+// absolute-path dd when present. A shell printf loop is the fallback. SIGPIPE
+// is ignored so a closed stdout does not look like a generic CLI failure
+// before the parent observes the size limit.
+func oversizedStdoutScript() string {
+	line := strings.Repeat("x", 1024)
+	return "#!/bin/sh\n" +
+		"trap '' PIPE\n" +
+		"if [ -x /bin/dd ]; then\n" +
+		"  /bin/dd if=/dev/zero bs=1024 count=1100 2>/dev/null\n" +
+		"  exit 0\n" +
+		"fi\n" +
+		"if [ -x /usr/bin/dd ]; then\n" +
+		"  /usr/bin/dd if=/dev/zero bs=1024 count=1100 2>/dev/null\n" +
+		"  exit 0\n" +
+		"fi\n" +
+		"i=0\n" +
+		"while [ \"$i\" -lt 1100 ]; do\n" +
+		"  printf '%s\\n' '" + line + "'\n" +
+		"  i=$((i+1))\n" +
+		"done\n" +
+		"exit 0\n"
 }
 
 func TestKeeperEnvironOmitsAmbientSecrets(t *testing.T) {
@@ -280,7 +288,6 @@ func TestKeeperEnvironOmitsAmbientSecrets(t *testing.T) {
 }
 
 func TestKeeperRespectsCancel(t *testing.T) {
-	t.Parallel()
 	dir := t.TempDir()
 	script := filepath.Join(dir, "slow-keeper")
 	if err := os.WriteFile(script, []byte("#!/bin/sh\nsleep 30\n"), 0o755); err != nil {

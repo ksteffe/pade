@@ -14,7 +14,6 @@ import (
 )
 
 func TestOnePasswordProbeAndResolve(t *testing.T) {
-	t.Parallel()
 	fake := writeFakeOp(t, map[string]string{
 		"op://Employee/GitHub/credential": "op-property",
 	})
@@ -59,7 +58,6 @@ func TestOnePasswordProbeAndResolve(t *testing.T) {
 }
 
 func TestOnePasswordMissingCLI(t *testing.T) {
-	t.Parallel()
 	p := &onepassword.Provider{
 		OpBin:    "op-does-not-exist-for-pade-test",
 		LookPath: func(file string) (string, error) { return "", os.ErrNotExist },
@@ -80,7 +78,6 @@ func TestOnePasswordMissingCLI(t *testing.T) {
 }
 
 func TestParseOnePasswordBinding(t *testing.T) {
-	t.Parallel()
 	cfg, err := binding.Parse([]byte(`
 version: "0.1"
 capabilities:
@@ -100,7 +97,6 @@ capabilities:
 }
 
 func TestRejectNonOpRef(t *testing.T) {
-	t.Parallel()
 	_, err := binding.Parse([]byte(`
 version: "0.1"
 capabilities:
@@ -135,7 +131,6 @@ func writeFakeOp(t *testing.T, values map[string]string) string {
 }
 
 func TestOnePasswordFailureDoesNotLeakStderr(t *testing.T) {
-	t.Parallel()
 	dir := t.TempDir()
 	script := filepath.Join(dir, "fail-op")
 	if err := os.WriteFile(script, []byte("#!/bin/sh\necho 'OP_SESSION_SECRET=leaked' >&2\nexit 2\n"), 0o755); err != nil {
@@ -163,17 +158,9 @@ func TestOnePasswordFailureDoesNotLeakStderr(t *testing.T) {
 }
 
 func TestOnePasswordOversizedStdout(t *testing.T) {
-	t.Parallel()
 	dir := t.TempDir()
 	script := filepath.Join(dir, "big-op")
-	line := strings.Repeat("x", 1024)
-	body := "#!/bin/sh\n" +
-		"i=0\n" +
-		"while [ \"$i\" -lt 1100 ]; do\n" +
-		"  printf '%s\\n' '" + line + "'\n" +
-		"  i=$((i+1))\n" +
-		"done\n"
-	if err := os.WriteFile(script, []byte(body), 0o755); err != nil {
+	if err := os.WriteFile(script, []byte(oversizedStdoutScript()), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	p := &onepassword.Provider{
@@ -190,6 +177,30 @@ func TestOnePasswordOversizedStdout(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "exceeded") {
 		t.Fatalf("expected size limit error, got %v", err)
 	}
+}
+
+// oversizedStdoutScript writes more than cliproc.MaxOutput (1 MiB) using an
+// absolute-path dd when present. A shell printf loop is the fallback. SIGPIPE
+// is ignored so a closed stdout does not look like a generic CLI failure
+// before the parent observes the size limit.
+func oversizedStdoutScript() string {
+	line := strings.Repeat("x", 1024)
+	return "#!/bin/sh\n" +
+		"trap '' PIPE\n" +
+		"if [ -x /bin/dd ]; then\n" +
+		"  /bin/dd if=/dev/zero bs=1024 count=1100 2>/dev/null\n" +
+		"  exit 0\n" +
+		"fi\n" +
+		"if [ -x /usr/bin/dd ]; then\n" +
+		"  /usr/bin/dd if=/dev/zero bs=1024 count=1100 2>/dev/null\n" +
+		"  exit 0\n" +
+		"fi\n" +
+		"i=0\n" +
+		"while [ \"$i\" -lt 1100 ]; do\n" +
+		"  printf '%s\\n' '" + line + "'\n" +
+		"  i=$((i+1))\n" +
+		"done\n" +
+		"exit 0\n"
 }
 
 func TestOnePasswordEnvironOmitsAmbientSecrets(t *testing.T) {
@@ -220,7 +231,6 @@ func TestOnePasswordEnvironOmitsAmbientSecrets(t *testing.T) {
 }
 
 func TestOnePasswordRespectsCancel(t *testing.T) {
-	t.Parallel()
 	dir := t.TempDir()
 	script := filepath.Join(dir, "slow-op")
 	if err := os.WriteFile(script, []byte("#!/bin/sh\nsleep 30\n"), 0o755); err != nil {
