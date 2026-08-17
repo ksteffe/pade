@@ -41,7 +41,7 @@ make test
 make ci   # local mirror of GitHub unit + smoke jobs (not container/CodeQL/DevPod)
 ```
 
-Pull requests and pushes to `main` run [`.github/workflows/ci.yml`](.github/workflows/ci.yml). GitHub additionally runs a Go 1.22 compatibility job, container smoke, and CodeQL. Dependency review needs Dependency graph enabled in repository settings before it can be added.
+Pull requests and pushes to `main` run [`.github/workflows/ci.yml`](.github/workflows/ci.yml). GitHub additionally runs a Go 1.22 compatibility job, container smoke, CodeQL, and pull-request dependency review.
 
 ## Pull requests
 
