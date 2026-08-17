@@ -283,7 +283,7 @@ ci-smoke: check-go build dogfood dogfood-identity dogfood-vault dogfood-onepassw
 	./bin/pade plan -f /tmp/pade-orch/pade.yaml --json > /tmp/pade-orch-plan.json
 
 # Local mirror of the GitHub Actions unit + smoke jobs (ci-unit then ci-smoke).
-# GitHub additionally runs ci-compat on Go 1.22, container smoke, CodeQL, and
-# dependency review. Container smoke: make smoke-broker-container / make ci-container
+# GitHub additionally runs ci-compat on Go 1.22, container smoke, and CodeQL.
+# Container smoke: make smoke-broker-container / make ci-container
 # (requires Docker). DevPod integration is a separate workflow.
 ci: ci-unit ci-smoke

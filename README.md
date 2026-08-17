@@ -132,9 +132,9 @@ CI runs on pushes to `main` and on pull requests via [`.github/workflows/ci.yml`
 - **Smoke** — `make ci-smoke`: example validate/plan/exec, identity dogfood, Vault `-dev` dogfood, 1Password dogfood, Keeper dogfood, KSM dogfood, broker OIDC dogfood, exec-provider dogfood (needs the unit job)
 - **Container smoke** — `make ci-container`: `docker build` the `pade-broker` image, start it with `-tls-termination=proxy` + `PORT`, require `GET /healthz` → 200 and unauthenticated `POST /v1/resolve` → 401 (logs dumped on failure; image is not pushed)
 
-Pull requests also run [CodeQL](.github/workflows/codeql.yml) (Go) and [dependency review](.github/workflows/dependency-review.yml).
+Pull requests also run [CodeQL](.github/workflows/codeql.yml) (Go). GitHub dependency review is not in CI yet: it requires Dependency graph in repository settings (manual follow-up).
 
-Local mirrors: `make ci` (unit + smoke on the local toolchain), `make ci-compat` (same commands GitHub runs on Go 1.22), `make smoke-broker-container` / `make ci-container` (Docker required). CodeQL, dependency review, and DevPod integration are GitHub-only.
+Local mirrors: `make ci` (unit + smoke on the local toolchain), `make ci-compat` (same commands GitHub runs on Go 1.22), `make smoke-broker-container` / `make ci-container` (Docker required). CodeQL and DevPod integration are GitHub-only.
 
 ### Cloud Run–style container listen (reference Broker)
 
