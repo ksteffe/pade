@@ -16,9 +16,12 @@ jobs:
   test:
     name: Unit tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
@@ -26,45 +29,40 @@ jobs:
           go-version: '1.26.x'
           cache: true
 
-      - name: Verify module checksums
-        run: go mod verify
+      - name: Unit checks
+        run: make ci-unit
 
-      - name: Check formatting
-        run: |
-          unformatted="$(gofmt -l cmd internal spec)"
-          if [ -n "$unformatted" ]; then
-            echo "The following files need gofmt:"
-            echo "$unformatted"
-            exit 1
-          fi
+  compat:
+    name: Go 1.22 compatibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
-      - name: Vet
-        run: go vet ./...
+      - name: Set up Go 1.22
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version: '1.22.x'
+          cache: true
 
-      - name: Test
-        run: go test -shuffle=on ./...
-
-      - name: Staticcheck
-        run: GOTOOLCHAIN=go1.26.6 go run honnef.co/go/tools/cmd/staticcheck@v0.6.1 ./...
-
-      - name: Race detector
-        run: go test -race ./...
-
-      - name: Vulnerability check
-        run: GOTOOLCHAIN=go1.26.6 go run golang.org/x/vuln/cmd/govulncheck@v1.7.0 ./...
-
-      - name: Build
-        run: |
-          go build -o bin/pade ./cmd/pade
-          go build -o bin/pade-broker ./cmd/pade-broker
+      - name: Compatibility checks
+        env:
+          GOTOOLCHAIN: local
+        run: make ci-compat
 
   smoke:
     name: Smoke
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: test
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
@@ -72,89 +70,19 @@ jobs:
           go-version: '1.26.x'
           cache: true
 
-      - name: Build
-        run: |
-          go build -o bin/pade ./cmd/pade
-          go build -o bin/pade-broker ./cmd/pade-broker
-
-      - name: Validate examples and env dogfood
-        run: |
-          ./bin/pade validate -f spec/examples/web-app.yaml
-          ./bin/pade plan -f spec/examples/web-app.yaml --json > /tmp/pade-plan.json
-          ./bin/pade capabilities -f spec/examples/web-app.yaml --bindings spec/examples/bindings.example.yaml --json > /tmp/pade-capabilities.json
-
-          GA_PROPERTY_ID=demo-property \
-          GOOGLE_APPLICATION_CREDENTIALS=/tmp/fake-ga.json \
-          ./bin/pade exec \
-            -f spec/examples/web-app.yaml \
-            --bindings spec/examples/bindings.example.yaml \
-            --capability google-analytics.read \
-            -- /bin/sh -c 'test -n "$GA_PROPERTY_ID" && test -n "$GOOGLE_APPLICATION_CREDENTIALS" && printf exec-ok'
-
-          chmod +x examples/demo-project/scripts/github-whoami
-          ./bin/pade validate -f examples/demo-project/pade.yaml
-          ./bin/pade plan -f examples/demo-project/pade.yaml --bindings examples/demo-project/bindings.example.yaml --json > /tmp/pade-demo-plan.json
-          GITHUB_TOKEN=pade-demo-env-token \
-          ./bin/pade exec \
-            -f examples/demo-project/pade.yaml \
-            --bindings examples/demo-project/bindings.example.yaml \
-            --capability github.user.read \
-            -- ./scripts/github-whoami
-
-          # Milestone 5: same pade.yaml, Alice/Bob bindings, distinct material.
-          chmod +x scripts/identity-dogfood.sh
-          PADE="$(pwd)/bin/pade" ./scripts/identity-dogfood.sh
-
-          mkdir -p /tmp/pade-orch/.devcontainer
-          printf '{}\n' > /tmp/pade-orch/.devcontainer/devcontainer.json
-          cp spec/examples/web-app-orchestrated.yaml /tmp/pade-orch/pade.yaml
-          ./bin/pade validate -f /tmp/pade-orch/pade.yaml
-          ./bin/pade plan -f /tmp/pade-orch/pade.yaml --json > /tmp/pade-orch-plan.json
-
-      - name: Vault dogfood
-        run: |
-          chmod +x scripts/vault-dogfood.sh
-          PADE="$(pwd)/bin/pade" ./scripts/vault-dogfood.sh
-
-      - name: 1Password dogfood
-        run: |
-          chmod +x scripts/onepassword-dogfood.sh scripts/fake-op.sh
-          PADE="$(pwd)/bin/pade" ./scripts/onepassword-dogfood.sh
-
-      - name: Keeper dogfood
-        run: |
-          chmod +x scripts/keeper-dogfood.sh scripts/fake-keeper.sh
-          PADE="$(pwd)/bin/pade" ./scripts/keeper-dogfood.sh
-
-      - name: Keeper Secrets Manager dogfood
-        run: |
-          chmod +x scripts/ksm-dogfood.sh examples/demo-project/scripts/github-whoami
-          PADE="$(pwd)/bin/pade" ./scripts/ksm-dogfood.sh
-
-      - name: Broker OIDC dogfood
-        run: |
-          chmod +x scripts/broker-dogfood.sh
-          PADE="$(pwd)/bin/pade" ./scripts/broker-dogfood.sh
-
-      - name: Exec provider dogfood
-        run: |
-          chmod +x scripts/exec-provider-dogfood.sh \
-            examples/demo-project/scripts/github-repo-meta \
-            examples/demo-project/scripts/ga-property-meta
-          PADE="$(pwd)/bin/pade" ./scripts/exec-provider-dogfood.sh stub
-          PADE="$(pwd)/bin/pade" ./scripts/exec-provider-dogfood.sh github
-          PADE="$(pwd)/bin/pade" ./scripts/exec-provider-dogfood.sh ga
-          PADE="$(pwd)/bin/pade" ./scripts/exec-provider-dogfood.sh two
+      - name: Smoke checks
+        run: make ci-smoke
 
   container-smoke:
     name: Container smoke
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [test, smoke]
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Smoke pade-broker container image
-        run: |
-          chmod +x scripts/broker-container-smoke.sh
-          ./scripts/broker-container-smoke.sh
+        run: make ci-container
