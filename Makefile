@@ -29,7 +29,8 @@ INSTALL_KEEPER_CLI := $(CURDIR)/scripts/install-keeper-cli.sh
 	dogfood-devpod dogfood-devpod-check dogfood-devpod-provider dogfood-devpod-up \
 	dogfood-devpod-install dogfood-devpod-smoke dogfood-devpod-down dogfood-devpod-delete \
 	dogfood-devpod-ci \
-	vet fmt-check govulncheck staticcheck test-race ci-unit ci-smoke ci
+	vet fmt-check govulncheck staticcheck test-race test-shuffle mod-verify \
+	ci-unit ci-compat ci-smoke ci
 
 check-go:
 	@v="$$( $(GO) env GOVERSION 2>/dev/null || true )"; \
@@ -43,7 +44,7 @@ check-go:
 	esac
 
 fmt-check: check-go
-	@unformatted="$$(gofmt -l cmd internal spec)"; \
+	@unformatted="$$(git ls-files -z '*.go' | xargs -0 gofmt -l)"; \
 	if [ -n "$$unformatted" ]; then \
 	  echo "The following files need gofmt:"; \
 	  echo "$$unformatted"; \
@@ -56,8 +57,14 @@ vet: check-go
 test: check-go
 	$(GO) test ./...
 
+test-shuffle: check-go
+	$(GO) test -shuffle=on ./...
+
 test-race: check-go
 	$(GO) test -race ./...
+
+mod-verify: check-go
+	$(GO) mod verify
 
 staticcheck: check-go
 	GOTOOLCHAIN=go1.26.6 $(GO) run honnef.co/go/tools/cmd/staticcheck@v0.6.1 ./...
@@ -247,8 +254,12 @@ dogfood-devpod-ci:
 	@chmod +x "$(DEVPOD_DOGFOOD)"
 	@$(DEVPOD_DOGFOOD) ci
 
-# Fast path: mirrors the GitHub Actions "Unit tests" job.
-ci-unit: check-go fmt-check vet test staticcheck test-race govulncheck build
+# Fast path: mirrors the GitHub Actions "Unit tests" job (primary Go toolchain).
+ci-unit: check-go mod-verify fmt-check vet test-shuffle staticcheck test-race govulncheck build
+
+# Minimum supported Go version: test + build only. GitHub Actions runs this on
+# Go 1.22 with GOTOOLCHAIN=local so go.mod's toolchain line cannot auto-upgrade.
+ci-compat: check-go test build
 
 govulncheck: check-go
 	GOTOOLCHAIN=go1.26.6 $(GO) run golang.org/x/vuln/cmd/govulncheck@v1.7.0 ./...
@@ -271,7 +282,8 @@ ci-smoke: check-go build dogfood dogfood-identity dogfood-vault dogfood-onepassw
 	./bin/pade validate -f /tmp/pade-orch/pade.yaml
 	./bin/pade plan -f /tmp/pade-orch/pade.yaml --json > /tmp/pade-orch-plan.json
 
-# Local mirror of the unit + smoke jobs in .github/workflows/ci.yml.
-# Container smoke (trusted-proxy Docker image) is separate: make smoke-broker-container / make ci-container
-# (requires Docker; GitHub Actions runs it as the "Container smoke" job after Smoke).
+# Local mirror of the GitHub Actions unit + smoke jobs (ci-unit then ci-smoke).
+# GitHub additionally runs ci-compat on Go 1.22, container smoke, and CodeQL.
+# Container smoke: make smoke-broker-container / make ci-container
+# (requires Docker). DevPod integration is a separate workflow.
 ci: ci-unit ci-smoke

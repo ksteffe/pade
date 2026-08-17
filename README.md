@@ -93,7 +93,7 @@ Or use Make (auto-selects `.tools/go` when present):
 make test
 make validate
 make plan
-make ci          # local mirror of GitHub Actions checks
+make ci          # local mirror of GitHub unit + smoke jobs
 ```
 
 ## Current status
@@ -127,11 +127,14 @@ make dogfood-devpod  # optional: full DevPod proof (needs docker + devpod)
 
 CI runs on pushes to `main` and on pull requests via [`.github/workflows/ci.yml`](.github/workflows/ci.yml):
 
-- **Unit tests** — `gofmt`, `go vet`, `go test`, build (fast feedback)
-- **Smoke** — example validate/plan/exec, identity dogfood, Vault `-dev` dogfood, 1Password dogfood, Keeper dogfood, KSM dogfood, broker OIDC dogfood (needs the unit job)
-- **Container smoke** — `docker build` the `pade-broker` image, start it with `-tls-termination=proxy` + `PORT`, require `GET /healthz` → 200 and unauthenticated `POST /v1/resolve` → 401 (logs dumped on failure; image is not pushed)
+- **Unit tests** — `make ci-unit`: `gofmt` (all tracked `.go` files), `go mod verify`, `go vet`, shuffled `go test`, staticcheck, race detector, govulncheck, build
+- **Go 1.22 compatibility** — `make ci-compat` on Go 1.22 (`GOTOOLCHAIN=local`): `go test ./...` and `go build ./...` only
+- **Smoke** — `make ci-smoke`: example validate/plan/exec, identity dogfood, Vault `-dev` dogfood, 1Password dogfood, Keeper dogfood, KSM dogfood, broker OIDC dogfood, exec-provider dogfood (needs the unit job)
+- **Container smoke** — `make ci-container`: `docker build` the `pade-broker` image, start it with `-tls-termination=proxy` + `PORT`, require `GET /healthz` → 200 and unauthenticated `POST /v1/resolve` → 401 (logs dumped on failure; image is not pushed)
 
-Local mirrors: `make ci` (unit + smoke), `make smoke-broker-container` / `make ci-container` (Docker required).
+Pull requests also run [CodeQL](.github/workflows/codeql.yml) (Go). GitHub dependency review is not in CI yet: it requires Dependency graph in repository settings (manual follow-up).
+
+Local mirrors: `make ci` (unit + smoke on the local toolchain), `make ci-compat` (same commands GitHub runs on Go 1.22), `make smoke-broker-container` / `make ci-container` (Docker required). CodeQL and DevPod integration are GitHub-only.
 
 ### Cloud Run–style container listen (reference Broker)
 
