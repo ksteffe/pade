@@ -93,7 +93,7 @@ The CLI executable is named pade.
 Initial commands (historical orchestration-oriented surface; see README for current capability-focused target):
 
 - `pade validate` — Validate pade.yaml and referenced configuration without starting anything.
-- `pade plan` — Resolve the manifest and providers and display what PADE intends to do (side-effect free).
+- `pade plan` — Build a side-effect-free plan from the manifest and static binding inspection (no provider probes).
 - `pade up` — Provision or start the workspace and configured services.
 - `pade status` — Show workspace state, provider, services, capabilities, ports, and lifecycle information.
 - `pade exec <command...>` — Execute a command inside the active workspace.

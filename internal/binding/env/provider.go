@@ -31,14 +31,14 @@ func (p *Provider) Probe(ctx context.Context, name string, b binding.CapabilityB
 	if len(missing) > 0 {
 		return binding.ProbeResult{
 			Provider: p.Name(),
-			Status:   "unavailable",
+			Status:   binding.ProbeUnavailable,
 			Message:  fmt.Sprintf("missing env keys: %s", strings.Join(missing, ", ")),
 			Meta:     meta,
 		}, nil
 	}
 	return binding.ProbeResult{
 		Provider: p.Name(),
-		Status:   "available",
+		Status:   binding.ProbeAvailable,
 		Message:  "required environment variables are set",
 		Meta:     meta,
 	}, nil

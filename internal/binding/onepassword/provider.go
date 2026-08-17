@@ -43,7 +43,7 @@ func (p *Provider) Probe(ctx context.Context, name string, b binding.CapabilityB
 	if err := requireConfig(b); err != nil {
 		return binding.ProbeResult{
 			Provider: p.Name(),
-			Status:   "unavailable",
+			Status:   binding.ProbeUnavailable,
 			Message:  err.Error(),
 			Meta:     meta,
 		}, nil
@@ -51,7 +51,7 @@ func (p *Provider) Probe(ctx context.Context, name string, b binding.CapabilityB
 	if _, err := p.resolveBin(); err != nil {
 		return binding.ProbeResult{
 			Provider: p.Name(),
-			Status:   "unavailable",
+			Status:   binding.ProbeUnavailable,
 			Message:  err.Error(),
 			Meta:     meta,
 		}, nil
@@ -62,7 +62,7 @@ func (p *Provider) Probe(ctx context.Context, name string, b binding.CapabilityB
 	if _, err := p.readRef(ctx, ref); err != nil {
 		return binding.ProbeResult{
 			Provider: p.Name(),
-			Status:   "unavailable",
+			Status:   binding.ProbeUnavailable,
 			Message:  err.Error(),
 			Meta:     meta,
 		}, nil
@@ -70,7 +70,7 @@ func (p *Provider) Probe(ctx context.Context, name string, b binding.CapabilityB
 	_ = name
 	return binding.ProbeResult{
 		Provider: p.Name(),
-		Status:   "available",
+		Status:   binding.ProbeAvailable,
 		Message:  "onepassword refs reachable; values hidden",
 		Meta:     meta,
 	}, nil

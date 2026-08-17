@@ -99,7 +99,7 @@ func ResolveMaterials(ctx context.Context, reg *Registry, cfg *Config, names []s
 		}
 		// Do not Probe after a successful Resolve: remote providers (vault,
 		// onepassword, keeper, keeper-secrets-manager) would re-fetch secrets
-		// just to build Meta. Plan/capabilities still use Probe via ResolveAll.
+		// just to build Meta. Plan/capabilities use InspectBindings and do not probe.
 		out = append(out, ResolveResult{
 			Name:     name,
 			Provider: b.Provider,

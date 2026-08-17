@@ -95,14 +95,14 @@ func Build(m *manifest.Manifest, opts BuildOptions) *Plan {
 			if st.Provider != "" {
 				cp.Provider = st.Provider
 			}
-			cp.Status = st.Status
+			cp.Status = string(st.Status)
 			cp.Message = st.Message
 			cp.Meta = st.Meta
 			if metaRequires := requiresFromMeta(st); len(metaRequires) > 0 {
 				cp.Requires = metaRequires
 			}
 		} else if cp.Provider == "" {
-			cp.Status = "unbound"
+			cp.Status = string(binding.StatusUnbound)
 		}
 		p.Capabilities = append(p.Capabilities, cp)
 	}

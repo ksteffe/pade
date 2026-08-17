@@ -26,10 +26,30 @@ type ChildEnvOmitter interface {
 	ChildEnvOmit() []string
 }
 
+// ProbeStatus is the outcome of a provider Probe call.
+type ProbeStatus string
+
+const (
+	ProbeAvailable   ProbeStatus = "available"
+	ProbeUnavailable ProbeStatus = "unavailable"
+	ProbeError       ProbeStatus = "error"
+)
+
+// CapabilityStatus is the inspectable binding outcome for one capability.
+type CapabilityStatus string
+
+const (
+	StatusUnbound     CapabilityStatus = "unbound"
+	StatusConfigured  CapabilityStatus = "configured"
+	StatusAvailable   CapabilityStatus = "available"
+	StatusUnavailable CapabilityStatus = "unavailable"
+	StatusError       CapabilityStatus = "error"
+)
+
 // ProbeResult is safe to display and serialize.
 type ProbeResult struct {
 	Provider string            `json:"provider"`
-	Status   string            `json:"status"` // available | unavailable | error
+	Status   ProbeStatus       `json:"status"` // available | unavailable | error
 	Message  string            `json:"message,omitempty"`
 	Meta     map[string]string `json:"meta,omitempty"` // path, env key names, field maps — never values
 }
@@ -51,7 +71,7 @@ type Status struct {
 	Required bool              `json:"required"`
 	Bound    bool              `json:"bound"`
 	Provider string            `json:"provider,omitempty"`
-	Status   string            `json:"status"` // unbound | configured | available | unavailable | error
+	Status   CapabilityStatus  `json:"status"` // unbound | configured | available | unavailable | error
 	Message  string            `json:"message,omitempty"`
 	Meta     map[string]string `json:"meta,omitempty"`
 }
@@ -93,7 +113,7 @@ func InspectBindings(reg *Registry, caps map[string]CapabilityRequestView, cfg *
 			Name:     name,
 			Access:   view.Access,
 			Required: view.Required,
-			Status:   "unbound",
+			Status:   StatusUnbound,
 			Message:  "no local binding configured",
 		}
 		if cfg == nil {
@@ -109,13 +129,13 @@ func InspectBindings(reg *Registry, caps map[string]CapabilityRequestView, cfg *
 		st.Provider = b.Provider
 		if reg != nil {
 			if _, ok := reg.Get(b.Provider); !ok {
-				st.Status = "error"
+				st.Status = StatusError
 				st.Message = fmt.Sprintf("unknown provider %q", b.Provider)
 				out = append(out, st)
 				continue
 			}
 		}
-		st.Status = "configured"
+		st.Status = StatusConfigured
 		st.Message = "bound; availability unknown until runtime (plan/capabilities do not probe providers)"
 		st.Meta = staticMeta(b)
 		out = append(out, st)
@@ -164,7 +184,7 @@ func ResolveAll(ctx context.Context, reg *Registry, caps map[string]CapabilityRe
 			Name:     name,
 			Access:   view.Access,
 			Required: view.Required,
-			Status:   "unbound",
+			Status:   StatusUnbound,
 			Message:  "no local binding configured",
 		}
 		if cfg == nil {
@@ -180,19 +200,19 @@ func ResolveAll(ctx context.Context, reg *Registry, caps map[string]CapabilityRe
 		st.Provider = b.Provider
 		p, ok := reg.Get(b.Provider)
 		if !ok {
-			st.Status = "error"
+			st.Status = StatusError
 			st.Message = fmt.Sprintf("unknown provider %q", b.Provider)
 			out = append(out, st)
 			continue
 		}
 		probe, err := p.Probe(ctx, name, b)
 		if err != nil {
-			st.Status = "error"
+			st.Status = StatusError
 			st.Message = err.Error()
 			out = append(out, st)
 			continue
 		}
-		st.Status = probe.Status
+		st.Status = CapabilityStatus(probe.Status)
 		st.Message = probe.Message
 		st.Meta = probe.Meta
 		out = append(out, st)

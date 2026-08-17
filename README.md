@@ -247,7 +247,7 @@ See [spec/examples/bindings.example.yaml](spec/examples/bindings.example.yaml) a
 |---------|--------|------|
 | `pade validate` | Implemented | Validate Intent (`DevelopmentSession` in `pade.yaml`) and referenced config |
 | `pade plan` | Implemented | Descriptive plan; does not probe providers or materialize credentials |
-| `pade capabilities` | Implemented | Show declared capabilities and binding probes |
+| `pade capabilities` | Implemented | Show declared capabilities and static binding inspection |
 | `pade exec --capability … -- <cmd>` | Implemented | Run a command with process-scoped capability injection |
 | `pade identity --audience …` | Implemented | Inspect Cursor workload identity (safe claims; no raw JWT) |
 | `pade-broker` | Experimental spike | OIDC-verified capability broker (Phase 2) |

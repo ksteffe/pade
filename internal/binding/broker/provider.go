@@ -51,25 +51,25 @@ func (p *Provider) Probe(ctx context.Context, name string, b binding.CapabilityB
 	_ = name
 	meta := brokerMeta(b)
 	if err := requireConfig(b); err != nil {
-		return binding.ProbeResult{Provider: p.Name(), Status: "unavailable", Message: err.Error(), Meta: meta}, nil
+		return binding.ProbeResult{Provider: p.Name(), Status: binding.ProbeUnavailable, Message: err.Error(), Meta: meta}, nil
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(b.Broker.Endpoint, "/")+"/healthz", nil)
 	if err != nil {
-		return binding.ProbeResult{Provider: p.Name(), Status: "unavailable", Message: "invalid broker endpoint", Meta: meta}, nil
+		return binding.ProbeResult{Provider: p.Name(), Status: binding.ProbeUnavailable, Message: "invalid broker endpoint", Meta: meta}, nil
 	}
 	do := p.httpDo()
 	resp, err := do(req)
 	if err != nil {
-		return binding.ProbeResult{Provider: p.Name(), Status: "unavailable", Message: "broker endpoint unreachable", Meta: meta}, nil
+		return binding.ProbeResult{Provider: p.Name(), Status: binding.ProbeUnavailable, Message: "broker endpoint unreachable", Meta: meta}, nil
 	}
 	defer resp.Body.Close()
 	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1024))
 	if resp.StatusCode != http.StatusOK {
-		return binding.ProbeResult{Provider: p.Name(), Status: "unavailable", Message: fmt.Sprintf("broker healthz http %d", resp.StatusCode), Meta: meta}, nil
+		return binding.ProbeResult{Provider: p.Name(), Status: binding.ProbeUnavailable, Message: fmt.Sprintf("broker healthz http %d", resp.StatusCode), Meta: meta}, nil
 	}
 	return binding.ProbeResult{
 		Provider: p.Name(),
-		Status:   "available",
+		Status:   binding.ProbeAvailable,
 		Message:  "broker reachable; values hidden",
 		Meta:     meta,
 	}, nil

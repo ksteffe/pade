@@ -79,7 +79,7 @@ spec:
 			Name:     "google-analytics.read",
 			Bound:    true,
 			Provider: "env",
-			Status:   "available",
+			Status:   binding.StatusAvailable,
 			Message:  "required environment variables are set",
 			Meta:     map[string]string{"env": "GA_PROPERTY_ID,GOOGLE_APPLICATION_CREDENTIALS"},
 		}},

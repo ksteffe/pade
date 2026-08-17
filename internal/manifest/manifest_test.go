@@ -346,3 +346,20 @@ func TestValidMinimalManifest(t *testing.T) {
 		t.Fatalf("expected valid, got %v", res.Errors)
 	}
 }
+
+func TestValidateReusesCompiledSchema(t *testing.T) {
+	t.Parallel()
+	m, err := manifest.Parse([]byte(validMinimalYAML("schema-reuse")), "test.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 3; i++ {
+		res, err := manifest.Validate(m)
+		if err != nil {
+			t.Fatalf("validate iteration %d: %v", i, err)
+		}
+		if !res.Valid {
+			t.Fatalf("iteration %d: %v", i, res.Errors)
+		}
+	}
+}

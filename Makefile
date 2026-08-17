@@ -19,7 +19,7 @@ TELEPORT_INGRESS_DOGFOOD := $(CURDIR)/scripts/teleport-ingress-dogfood.sh
 INSTALL_ONEPASSWORD_CLI := $(CURDIR)/scripts/install-onepassword-cli.sh
 INSTALL_KEEPER_CLI := $(CURDIR)/scripts/install-keeper-cli.sh
 
-.PHONY: check-go test build build-linux validate plan capabilities exec-demo dogfood \
+.PHONY: check-go test test-race staticcheck build build-linux validate plan capabilities exec-demo dogfood \
 	dogfood-identity dogfood-vault dogfood-onepassword dogfood-keeper dogfood-ksm dogfood-broker \
 	dogfood-exec-provider dogfood-exec-provider-github dogfood-exec-provider-ga dogfood-exec-provider-two \
 	dogfood-broker-stage-b smoke-broker-container ci-container \
@@ -29,7 +29,7 @@ INSTALL_KEEPER_CLI := $(CURDIR)/scripts/install-keeper-cli.sh
 	dogfood-devpod dogfood-devpod-check dogfood-devpod-provider dogfood-devpod-up \
 	dogfood-devpod-install dogfood-devpod-smoke dogfood-devpod-down dogfood-devpod-delete \
 	dogfood-devpod-ci \
-	vet fmt-check govulncheck ci-unit ci-smoke ci
+	vet fmt-check govulncheck staticcheck test-race ci-unit ci-smoke ci
 
 check-go:
 	@v="$$( $(GO) env GOVERSION 2>/dev/null || true )"; \
@@ -55,6 +55,12 @@ vet: check-go
 
 test: check-go
 	$(GO) test ./...
+
+test-race: check-go
+	$(GO) test -race ./...
+
+staticcheck: check-go
+	GOTOOLCHAIN=go1.26.6 $(GO) run honnef.co/go/tools/cmd/staticcheck@v0.6.1 ./...
 
 build: check-go
 	$(GO) build -o bin/pade ./cmd/pade
@@ -242,7 +248,7 @@ dogfood-devpod-ci:
 	@$(DEVPOD_DOGFOOD) ci
 
 # Fast path: mirrors the GitHub Actions "Unit tests" job.
-ci-unit: check-go fmt-check vet test govulncheck build
+ci-unit: check-go fmt-check vet test staticcheck test-race govulncheck build
 
 govulncheck: check-go
 	GOTOOLCHAIN=go1.26.6 $(GO) run golang.org/x/vuln/cmd/govulncheck@v1.7.0 ./...

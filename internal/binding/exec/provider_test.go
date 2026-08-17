@@ -2,6 +2,7 @@ package exec
 
 import (
 	"context"
+	"fmt"
 	"os"
 	osexec "os/exec"
 	"path/filepath"
@@ -15,7 +16,7 @@ import (
 
 func TestExecResolveAndProbe(t *testing.T) {
 	stub := buildStub(t)
-	cfg := map[string]interface{}{
+	cfg := map[string]any{
 		"tokenEnv": "DEMO_TOKEN",
 		"value":    "derived-secret-value",
 	}
@@ -33,7 +34,7 @@ func TestExecResolveAndProbe(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if probe.Status != "available" {
+	if probe.Status != binding.ProbeAvailable {
 		t.Fatalf("probe status=%q message=%q", probe.Status, probe.Message)
 	}
 
@@ -143,6 +144,44 @@ func TestBindingsValidateExec(t *testing.T) {
 	cfg.Capabilities["demo.derived"].Exec.Command = nil
 	if err := cfg.Validate(); err == nil {
 		t.Fatal("expected validation error")
+	}
+}
+
+func TestExecProbeStatusValidation(t *testing.T) {
+	tests := []struct {
+		name       string
+		statusJSON string
+		wantStatus binding.ProbeStatus
+		wantErrMsg string
+	}{
+		{name: "available", statusJSON: `"available"`, wantStatus: binding.ProbeAvailable},
+		{name: "unavailable", statusJSON: `"unavailable"`, wantStatus: binding.ProbeUnavailable},
+		{name: "error", statusJSON: `"error"`, wantStatus: binding.ProbeError},
+		{name: "empty", statusJSON: `""`, wantStatus: binding.ProbeError},
+		{name: "bogus", statusJSON: `"bogus"`, wantStatus: binding.ProbeError, wantErrMsg: "unsupported probe status"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			script := filepath.Join(t.TempDir(), "probe.sh")
+			body := fmt.Sprintf("#!/bin/sh\nprintf '{\"status\":%s}'", tc.statusJSON)
+			if err := os.WriteFile(script, []byte(body), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			b := binding.CapabilityBinding{
+				Provider: "exec",
+				Exec:     &binding.ExecBinding{Command: []string{script}},
+			}
+			probe, err := New().Probe(context.Background(), "demo", b)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if probe.Status != tc.wantStatus {
+				t.Fatalf("status=%q want %q", probe.Status, tc.wantStatus)
+			}
+			if tc.wantErrMsg != "" && !strings.Contains(probe.Message, tc.wantErrMsg) {
+				t.Fatalf("message=%q want substring %q", probe.Message, tc.wantErrMsg)
+			}
+		})
 	}
 }
 

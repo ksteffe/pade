@@ -81,7 +81,10 @@ func Environ(extraExact map[string]struct{}, extraPrefix []string) []string {
 	out := make([]string, 0, len(env)/4+8)
 	hasPATH := false
 	for _, e := range env {
-		key, _, _ := strings.Cut(e, "=")
+		key, val, _ := strings.Cut(e, "=")
+		if key == "PATH" && strings.TrimSpace(val) == "" {
+			continue
+		}
 		if _, ok := allowExact[key]; ok {
 			if key == "PATH" {
 				hasPATH = true

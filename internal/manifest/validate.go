@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/ksteffe/pade/spec"
 	"github.com/santhosh-tekuri/jsonschema/v6"
@@ -24,6 +25,32 @@ type Result struct {
 }
 
 var metadataNamePattern = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$`)
+
+var (
+	compiledSchema    *jsonschema.Schema
+	compileSchemaErr  error
+	compileSchemaOnce sync.Once
+)
+
+func compiledManifestSchema() (*jsonschema.Schema, error) {
+	compileSchemaOnce.Do(func() {
+		compiler := jsonschema.NewCompiler()
+		schemaDoc, err := jsonschema.UnmarshalJSON(strings.NewReader(string(spec.JSON)))
+		if err != nil {
+			compileSchemaErr = fmt.Errorf("parse embedded schema: %w", err)
+			return
+		}
+		if err := compiler.AddResource(SchemaResourceURI, schemaDoc); err != nil {
+			compileSchemaErr = fmt.Errorf("add schema resource: %w", err)
+			return
+		}
+		compiledSchema, compileSchemaErr = compiler.Compile(SchemaResourceURI)
+		if compileSchemaErr != nil {
+			compileSchemaErr = fmt.Errorf("compile schema: %w", compileSchemaErr)
+		}
+	})
+	return compiledSchema, compileSchemaErr
+}
 
 // Validate checks the manifest against the embedded JSON Schema and performs
 // lightweight semantic checks. It never inspects secret values.
@@ -98,17 +125,9 @@ func validateCapability(name string, cap CapabilityRequest) error {
 }
 
 func validateSchema(m *Manifest, res *Result) error {
-	compiler := jsonschema.NewCompiler()
-	schemaDoc, err := jsonschema.UnmarshalJSON(strings.NewReader(string(spec.JSON)))
+	sch, err := compiledManifestSchema()
 	if err != nil {
-		return fmt.Errorf("parse embedded schema: %w", err)
-	}
-	if err := compiler.AddResource(SchemaResourceURI, schemaDoc); err != nil {
-		return fmt.Errorf("add schema resource: %w", err)
-	}
-	sch, err := compiler.Compile(SchemaResourceURI)
-	if err != nil {
-		return fmt.Errorf("compile schema: %w", err)
+		return err
 	}
 
 	raw, err := yamlToJSONDocument(m)
