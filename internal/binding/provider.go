@@ -212,12 +212,25 @@ func ResolveAll(ctx context.Context, reg *Registry, caps map[string]CapabilityRe
 			out = append(out, st)
 			continue
 		}
-		st.Status = CapabilityStatus(probe.Status)
+		st.Status = capabilityStatusFromProbe(probe.Status)
 		st.Message = probe.Message
 		st.Meta = probe.Meta
 		out = append(out, st)
 	}
 	return out, nil
+}
+
+func capabilityStatusFromProbe(status ProbeStatus) CapabilityStatus {
+	switch status {
+	case ProbeAvailable:
+		return StatusAvailable
+	case ProbeUnavailable:
+		return StatusUnavailable
+	case ProbeError:
+		return StatusError
+	default:
+		return StatusError
+	}
 }
 
 // CapabilityRequestView is the subset of manifest capability data needed for resolution.

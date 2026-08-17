@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -346,5 +347,74 @@ func TestJWKSConcurrentRefresh(t *testing.T) {
 	}
 	if atomic.LoadInt64(&fetches) != 1 {
 		t.Fatalf("fetches=%d want 1", fetches)
+	}
+}
+
+func TestJWKSConcurrentUnknownKidRefresh(t *testing.T) {
+	oldKey := mustKey(t)
+	newKey := mustKey(t)
+	var fetches int64
+	release := make(chan struct{})
+	inFlight := make(chan struct{})
+	var inFlightOnce sync.Once
+
+	jwks := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n := atomic.AddInt64(&fetches, 1)
+		if n == 1 {
+			_ = json.NewEncoder(w).Encode(jwksFor(oldKey, "old-kid"))
+			return
+		}
+		inFlightOnce.Do(func() { close(inFlight) })
+		<-release
+		_ = json.NewEncoder(w).Encode(jwksFor(newKey, "new-kid"))
+	}))
+	t.Cleanup(jwks.Close)
+
+	v := &broker.Verifier{
+		Issuer:   testIssuer,
+		Audience: testAudience,
+		JWKSURL:  jwks.URL,
+		HTTPDo:   jwks.Client().Do,
+	}
+	ctx := context.Background()
+	if _, err := v.Verify(ctx, mustSign(t, oldKey, "old-kid", jwt.MapClaims{
+		"iss": testIssuer, "sub": testSubject, "aud": testAudience,
+		"iat": time.Now().Unix(), "exp": time.Now().Add(2 * time.Minute).Unix(),
+	})); err != nil {
+		t.Fatalf("prime cache: %v", err)
+	}
+	if atomic.LoadInt64(&fetches) != 1 {
+		t.Fatalf("prime fetches=%d want 1", fetches)
+	}
+
+	tok := mustSign(t, newKey, "new-kid", jwt.MapClaims{
+		"iss": testIssuer, "sub": testSubject, "aud": testAudience,
+		"iat": time.Now().Unix(), "exp": time.Now().Add(2 * time.Minute).Unix(),
+	})
+
+	const n = 16
+	start := make(chan struct{})
+	var ready sync.WaitGroup
+	ready.Add(n)
+	errs := make(chan error, n)
+	for i := 0; i < n; i++ {
+		go func() {
+			ready.Done()
+			<-start
+			_, err := v.Verify(ctx, tok)
+			errs <- err
+		}()
+	}
+	ready.Wait()
+	close(start)
+	<-inFlight
+	close(release)
+	for i := 0; i < n; i++ {
+		if err := <-errs; err != nil {
+			t.Fatalf("verify: %v", err)
+		}
+	}
+	if got := atomic.LoadInt64(&fetches); got != 2 {
+		t.Fatalf("fetches=%d want 2 (prime + one coalesced unknown-kid refresh)", got)
 	}
 }
