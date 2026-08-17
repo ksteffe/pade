@@ -79,6 +79,17 @@ Before adding a feature, ask:
 
 ## Working in this repo
 
+### Git and pull requests
+
+These rules apply to humans and coding agents:
+
+- Always create feature branches from current `origin/main`.
+- Open pull requests that target `main`. Do not stack a PR on another feature branch unless the user explicitly asks for that.
+- Do not merge pull requests. Do not push commits to `main`. The user merges when they are ready.
+- Never merge, squash, or push to `main` because CI is green, because a follow-up “should land,” or because a previous PR targeted the wrong base.
+- If CI on a PR fails or is still running, fix the branch and update the PR. Do not bypass failing checks.
+- “Target main” means open a PR against `main`. It does not mean merge or push to `main`.
+
 - Plan before changing cross-cutting interfaces or the schema.
 - When behavior changes, update `spec/`, examples, and design docs in the same change when practical.
 - Keep Intent schemas small (`pade.local/v1alpha1`); every field creates compatibility pressure.
