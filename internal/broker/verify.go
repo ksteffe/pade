@@ -22,6 +22,7 @@ const (
 	maxTokenLifetime = 24 * time.Hour
 	jwksTimeout      = 15 * time.Second
 	jwksMaxBytes     = 1 << 20
+	jwksCacheTTL     = 5 * time.Minute
 )
 
 // Verifier validates Cursor (or test) OIDC JWTs against JWKS.
@@ -36,6 +37,7 @@ type Verifier struct {
 	mu        sync.Mutex
 	keys      map[string]*rsa.PublicKey
 	fetchedAt time.Time
+	refreshMu sync.Mutex
 }
 
 type jwksDoc struct {
@@ -76,19 +78,22 @@ func (v *Verifier) Verify(ctx context.Context, rawToken string) (Claims, error) 
 	if skew == 0 {
 		skew = defaultSkew
 	}
-	nowFn := v.Now
-	if nowFn == nil {
-		nowFn = time.Now
-	}
+	nowFn := v.nowFn()
 
+	refreshedForKid := false
 	parsed, err := jwt.ParseWithClaims(rawToken, &cursorClaims{}, func(t *jwt.Token) (interface{}, error) {
 		if t.Method.Alg() != jwt.SigningMethodRS256.Alg() {
 			return nil, fmt.Errorf("unexpected signing method")
 		}
 		kid, _ := t.Header["kid"].(string)
-		v.mu.Lock()
-		key := v.keys[kid]
-		v.mu.Unlock()
+		key := v.lookupKey(kid)
+		if key == nil && !refreshedForKid {
+			refreshedForKid = true
+			if err := v.forceRefresh(ctx); err != nil {
+				return nil, fmt.Errorf("unknown signing key")
+			}
+			key = v.lookupKey(kid)
+		}
 		if key == nil {
 			return nil, fmt.Errorf("unknown signing key")
 		}
@@ -135,9 +140,27 @@ func (v *Verifier) Verify(ctx context.Context, rawToken string) (Claims, error) 
 	}, nil
 }
 
-func (v *Verifier) ensureKeys(ctx context.Context) error {
+func (v *Verifier) nowFn() func() time.Time {
+	if v.Now != nil {
+		return v.Now
+	}
+	return time.Now
+}
+
+func (v *Verifier) cacheValid(now time.Time) bool {
+	return len(v.keys) > 0 && now.Sub(v.fetchedAt) < jwksCacheTTL
+}
+
+func (v *Verifier) lookupKey(kid string) *rsa.PublicKey {
 	v.mu.Lock()
-	if len(v.keys) > 0 && time.Since(v.fetchedAt) < 5*time.Minute {
+	defer v.mu.Unlock()
+	return v.keys[kid]
+}
+
+func (v *Verifier) ensureKeys(ctx context.Context) error {
+	now := v.nowFn()()
+	v.mu.Lock()
+	if v.cacheValid(now) {
 		v.mu.Unlock()
 		return nil
 	}
@@ -145,7 +168,28 @@ func (v *Verifier) ensureKeys(ctx context.Context) error {
 	return v.refreshKeys(ctx)
 }
 
+func (v *Verifier) forceRefresh(ctx context.Context) error {
+	v.refreshMu.Lock()
+	defer v.refreshMu.Unlock()
+	return v.fetchKeys(ctx)
+}
+
 func (v *Verifier) refreshKeys(ctx context.Context) error {
+	v.refreshMu.Lock()
+	defer v.refreshMu.Unlock()
+
+	now := v.nowFn()()
+	v.mu.Lock()
+	if v.cacheValid(now) {
+		v.mu.Unlock()
+		return nil
+	}
+	v.mu.Unlock()
+
+	return v.fetchKeys(ctx)
+}
+
+func (v *Verifier) fetchKeys(ctx context.Context) error {
 	url := strings.TrimSpace(v.JWKSURL)
 	if url == "" {
 		return fmt.Errorf("jwks URL is required")
@@ -182,7 +226,7 @@ func (v *Verifier) refreshKeys(ctx context.Context) error {
 	}
 	v.mu.Lock()
 	v.keys = keys
-	v.fetchedAt = time.Now()
+	v.fetchedAt = v.nowFn()()
 	v.mu.Unlock()
 	return nil
 }

@@ -114,7 +114,7 @@ func (p *countingProvider) Probe(context.Context, string, binding.CapabilityBind
 	p.probes++
 	return binding.ProbeResult{
 		Provider: p.Name(),
-		Status:   "available",
+		Status:   binding.ProbeAvailable,
 		Meta:     map[string]string{"fromProbe": "yes"},
 	}, nil
 }

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -198,5 +199,152 @@ func TestJWKSRejectsBadAlgAndUse(t *testing.T) {
 				t.Fatalf("want %q in error, got %v", tc.want, err)
 			}
 		})
+	}
+}
+
+func TestJWKSReuseWithinTTL(t *testing.T) {
+	key := mustKey(t)
+	fetches := 0
+	jwks := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fetches++
+		_ = json.NewEncoder(w).Encode(jwksFor(key, "test-kid"))
+	}))
+	t.Cleanup(jwks.Close)
+
+	v := &broker.Verifier{
+		Issuer:   testIssuer,
+		Audience: testAudience,
+		JWKSURL:  jwks.URL,
+		HTTPDo:   jwks.Client().Do,
+	}
+	ctx := context.Background()
+	tok := mustSign(t, key, "test-kid", jwt.MapClaims{
+		"iss": testIssuer, "sub": testSubject, "aud": testAudience,
+		"iat": time.Now().Unix(), "exp": time.Now().Add(2 * time.Minute).Unix(),
+	})
+	if _, err := v.Verify(ctx, tok); err != nil {
+		t.Fatalf("first verify: %v", err)
+	}
+	if _, err := v.Verify(ctx, tok); err != nil {
+		t.Fatalf("second verify: %v", err)
+	}
+	if fetches != 1 {
+		t.Fatalf("fetches=%d want 1", fetches)
+	}
+}
+
+func TestJWKSRefreshAfterTTL(t *testing.T) {
+	key := mustKey(t)
+	fetches := 0
+	jwks := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fetches++
+		_ = json.NewEncoder(w).Encode(jwksFor(key, "test-kid"))
+	}))
+	t.Cleanup(jwks.Close)
+
+	now := time.Now()
+	v := &broker.Verifier{
+		Issuer:   testIssuer,
+		Audience: testAudience,
+		JWKSURL:  jwks.URL,
+		HTTPDo:   jwks.Client().Do,
+		Now:      func() time.Time { return now },
+	}
+	ctx := context.Background()
+	tok := mustSign(t, key, "test-kid", jwt.MapClaims{
+		"iss": testIssuer, "sub": testSubject, "aud": testAudience,
+		"iat": now.Unix(), "exp": now.Add(30 * time.Minute).Unix(),
+	})
+	if _, err := v.Verify(ctx, tok); err != nil {
+		t.Fatalf("first verify: %v", err)
+	}
+	now = now.Add(6 * time.Minute)
+	if _, err := v.Verify(ctx, tok); err != nil {
+		t.Fatalf("after TTL verify: %v", err)
+	}
+	if fetches != 2 {
+		t.Fatalf("fetches=%d want 2", fetches)
+	}
+}
+
+func TestJWKSUnknownKidRefresh(t *testing.T) {
+	oldKey := mustKey(t)
+	newKey := mustKey(t)
+	phase := 0
+	jwks := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if phase == 0 {
+			_ = json.NewEncoder(w).Encode(jwksFor(oldKey, "old-kid"))
+			return
+		}
+		_ = json.NewEncoder(w).Encode(jwksFor(newKey, "new-kid"))
+	}))
+	t.Cleanup(jwks.Close)
+
+	v := &broker.Verifier{
+		Issuer:   testIssuer,
+		Audience: testAudience,
+		JWKSURL:  jwks.URL,
+		HTTPDo:   jwks.Client().Do,
+	}
+	ctx := context.Background()
+	// Prime cache with old kid only.
+	if _, err := v.Verify(ctx, mustSign(t, oldKey, "old-kid", jwt.MapClaims{
+		"iss": testIssuer, "sub": testSubject, "aud": testAudience,
+		"iat": time.Now().Unix(), "exp": time.Now().Add(2 * time.Minute).Unix(),
+	})); err != nil {
+		t.Fatalf("prime cache: %v", err)
+	}
+	phase = 1
+	tok := mustSign(t, newKey, "new-kid", jwt.MapClaims{
+		"iss": testIssuer, "sub": testSubject, "aud": testAudience,
+		"iat": time.Now().Unix(), "exp": time.Now().Add(2 * time.Minute).Unix(),
+	})
+	if _, err := v.Verify(ctx, tok); err != nil {
+		t.Fatalf("verify with rotated kid: %v", err)
+	}
+}
+
+func TestJWKSConcurrentRefresh(t *testing.T) {
+	key := mustKey(t)
+	var fetches int64
+	start := make(chan struct{})
+	jwks := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt64(&fetches, 1)
+		time.Sleep(20 * time.Millisecond)
+		_ = json.NewEncoder(w).Encode(jwksFor(key, "test-kid"))
+	}))
+	t.Cleanup(jwks.Close)
+
+	now := time.Now().Add(-10 * time.Minute)
+	v := &broker.Verifier{
+		Issuer:   testIssuer,
+		Audience: testAudience,
+		JWKSURL:  jwks.URL,
+		HTTPDo:   jwks.Client().Do,
+		Now:      func() time.Time { return now },
+	}
+	ctx := context.Background()
+	tok := mustSign(t, key, "test-kid", jwt.MapClaims{
+		"iss": testIssuer, "sub": testSubject, "aud": testAudience,
+		"iat": now.Unix(), "exp": now.Add(2 * time.Minute).Unix(),
+	})
+
+	const n = 16
+	errs := make(chan error, n)
+	for i := 0; i < n; i++ {
+		go func() {
+			<-start
+			_, err := v.Verify(ctx, tok)
+			errs <- err
+		}()
+	}
+	close(start)
+	for i := 0; i < n; i++ {
+		if err := <-errs; err != nil {
+			t.Fatalf("verify: %v", err)
+		}
+	}
+	if atomic.LoadInt64(&fetches) != 1 {
+		t.Fatalf("fetches=%d want 1", fetches)
 	}
 }

@@ -431,7 +431,7 @@ type hangProvider struct {
 func (p *hangProvider) Name() string { return "hang" }
 
 func (p *hangProvider) Probe(context.Context, string, binding.CapabilityBinding) (binding.ProbeResult, error) {
-	return binding.ProbeResult{Provider: "hang", Status: "available"}, nil
+	return binding.ProbeResult{Provider: "hang", Status: binding.ProbeAvailable}, nil
 }
 
 func (p *hangProvider) Resolve(ctx context.Context, _ string, _ binding.CapabilityBinding) (*binding.Material, error) {

@@ -9,19 +9,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"os"
 	osexec "os/exec"
 	"strings"
 	"time"
 
 	"github.com/ksteffe/pade/internal/binding"
+	"github.com/ksteffe/pade/internal/binding/cliproc"
 )
 
-const (
-	providerName = "exec"
-	maxOutput    = 1 << 20 // 1 MiB per stream
-)
+const providerName = "exec"
 
 // Provider runs an external fulfill/derive program.
 type Provider struct{}
@@ -34,15 +30,15 @@ func (p *Provider) Name() string { return providerName }
 // Probe asks the external program whether the binding can be satisfied.
 func (p *Provider) Probe(ctx context.Context, name string, b binding.CapabilityBinding) (binding.ProbeResult, error) {
 	if err := requireExec(b); err != nil {
-		return binding.ProbeResult{Provider: providerName, Status: "error", Message: err.Error()}, nil
+		return binding.ProbeResult{Provider: providerName, Status: binding.ProbeError, Message: err.Error()}, nil
 	}
 	resp, err := p.invoke(ctx, name, "probe", b.Exec)
 	if err != nil {
-		return binding.ProbeResult{Provider: providerName, Status: "error", Message: err.Error()}, nil
+		return binding.ProbeResult{Provider: providerName, Status: binding.ProbeError, Message: err.Error()}, nil
 	}
-	status := strings.TrimSpace(resp.Status)
-	if status == "" {
-		status = "error"
+	status, err := parseProbeStatus(resp.Status)
+	if err != nil {
+		return binding.ProbeResult{Provider: providerName, Status: binding.ProbeError, Message: err.Error()}, nil
 	}
 	return binding.ProbeResult{
 		Provider: providerName,
@@ -79,9 +75,9 @@ func (p *Provider) Resolve(ctx context.Context, name string, b binding.Capabilit
 }
 
 type request struct {
-	Capability string                 `json:"capability"`
-	Operation  string                 `json:"operation"`
-	Config     map[string]interface{} `json:"config,omitempty"`
+	Capability string         `json:"capability"`
+	Operation  string         `json:"operation"`
+	Config     map[string]any `json:"config,omitempty"`
 }
 
 type response struct {
@@ -94,6 +90,19 @@ type response struct {
 	ExpiresAt string            `json:"expiresAt,omitempty"`
 }
 
+func parseProbeStatus(raw string) (binding.ProbeStatus, error) {
+	status := binding.ProbeStatus(strings.TrimSpace(raw))
+	if status == "" {
+		return binding.ProbeError, nil
+	}
+	switch status {
+	case binding.ProbeAvailable, binding.ProbeUnavailable, binding.ProbeError:
+		return status, nil
+	default:
+		return binding.ProbeError, fmt.Errorf("exec provider returned unsupported probe status %q", raw)
+	}
+}
+
 func requireExec(b binding.CapabilityBinding) error {
 	if b.Exec == nil {
 		return fmt.Errorf("exec config is required")
@@ -102,29 +111,6 @@ func requireExec(b binding.CapabilityBinding) error {
 		return fmt.Errorf("exec.command is required")
 	}
 	return nil
-}
-
-type limitedBuffer struct {
-	buf    bytes.Buffer
-	limit  int
-	exceed bool
-}
-
-func (l *limitedBuffer) Write(p []byte) (int, error) {
-	if l.exceed {
-		return len(p), nil
-	}
-	remain := l.limit - l.buf.Len()
-	if remain <= 0 {
-		l.exceed = true
-		return len(p), nil
-	}
-	if len(p) > remain {
-		_, _ = l.buf.Write(p[:remain])
-		l.exceed = true
-		return len(p), nil
-	}
-	return l.buf.Write(p)
 }
 
 func (p *Provider) invoke(ctx context.Context, capability, operation string, eb *binding.ExecBinding) (*response, error) {
@@ -141,18 +127,18 @@ func (p *Provider) invoke(ctx context.Context, capability, operation string, eb 
 	cmd.Dir = eb.Dir
 	cmd.Env = providerEnviron()
 	cmd.Stdin = bytes.NewReader(payload)
-	var stdout, stderr limitedBuffer
-	stdout.limit = maxOutput
-	stderr.limit = maxOutput
+	var stdout, stderr cliproc.LimitedBuffer
+	stdout.Limit = cliproc.MaxOutput
+	stderr.Limit = cliproc.MaxOutput
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
 	runErr := cmd.Run()
-	if stdout.exceed {
-		return nil, fmt.Errorf("exec provider %q stdout exceeded %d byte limit", eb.Command[0], maxOutput)
+	if stdout.Exceed {
+		return nil, fmt.Errorf("exec provider %q stdout exceeded %d byte limit", eb.Command[0], cliproc.MaxOutput)
 	}
-	if stderr.exceed {
-		return nil, fmt.Errorf("exec provider %q stderr exceeded %d byte limit", eb.Command[0], maxOutput)
+	if stderr.Exceed {
+		return nil, fmt.Errorf("exec provider %q stderr exceeded %d byte limit", eb.Command[0], cliproc.MaxOutput)
 	}
 	if runErr != nil {
 		// Do not include stdout (may contain material) or raw stderr (may contain
@@ -164,7 +150,7 @@ func (p *Provider) invoke(ctx context.Context, capability, operation string, eb 
 		return nil, fmt.Errorf("exec provider %q failed", eb.Command[0])
 	}
 
-	out := bytes.TrimSpace(stdout.buf.Bytes())
+	out := bytes.TrimSpace(stdout.Bytes())
 	if len(out) == 0 {
 		return nil, fmt.Errorf("exec provider returned empty stdout")
 	}
@@ -187,55 +173,12 @@ func exitCode(err error) int {
 // It includes ordinary process variables and documented ambient auth keys,
 // not the full caller environment.
 func providerEnviron() []string {
-	allowExact := map[string]struct{}{
-		"PATH":                           {},
-		"HOME":                           {},
-		"USER":                           {},
-		"LOGNAME":                        {},
-		"SHELL":                          {},
-		"TMPDIR":                         {},
-		"TMP":                            {},
-		"TEMP":                           {},
-		"LANG":                           {},
-		"LANGUAGE":                       {},
-		"TZ":                             {},
-		"TERM":                           {},
+	return cliproc.Environ(map[string]struct{}{
 		"GOOGLE_APPLICATION_CREDENTIALS": {},
 		"KSM_CONFIG":                     {},
 		"VAULT_ADDR":                     {},
 		"VAULT_TOKEN":                    {},
 		"VAULT_NAMESPACE":                {},
 		"VAULT_CACERT":                   {},
-	}
-	allowPrefix := []string{
-		"LC_",
-		"XDG_",
-		"PADE_",
-		"VAULT_",
-		"OP_",
-		"KSM_",
-		"KEEPER_",
-		"CLOUDSDK_",
-		"GOOGLE_",
-	}
-
-	env := os.Environ()
-	out := make([]string, 0, len(env)/4+8)
-	for _, e := range env {
-		key, _, _ := strings.Cut(e, "=")
-		if _, ok := allowExact[key]; ok {
-			out = append(out, e)
-			continue
-		}
-		for _, p := range allowPrefix {
-			if strings.HasPrefix(key, p) {
-				out = append(out, e)
-				break
-			}
-		}
-	}
-	return out
+	}, []string{"PADE_", "VAULT_", "OP_", "KSM_", "KEEPER_", "CLOUDSDK_", "GOOGLE_"})
 }
-
-// Ensure limitedBuffer implements io.Writer.
-var _ io.Writer = (*limitedBuffer)(nil)

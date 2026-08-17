@@ -3,7 +3,7 @@
 Minimal repository used to dogfood the DevPod-first PADE flow:
 
 1. **DevPod** owns workspace lifecycle (`devpod up` / `devpod stop`).
-2. **PADE** owns capability declaration, binding probes, and process-scoped `exec`.
+2. **PADE** owns capability declaration, static binding inspection, and process-scoped `exec`.
 3. This repo never embeds secrets in the portable `DevelopmentSession` (`pade.yaml`).
 
 Demo capability (stage-1 PAT baseline): **`github.user.read`** (env: **`GITHUB_TOKEN`**).
