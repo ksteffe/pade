@@ -418,3 +418,189 @@ func TestJWKSConcurrentUnknownKidRefresh(t *testing.T) {
 		t.Fatalf("fetches=%d want 2 (prime + one coalesced unknown-kid refresh)", got)
 	}
 }
+
+func validClaimsAt(now time.Time) jwt.MapClaims {
+	return jwt.MapClaims{
+		"iss": testIssuer, "sub": testSubject, "aud": testAudience,
+		"iat": now.Unix(), "exp": now.Add(2 * time.Minute).Unix(),
+	}
+}
+
+func TestJWKSUnknownKidRefreshSuppressed(t *testing.T) {
+	key := mustKey(t)
+	var fetches int64
+	jwks := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt64(&fetches, 1)
+		_ = json.NewEncoder(w).Encode(jwksFor(key, "test-kid"))
+	}))
+	t.Cleanup(jwks.Close)
+
+	now := time.Now()
+	v := &broker.Verifier{
+		Issuer:   testIssuer,
+		Audience: testAudience,
+		JWKSURL:  jwks.URL,
+		HTTPDo:   jwks.Client().Do,
+		Now:      func() time.Time { return now },
+	}
+	ctx := context.Background()
+	if _, err := v.Verify(ctx, mustSign(t, key, "test-kid", validClaimsAt(now))); err != nil {
+		t.Fatalf("prime cache: %v", err)
+	}
+	if atomic.LoadInt64(&fetches) != 1 {
+		t.Fatalf("prime fetches=%d want 1", fetches)
+	}
+
+	bogus := mustSign(t, key, "bogus", validClaimsAt(now))
+	if _, err := v.Verify(ctx, bogus); err == nil || !strings.Contains(err.Error(), "unknown signing key") {
+		t.Fatalf("first bogus kid: %v", err)
+	}
+	if atomic.LoadInt64(&fetches) != 2 {
+		t.Fatalf("after first bogus fetches=%d want 2", fetches)
+	}
+	if _, err := v.Verify(ctx, bogus); err == nil || !strings.Contains(err.Error(), "unknown signing key") {
+		t.Fatalf("repeated bogus kid: %v", err)
+	}
+	if atomic.LoadInt64(&fetches) != 2 {
+		t.Fatalf("repeated bogus fetches=%d want 2", fetches)
+	}
+}
+
+func TestJWKSUnknownKidRefreshSuppressedAcrossKids(t *testing.T) {
+	key := mustKey(t)
+	var fetches int64
+	jwks := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt64(&fetches, 1)
+		_ = json.NewEncoder(w).Encode(jwksFor(key, "test-kid"))
+	}))
+	t.Cleanup(jwks.Close)
+
+	now := time.Now()
+	v := &broker.Verifier{
+		Issuer:   testIssuer,
+		Audience: testAudience,
+		JWKSURL:  jwks.URL,
+		HTTPDo:   jwks.Client().Do,
+		Now:      func() time.Time { return now },
+	}
+	ctx := context.Background()
+	if _, err := v.Verify(ctx, mustSign(t, key, "test-kid", validClaimsAt(now))); err != nil {
+		t.Fatalf("prime cache: %v", err)
+	}
+	for _, kid := range []string{"bogus-1", "bogus-2", "bogus-3"} {
+		tok := mustSign(t, key, kid, validClaimsAt(now))
+		if _, err := v.Verify(ctx, tok); err == nil || !strings.Contains(err.Error(), "unknown signing key") {
+			t.Fatalf("kid %q: %v", kid, err)
+		}
+	}
+	if got := atomic.LoadInt64(&fetches); got != 2 {
+		t.Fatalf("fetches=%d want 2 (prime + one forced refresh for all bogus kids)", got)
+	}
+}
+
+func TestJWKSUnknownKidRefreshAfterInterval(t *testing.T) {
+	key := mustKey(t)
+	var fetches int64
+	jwks := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt64(&fetches, 1)
+		_ = json.NewEncoder(w).Encode(jwksFor(key, "test-kid"))
+	}))
+	t.Cleanup(jwks.Close)
+
+	now := time.Now()
+	v := &broker.Verifier{
+		Issuer:   testIssuer,
+		Audience: testAudience,
+		JWKSURL:  jwks.URL,
+		HTTPDo:   jwks.Client().Do,
+		Now:      func() time.Time { return now },
+	}
+	ctx := context.Background()
+	if _, err := v.Verify(ctx, mustSign(t, key, "test-kid", validClaimsAt(now))); err != nil {
+		t.Fatalf("prime cache: %v", err)
+	}
+	bogus := mustSign(t, key, "bogus", validClaimsAt(now))
+	if _, err := v.Verify(ctx, bogus); err == nil {
+		t.Fatal("expected first bogus kid to fail")
+	}
+	if atomic.LoadInt64(&fetches) != 2 {
+		t.Fatalf("after first bogus fetches=%d want 2", fetches)
+	}
+
+	now = now.Add(31 * time.Second)
+	later := mustSign(t, key, "bogus-later", validClaimsAt(now))
+	if _, err := v.Verify(ctx, later); err == nil || !strings.Contains(err.Error(), "unknown signing key") {
+		t.Fatalf("after interval: %v", err)
+	}
+	if atomic.LoadInt64(&fetches) != 3 {
+		t.Fatalf("after interval fetches=%d want 3", fetches)
+	}
+}
+
+func TestJWKSConcurrentBogusKidRefresh(t *testing.T) {
+	key := mustKey(t)
+	var fetches int64
+	release := make(chan struct{})
+	inFlight := make(chan struct{})
+	var inFlightOnce sync.Once
+
+	jwks := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n := atomic.AddInt64(&fetches, 1)
+		if n == 1 {
+			_ = json.NewEncoder(w).Encode(jwksFor(key, "test-kid"))
+			return
+		}
+		inFlightOnce.Do(func() { close(inFlight) })
+		<-release
+		_ = json.NewEncoder(w).Encode(jwksFor(key, "test-kid"))
+	}))
+	t.Cleanup(jwks.Close)
+
+	now := time.Now()
+	v := &broker.Verifier{
+		Issuer:   testIssuer,
+		Audience: testAudience,
+		JWKSURL:  jwks.URL,
+		HTTPDo:   jwks.Client().Do,
+		Now:      func() time.Time { return now },
+	}
+	ctx := context.Background()
+	if _, err := v.Verify(ctx, mustSign(t, key, "test-kid", validClaimsAt(now))); err != nil {
+		t.Fatalf("prime cache: %v", err)
+	}
+	if atomic.LoadInt64(&fetches) != 1 {
+		t.Fatalf("prime fetches=%d want 1", fetches)
+	}
+
+	const n = 16
+	start := make(chan struct{})
+	var ready sync.WaitGroup
+	ready.Add(n)
+	errs := make(chan error, n)
+	for i := 0; i < n; i++ {
+		kid := "bogus"
+		if i%2 == 1 {
+			kid = "bogus-other"
+		}
+		tok := mustSign(t, key, kid, validClaimsAt(now))
+		go func() {
+			ready.Done()
+			<-start
+			_, err := v.Verify(ctx, tok)
+			errs <- err
+		}()
+	}
+	ready.Wait()
+	close(start)
+	<-inFlight
+	close(release)
+	for i := 0; i < n; i++ {
+		err := <-errs
+		if err == nil || !strings.Contains(err.Error(), "unknown signing key") {
+			t.Fatalf("verify: %v", err)
+		}
+	}
+	if got := atomic.LoadInt64(&fetches); got != 2 {
+		t.Fatalf("fetches=%d want 2 (prime + one forced refresh for concurrent bogus kids)", got)
+	}
+}
