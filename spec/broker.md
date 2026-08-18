@@ -148,6 +148,12 @@ A different PADE-compatible broker MAY materialize authority using Vault, cloud 
 
 Returned material SHOULD be minimal for the request. Bootstrap credentials for the materialization system SHOULD stay on the broker side in broker mode.
 
+A broker SHOULD prefer narrowly scoped, session-scoped, short-lived, or otherwise derived Material when the downstream authority system and operator policy support it. A broker MAY return durable credential Material when derivation is unavailable or explicitly permitted by operator policy. Direct delivery of durable credentials remains valid PADE behavior; PADE does not require every provider to support derived or short-lived credentials.
+
+PADE does not guarantee least-authority fulfillment. Broker configuration, provider implementation, operator policy, and the downstream authority system determine the security properties of the resulting Material. Use of a PADE Broker does not by itself make a DevelopmentSession secure.
+
+Implementations SHOULD make relevant expiration, scope, and other authority-limiting semantics observable where practical.
+
 ## Deployment transport
 
 For non-local use, the broker protocol SHOULD require **protected network transport** (TLS end-to-end or TLS terminated at a trusted upstream that the operator correctly configures).

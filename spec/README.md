@@ -29,7 +29,7 @@ Software operating in or on behalf of a development workload that reads intent, 
 
 ### PADE Broker Specification
 
-A network authority boundary that authenticates a workload, evaluates **server-owned** authorization policy, and materializes permitted capabilities through implementation-specific systems. The current reference broker is `pade-broker` (experimental HTTP spike).
+A network authority boundary that authenticates a workload, evaluates **server-owned** authorization policy, and materializes permitted capabilities through implementation-specific systems. Materialization security properties depend on broker configuration, provider capabilities, and operator policy; PADE encourages derived or short-lived Material when supported but does not guarantee least-authority fulfillment. The current reference broker is `pade-broker` (experimental HTTP spike).
 
 ## Architecture
 
