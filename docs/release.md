@@ -1,0 +1,37 @@
+# Releasing PADE (Milestone I)
+
+Pre-1.0 SemVer. Initial target: **`v0.1.0`**. Releases are **manual only** — nothing publishes on merge to `main`.
+
+## Cut a release (GitHub Actions)
+
+1. Ensure `main` is green (CI unit + smoke + container smoke).
+2. Actions → **Release** → **Run workflow**.
+3. Enter the version tag (for example `v0.1.0`).
+4. The workflow will:
+   - re-run unit, smoke, and container smoke checks;
+   - build CLI archives for **linux/amd64**, **linux/arm64**, **darwin/arm64** (`pade` + `pade-broker` per archive);
+   - write `SHA256SUMS` and a broker image digest manifest;
+   - push `ghcr.io/ksteffe/pade-broker:<version>` (and `:latest`);
+   - create a GitHub Release with generated release notes.
+
+Prefer **digest pins** for production broker deploys. The release uploads `pade-broker-image.digest` alongside CLI tarballs.
+
+## Local builds
+
+```bash
+make build
+./bin/pade --version
+./bin/pade-broker -version
+
+VERSION=v0.1.0 make release-artifacts
+# artifacts under dist/v0.1.0/
+```
+
+Development builds without `VERSION=…` report `dev` plus the current git short commit when linked via `make build`.
+
+## Consumer contract
+
+- **CLI:** install from GitHub Release assets (or build from a tag).
+- **Broker:** `ghcr.io/ksteffe/pade-broker:vX.Y.Z` — no need to clone this repository on the broker host.
+
+See [ROADMAP.md](../ROADMAP.md) Milestone I and post-release Milestones J–K.

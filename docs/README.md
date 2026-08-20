@@ -23,4 +23,5 @@ Navigation roots: [../README.md](../README.md) (current direction), [../ROADMAP.
 | [keeper-secrets-manager-dogfood.md](keeper-secrets-manager-dogfood.md) | Keeper Secrets Manager / Milestone 9 dogfood |
 | [cursor-cloud-dogfood.md](cursor-cloud-dogfood.md) | Cursor Cloud Agent + KSM composition (vendor-specific) |
 | [cursor-oidc-broker-dogfood.md](cursor-oidc-broker-dogfood.md) | Phase 2 Cursor OIDC broker dogfood (Stage B KSM/exec, external deploy status) |
+| [release.md](release.md) | Milestone I — versioned releases (`workflow_dispatch`) |
 | [teleport-ingress.md](teleport-ingress.md) | Teleport Application Access / Milestone 8 ingress spike |

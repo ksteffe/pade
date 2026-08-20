@@ -114,6 +114,8 @@ make ci-unit   # gofmt (tracked .go), mod verify, vet, shuffled tests, staticche
 make ci-compat # minimum Go: go test ./... and go build ./... (GitHub runs this on 1.22)
 make ci-smoke  # env/identity/Vault/op/keeper/ksm dogfood + example validate
 make ci   # local mirror of GitHub unit + smoke jobs (ci-unit then ci-smoke)
+make build   # bin/pade and bin/pade-broker (--version / -version)
+make release-artifacts   # VERSION=v0.1.0 — cross-compile dist/ (Milestone I)
 make dogfood   # examples/demo-project PADE smoke (no DevPod required)
 make dogfood-identity   # Milestone 5 Alice/Bob identity separation smoke
 make dogfood-vault   # Vault -dev capability resolution (+ Alice/Bob KV paths)

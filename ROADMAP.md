@@ -95,9 +95,9 @@ Derived from the repository as of this roadmap pass (reference Consumer/Broker c
 | Fake broker dogfood (GitHub PAT direct Material) | DONE | `make dogfood-broker` (CI smoke); Stage B real Cursor OIDC + fake KSM (`make dogfood-broker-stage-b`, not CI) — **stage 1 baseline**, not preferred final pre-release GitHub dogfood |
 | Stage B exec dogfood (real OIDC + exec providers) | DONE | `make dogfood-broker-stage-b-exec` — Cloud Agent only; `github.repo.read` + `google-analytics.read` through broker-side exec; default `PADE_PROVIDER_FAKE=1` |
 | Live Cloud Run broker E2E (derived tokens) | DONE | Cloud Agent → private Cloud Run `pade-broker` (`pade-broker-deployment`); real Cursor OIDC; live GitHub `/repos/{owner}/{repo}` + GA Admin/Data API; pre-release CLI/broker binaries |
-| Version reporting (`pade` / `pade-broker --version`) | MISSING | Part of Milestone I |
-| GitHub Release artifacts | MISSING | Part of Milestone I |
-| Broker container publishing (GHCR) | MISSING | Part of Milestone I |
+| Version reporting (`pade` / `pade-broker --version`) | DONE | `internal/version`; `-ldflags` at build/release time |
+| GitHub Release artifacts | PARTIAL | `workflow_dispatch` [`.github/workflows/release.yml`](../.github/workflows/release.yml); first `v0.1.0` cut is manual |
+| Broker container publishing (GHCR) | PARTIAL | Release workflow pushes `ghcr.io/ksteffe/pade-broker:vX.Y.Z`; OCI labels in [`Dockerfile`](../Dockerfile) |
 
 **Genuinely missing PADE-repository work** before the first release:
 
@@ -421,7 +421,7 @@ Previous letters after PR #31 (GA-first A–M) are **superseded**:
 | **F — Google service-account reference provider (second test)** | `examples/providers/google-analytics/` — structurally different OAuth derivation on same seam | PADE + external — **DONE** (fake CI + httptest; live property + GA4 report via private Cloud Run broker) |
 | **G — Two-provider architectural test** | Same `provider: exec` seam for both; no vendor leakage into core | PADE repo — **landed** (`make dogfood-exec-provider-two`; live both-capability Cloud Run E2E) |
 | **H — Spec/docs tighten from dogfood** | Capture D–G learnings; no premature Intent redesign | PADE repo |
-| **I — Initial versioned release (`v0.1.0`)** | CLI + broker artifacts; **gated on A–H**; stages 1 and 2 via both providers | PADE repo |
+| **I — Initial versioned release (`v0.1.0`)** | CLI + broker artifacts; **gated on A–H**; stages 1 and 2 via both providers | PADE repo — **in progress** (release workflow; first tag manual) |
 
 ### Post-release (preserved; renumbered)
 
@@ -636,6 +636,8 @@ Do **not** redesign DevelopmentSession / Intent around Runtime Conditions or inv
 - [spec/consumer.md](spec/consumer.md) broker mode + external providers; [spec/intent.md](spec/intent.md) capability vocabulary examples
 
 ### Milestone I — Initial versioned release (`v0.1.0`)
+
+**Status:** In progress (version reporting + release workflow landed; first tag cut remains manual).
 
 **Goal:** External consumers pin `PADE_VERSION=vX.Y.Z` instead of arbitrary `main` commits—**only after** A–H succeed.
 

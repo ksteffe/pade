@@ -1,6 +1,14 @@
 # Prefer a repo-local Go toolchain when present (.tools/go from go.dev).
 # System Go 1.13 and similar cannot build this module (no embed stdlib, old modules).
 GO ?= $(shell if [ -x "$(CURDIR)/.tools/go/bin/go" ]; then echo "$(CURDIR)/.tools/go/bin/go"; else command -v go; fi)
+VERSION ?= dev
+COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
+BUILD_TIME ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo unknown)
+LDFLAGS := -s -w \
+	-X github.com/ksteffe/pade/internal/version.Version=$(VERSION) \
+	-X github.com/ksteffe/pade/internal/version.Commit=$(COMMIT) \
+	-X github.com/ksteffe/pade/internal/version.BuildTime=$(BUILD_TIME)
+RELEASE_BUILD := $(CURDIR)/scripts/release-build.sh
 DEVPOD_DOGFOOD := $(CURDIR)/scripts/devpod-dogfood.sh
 
 IDENTITY_DOGFOOD := $(CURDIR)/scripts/identity-dogfood.sh
@@ -31,7 +39,7 @@ INSTALL_KEEPER_CLI := $(CURDIR)/scripts/install-keeper-cli.sh
 	dogfood-devpod-install dogfood-devpod-smoke dogfood-devpod-down dogfood-devpod-delete \
 	dogfood-devpod-ci \
 	vet fmt-check govulncheck staticcheck test-race test-shuffle mod-verify \
-	ci-unit ci-compat ci-smoke ci
+	ci-unit ci-compat ci-smoke ci release-artifacts
 
 check-go:
 	@v="$$( $(GO) env GOVERSION 2>/dev/null || true )"; \
@@ -71,8 +79,14 @@ staticcheck: check-go
 	GOTOOLCHAIN=go1.26.6 $(GO) run honnef.co/go/tools/cmd/staticcheck@v0.6.1 ./...
 
 build: check-go
-	$(GO) build -o bin/pade ./cmd/pade
-	$(GO) build -o bin/pade-broker ./cmd/pade-broker
+	$(GO) build -ldflags "$(LDFLAGS)" -o bin/pade ./cmd/pade
+	$(GO) build -ldflags "$(LDFLAGS)" -o bin/pade-broker ./cmd/pade-broker
+
+# Milestone I: cross-compile release artifacts (linux/amd64, linux/arm64, darwin/arm64).
+# Example: VERSION=v0.1.0 make release-artifacts
+release-artifacts: check-go
+	@chmod +x "$(RELEASE_BUILD)"
+	@VERSION="$(VERSION)" COMMIT="$(COMMIT)" BUILD_TIME="$(BUILD_TIME)" GO="$(GO)" "$(RELEASE_BUILD)"
 
 # Cross-compile for the local Docker VM (linux/amd64 or linux/arm64).
 build-linux:
