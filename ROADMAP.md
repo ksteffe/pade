@@ -619,7 +619,7 @@ If implementing the second provider had required adding vendor-specific concepts
 
 ### Milestone H — Spec/docs tighten from dogfood
 
-**Status:** In progress.
+**Status:** In progress (follow-up pass on `spec/consumer.md`, `spec/intent.md`, cross-links).
 
 **Goal:** Update draft specs, SECURITY notes, and examples based on what D–G learned.
 
@@ -633,6 +633,7 @@ Do **not** redesign DevelopmentSession / Intent around Runtime Conditions or inv
 - Derived-credential trust boundaries in [SECURITY.md](SECURITY.md)
 - Example fixtures: [spec/examples/broker-policy.stage-b-exec.example.yaml](spec/examples/broker-policy.stage-b-exec.example.yaml), [spec/examples/broker-bindings.exec.example.yaml](spec/examples/broker-bindings.exec.example.yaml)
 - Discoverability in [README.md](README.md), [AGENTS.md](AGENTS.md), [examples/providers/README.md](examples/providers/README.md)
+- [spec/consumer.md](spec/consumer.md) broker mode + external providers; [spec/intent.md](spec/intent.md) capability vocabulary examples
 
 ### Milestone I — Initial versioned release (`v0.1.0`)
 

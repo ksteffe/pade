@@ -237,7 +237,7 @@ spec:
       access: read
 ```
 
-(Schema examples under `spec/examples/` may still show other capability names such as `google-analytics.read`.)
+This sketch shows a **stage-1 baseline** capability name. Pre-release derived-token dogfood often uses **`github.repo.read`** and **`google-analytics.read`** instead—see [examples/](examples/) and [ROADMAP.md](../ROADMAP.md) Milestones D–G.
 
 Environment construction stays in `.devcontainer/devcontainer.json` and is started with DevPod (for example `devpod up .`). See [spec/examples/web-app.yaml](spec/examples/web-app.yaml). The earlier orchestration-oriented example ([spec/examples/web-app-orchestrated.yaml](spec/examples/web-app-orchestrated.yaml)) has been reduced to portable capability Intent under the same v1alpha1 shape.
 

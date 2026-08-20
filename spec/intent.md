@@ -162,7 +162,13 @@ PADE does **not** replace Dev Containers. Workspace lifecycle (create, SSH, port
 
 Capability naming is currently **exploratory**.
 
-Examples in this repository (`github.user.read`, `google-analytics.read`, `datadog.logs.read`) illustrate shapes only.
+Examples in this repository (`github.user.read`, `github.repo.read`, `google-analytics.read`, `datadog.logs.read`) illustrate shapes only.
+
+- **`github.user.read`** — common in stage-1 direct-materialization dogfood (PAT / whoami baseline).
+- **`github.repo.read`** — preferred pre-release derived-token dogfood (installation token; repo-scoped validation—not `/user` whoami).
+- **`google-analytics.read`** — second structural provider test; directory name is dogfood convenience only (not GA product support in PADE).
+
+None of these names are registered or normative. External repos and dogfood may use other opaque strings.
 
 This pass does **not** define:
 
