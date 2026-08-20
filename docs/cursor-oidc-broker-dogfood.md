@@ -126,7 +126,7 @@ Example policy shape: [`spec/examples/broker-policy.stage-b-exec.example.yaml`](
 
 Preferred GitHub validation: [`examples/demo-project/scripts/github-repo-meta`](../examples/demo-project/scripts/github-repo-meta) (repo-scoped; not `/user` whoami). GA validation: [`ga-property-meta`](../examples/demo-project/scripts/ga-property-meta).
 
-**Live external broker:** A private Cloud Run deployment (`pade-broker-deployment`, outside this repo) has been dogfooded end-to-end with **released** `pade v0.1.0` and **released** `ghcr.io/ksteffe/pade-broker:v0.1.0` (ROADMAP J–K **DONE**). Product repos such as after-certainty may pin the broker URL; do not commit broker URLs or credentials into this repository.
+**Live external broker:** A private Cloud Run deployment (`pade-broker-deployment`, outside this repo) has been dogfooded end-to-end with **released** `pade v0.1.0` and **released** `ghcr.io/ksteffe/pade-broker:v0.1.0` (ROADMAP J–K **DONE**). Consumer / application repositories may pin the broker URL; do not commit broker URLs or credentials into this repository.
 
 ## Stage C — external broker + real KSM (manual host)
 
@@ -256,7 +256,7 @@ Agent VM should **not** have `KSM_CONFIG` in this mode.
 
 ### External broker with derived credentials (live)
 
-Private deployment outside this repo (for example Cloud Run + Secret Manager + broker-side exec). Agent bindings use `provider: broker` only; durable keys stay on the broker host. Status: **live dogfood complete** for `github.repo.read` and `google-analytics.read` using **released** `pade v0.1.0` and **released** `ghcr.io/ksteffe/pade-broker:v0.1.0` (ROADMAP J/K **DONE**). Product repos such as after-certainty may commit their own broker URL; **do not commit broker URLs into this repository.**
+Private deployment outside this repo (for example Cloud Run + Secret Manager + broker-side exec). Agent bindings use `provider: broker` only; durable keys stay on the broker host. Status: **live dogfood complete** for `github.repo.read` and `google-analytics.read` using **released** `pade v0.1.0` and **released** `ghcr.io/ksteffe/pade-broker:v0.1.0` (ROADMAP J/K **DONE**). Consumer / application repositories may commit their own broker URL; **do not commit broker URLs into this repository.**
 
 ```text
 Cursor Cloud Agent

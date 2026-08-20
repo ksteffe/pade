@@ -51,7 +51,7 @@ Broker
    |
    | authorization + materialization
    v
-Keeper / Vault / cloud IAM / preview provider /
+Keeper / Vault / cloud IAM /
 enterprise platform / other service
 ```
 
@@ -280,7 +280,7 @@ Workspace lifecycle: prefer `devpod up` / `devpod stop` directly. See [examples/
 
 ## Roadmap
 
-**Authoritative forward plan:** [ROADMAP.md](ROADMAP.md) — before `v0.1.0`, two **non-normative reference providers** prove stage-2 broker-side credential derivation on the same generic seam (GitHub App first; Google service-account OAuth second as a **structural** test, not Google Analytics product support). Then released artifacts, external dogfood, Cloudflare/preview, and the endpoint decision. See [Why two derived-token providers before v0.1.0](ROADMAP.md#why-two-derived-token-providers-before-v010).
+**Authoritative forward plan:** [ROADMAP.md](ROADMAP.md) — before `v0.1.0`, two **non-normative reference providers** prove stage-2 broker-side credential derivation on the same generic seam (GitHub App first; Google service-account OAuth second as a **structural** test, not Google Analytics product support). After released artifacts: external vendor CLI authority dogfood (without adding vendors to PADE), subject-bound authority via downstream identity federation, full cloud-agent acceptance, and bring back only generic deficiencies. Preview-environment lifecycle is not currently a motivating PADE problem. See [Why two derived-token providers before v0.1.0](ROADMAP.md#why-two-derived-token-providers-before-v010).
 
 ### Historical dogfood milestones
 
