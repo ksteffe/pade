@@ -126,7 +126,7 @@ Example policy shape: [`spec/examples/broker-policy.stage-b-exec.example.yaml`](
 
 Preferred GitHub validation: [`examples/demo-project/scripts/github-repo-meta`](../examples/demo-project/scripts/github-repo-meta) (repo-scoped; not `/user` whoami). GA validation: [`ga-property-meta`](../examples/demo-project/scripts/ga-property-meta).
 
-**Live external broker:** A private Cloud Run deployment (`pade-broker-deployment`, outside this repo) has also been dogfooded end-to-end from a Cloud Agent with real secrets and both capabilities. See [ROADMAP.md](../ROADMAP.md) Milestones J–K. Do not commit broker URLs or credentials into this repository.
+**Live external broker:** A private Cloud Run deployment (`pade-broker-deployment`, outside this repo) has been dogfooded end-to-end with **released** `pade v0.1.0` and **released** `ghcr.io/ksteffe/pade-broker:v0.1.0` (ROADMAP J–K **DONE**). Product repos such as after-certainty may pin the broker URL; do not commit broker URLs or credentials into this repository.
 
 ## Stage C — external broker + real KSM (manual host)
 
@@ -224,7 +224,7 @@ docker run --rm -p 8080:8080 -e PORT=8080 \
 
 Probe `GET /healthz` (no auth). There is no Docker `HEALTHCHECK` (distroless has no curl); Cloud Run / Kubernetes should use the HTTP probe.
 
-The same image is intended for Cloud Run, Kubernetes ingress, reverse proxies, or local Docker. **In this repository:** container build, `-tls-termination=proxy`, and smoke tests are landed (`make smoke-broker-container`). **Outside this repository:** a private Cloud Run deployment with real policy, Secret Manager–mounted credentials, and exec providers has been live-dogfooded (ROADMAP Milestones J–K, pre-release image). Pinning a **released** GHCR image is Milestone I/J remainder.
+The same image is intended for Cloud Run, Kubernetes ingress, reverse proxies, or local Docker. **In this repository:** container build, `-tls-termination=proxy`, and smoke tests are landed (`make smoke-broker-container`). **Outside this repository:** a private Cloud Run deployment with real policy, Secret Manager–mounted credentials, and exec providers consumes **released** `ghcr.io/ksteffe/pade-broker:v0.1.0` (ROADMAP Milestones J–K **DONE**). **Do not commit broker URLs into this repository.**
 
 Google Cloud Run is a deployment example (container listens via `PORT` with plaintext inside the platform; Cloud Run terminates external HTTPS). It is not a normative PADE dependency.
 
@@ -256,7 +256,7 @@ Agent VM should **not** have `KSM_CONFIG` in this mode.
 
 ### External broker with derived credentials (live)
 
-Private deployment outside this repo (for example Cloud Run + Secret Manager + broker-side exec). Agent bindings use `provider: broker` only; durable keys stay on the broker host. Status: **live dogfood complete** for `github.repo.read` and `google-analytics.read` (ROADMAP J/K partial — pre-release artifacts). Deployment automation and released-image pins are Milestone I/J remainder. **Do not commit broker URLs into this repository.**
+Private deployment outside this repo (for example Cloud Run + Secret Manager + broker-side exec). Agent bindings use `provider: broker` only; durable keys stay on the broker host. Status: **live dogfood complete** for `github.repo.read` and `google-analytics.read` using **released** `pade v0.1.0` and **released** `ghcr.io/ksteffe/pade-broker:v0.1.0` (ROADMAP J/K **DONE**). Product repos such as after-certainty may commit their own broker URL; **do not commit broker URLs into this repository.**
 
 ```text
 Cursor Cloud Agent
@@ -298,4 +298,4 @@ Transport (separate from authorization):
 
 ## Deferred
 
-Multi-user admin UI, hosted SaaS, DB-backed policy, SPIFFE / GitHub Actions OIDC, other agent IdPs, OAuth consent, leasing/rotation, OPA, HA, normative tunnel products, **released-image deployment automation** (Milestone I/J), replacing direct KSM mode.
+Multi-user admin UI, hosted SaaS, DB-backed policy, SPIFFE / GitHub Actions OIDC, other agent IdPs, OAuth consent, leasing/rotation, OPA, HA, normative tunnel products, replacing direct KSM mode.

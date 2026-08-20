@@ -1,6 +1,6 @@
 # Releasing PADE (Milestone I)
 
-Pre-1.0 SemVer. Initial target: **`v0.1.0`**. Releases are **manual only** — nothing publishes on merge to `main`.
+Pre-1.0 SemVer. Initial release: **[`v0.1.0`](https://github.com/ksteffe/pade/releases/tag/v0.1.0)** (2026-08-20). Releases are **manual only** — nothing publishes on merge to `main`.
 
 ## Cut a release (GitHub Actions)
 
@@ -34,4 +34,4 @@ Development builds without `VERSION=…` report `dev` plus the current git short
 - **CLI:** install from GitHub Release assets (or build from a tag).
 - **Broker:** `ghcr.io/ksteffe/pade-broker:vX.Y.Z` — no need to clone this repository on the broker host.
 
-See [ROADMAP.md](../ROADMAP.md) Milestone I and post-release Milestones J–K.
+See [ROADMAP.md](../ROADMAP.md) Milestone I (DONE) and post-release Milestones J–K (DONE) / L–O.
