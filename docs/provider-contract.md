@@ -1,6 +1,6 @@
 # External provider contract (semantic + exec adapter)
 
-**Status:** Landed for dogfood (Milestones B–G); draft until Milestone H spec tighten / `v0.1.0`. Exec is an **experimental binding**, not the portable PADE standard.  
+**Status:** Landed for dogfood (Milestones B–G); spec/docs tightened at Milestone H; first versioned release `v0.1.0`. Exec remains an **experimental binding**, not the portable PADE standard.  
 **Related:** [ROADMAP.md](../ROADMAP.md), [spec/broker.md](../spec/broker.md), Go adapters under [`internal/binding`](../internal/binding).
 
 PADE core should understand only:

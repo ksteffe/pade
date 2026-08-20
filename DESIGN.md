@@ -1130,7 +1130,7 @@ A minimal `pade-broker` and `provider: broker` binding now exist as a **spike**,
 - Container image: repo-root `Dockerfile` (distroless nonroot); smoke with `make smoke-broker-container`.
 - Direct Milestone 9 KSM mode remains supported and unchanged in intent.
 
-Still deferred in the spike itself: multi-tenant hosting, DB policy, JTI replay store, and replacing direct KSM mode. **Release automation** is planned under [ROADMAP.md](ROADMAP.md) Milestone I (gated on provider dogfood; not implemented in this document).
+Still deferred in the spike itself: multi-tenant hosting, DB policy, JTI replay store, and replacing direct KSM mode. **Release automation** for versioned CLI/broker artifacts is landed under [ROADMAP.md](ROADMAP.md) Milestone I (`v0.1.0` cut).
 
 ## 40. Specification architecture vs reference implementation
 
