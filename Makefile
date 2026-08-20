@@ -9,6 +9,7 @@ ONEPASSWORD_DOGFOOD := $(CURDIR)/scripts/onepassword-dogfood.sh
 KEEPER_DOGFOOD := $(CURDIR)/scripts/keeper-dogfood.sh
 BROKER_DOGFOOD := $(CURDIR)/scripts/broker-dogfood.sh
 BROKER_STAGE_B_DOGFOOD := $(CURDIR)/scripts/broker-stage-b-dogfood.sh
+BROKER_STAGE_B_EXEC_DOGFOOD := $(CURDIR)/scripts/broker-stage-b-exec-dogfood.sh
 BROKER_CONTAINER_SMOKE := $(CURDIR)/scripts/broker-container-smoke.sh
 EXEC_PROVIDER_DOGFOOD := $(CURDIR)/scripts/exec-provider-dogfood.sh
 KSM_DOGFOOD := $(CURDIR)/scripts/ksm-dogfood.sh
@@ -22,7 +23,7 @@ INSTALL_KEEPER_CLI := $(CURDIR)/scripts/install-keeper-cli.sh
 .PHONY: check-go test test-race staticcheck build build-linux validate plan capabilities exec-demo dogfood \
 	dogfood-identity dogfood-vault dogfood-onepassword dogfood-keeper dogfood-ksm dogfood-broker \
 	dogfood-exec-provider dogfood-exec-provider-github dogfood-exec-provider-ga dogfood-exec-provider-two \
-	dogfood-broker-stage-b smoke-broker-container ci-container \
+	dogfood-broker-stage-b dogfood-broker-stage-b-exec smoke-broker-container ci-container \
 	dogfood-onepassword-live dogfood-keeper-live dogfood-ksm-live dogfood-github-live \
 	install-onepassword-cli install-keeper-cli \
 	dogfood-ingress-teleport dogfood-ingress-teleport-down \
@@ -166,6 +167,16 @@ dogfood-exec-provider-two: check-go build
 dogfood-broker-stage-b: check-go build
 	@chmod +x "$(BROKER_STAGE_B_DOGFOOD)"
 	@PADE="$(CURDIR)/bin/pade" BROKER="$(CURDIR)/bin/pade-broker" "$(BROKER_STAGE_B_DOGFOOD)"
+
+# Stage B exec (Cloud Agent only): real Cursor OIDC + broker-side exec providers for
+# github.repo.read and google-analytics.read. Default PADE_PROVIDER_FAKE=1; unset for live APIs.
+dogfood-broker-stage-b-exec: check-go build
+	@chmod +x "$(BROKER_STAGE_B_EXEC_DOGFOOD)" \
+		examples/demo-project/scripts/github-repo-meta \
+		examples/demo-project/scripts/ga-property-meta
+	$(GO) build -o bin/pade-provider-github ./examples/providers/github
+	$(GO) build -o bin/pade-provider-google-analytics ./examples/providers/google-analytics
+	@PADE="$(CURDIR)/bin/pade" BROKER="$(CURDIR)/bin/pade-broker" "$(BROKER_STAGE_B_EXEC_DOGFOOD)"
 
 # Packaging smoke: docker build pade-broker:ci and prove /healthz + unauthenticated resolve deny.
 # Requires docker + curl. GitHub Actions runs this as the separate "Container smoke" job.
