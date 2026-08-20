@@ -79,9 +79,9 @@ Derived from the repository as of this roadmap pass (reference Consumer/Broker c
 | Broker authorization | DONE (spike) | Server policy: subject + capability allowlist + optional `repo_urls` |
 | Provider materialization (in-tree adapters) | DONE | Server-side env/Vault/op/keeper/ksm via broker bindings |
 | External/independently packaged provider seam | PARTIAL | Semantic provider contract + **broker-side** `provider: exec` adapter (`docs/provider-contract.md`, `internal/binding/exec`); Consumer rejects development-side exec |
-| GitHub App derived-credential dogfood | PARTIAL | Real App JWT → installation token in `examples/providers/github/` (httptest + fake CI); preferred repo-scoped dogfood path landed; live App install still optional/local (Milestone E) |
-| Google OAuth derivation dogfood (second provider test) | PARTIAL | SA JWT → access token in `examples/providers/google-analytics/` (httptest + fake CI); directory name is dogfood-only—not GA product support; live property proof optional/local (Milestone F) |
-| Two-provider same-seam validation | DONE (CI) | `make dogfood-exec-provider-two` — GitHub + GA via **broker-side** exec without core vendor fields (Milestone G) |
+| GitHub App derived-credential dogfood | DONE | Real App JWT → installation token in `examples/providers/github/`; CI fake + httptest; **live** repo-scoped proof via private Cloud Run broker + Cloud Agent (Milestone E) |
+| Google OAuth derivation dogfood (second provider test) | DONE | SA JWT → access token in `examples/providers/google-analytics/`; CI fake + httptest; **live** property + GA4 Data API proof via private Cloud Run broker + Cloud Agent (Milestone F) |
+| Two-provider same-seam validation | DONE | `make dogfood-exec-provider-two` (CI fake JWT); `make dogfood-broker-stage-b-exec` (Cloud Agent, real OIDC, fake providers); live both-capability E2E via Cloud Run (Milestone G) |
 | Arbitrary Material / env injection | DONE (env maps) | `Material.Env map[string]string` only; sufficient for token/API credentials |
 | Structured / multiline credential Material | PARTIAL | String values may contain newlines; not dogfooded; **no anticipated PADE work** until a proven deficiency |
 | `pade exec` | DONE | Process-scoped resolve → inject → wait → discard |
@@ -92,18 +92,19 @@ Derived from the repository as of this roadmap pass (reference Consumer/Broker c
 | Remote broker endpoint / audience configuration | DONE | Local bindings only (not in Intent) |
 | Containerized `pade-broker` | DONE | Root [`Dockerfile`](Dockerfile); `make smoke-broker-container` |
 | Cloud Run–compatible transport mode | DONE | `PORT` + `-tls-termination=proxy` |
-| Fake broker dogfood (GitHub PAT direct Material) | DONE | `make dogfood-broker` (CI smoke); Stage B real Cursor OIDC (not CI) — **stage 1 baseline**, not preferred final pre-release GitHub dogfood |
+| Fake broker dogfood (GitHub PAT direct Material) | DONE | `make dogfood-broker` (CI smoke); Stage B real Cursor OIDC + fake KSM (`make dogfood-broker-stage-b`, not CI) — **stage 1 baseline**, not preferred final pre-release GitHub dogfood |
+| Stage B exec dogfood (real OIDC + exec providers) | DONE | `make dogfood-broker-stage-b-exec` — Cloud Agent only; `github.repo.read` + `google-analytics.read` through broker-side exec; default `PADE_PROVIDER_FAKE=1` |
+| Live Cloud Run broker E2E (derived tokens) | DONE | Cloud Agent → private Cloud Run `pade-broker` (`pade-broker-deployment`); real Cursor OIDC; live GitHub `/repos/{owner}/{repo}` + GA Admin/Data API; pre-release CLI/broker binaries |
 | Version reporting (`pade` / `pade-broker --version`) | MISSING | Part of Milestone I |
 | GitHub Release artifacts | MISSING | Part of Milestone I |
 | Broker container publishing (GHCR) | MISSING | Part of Milestone I |
 
 **Genuinely missing PADE-repository work** before the first release:
 
-1. Finish preferred GitHub / live App or live GA proofs where useful (E/F remainders) — offline preferred paths already landed
-2. Spec/docs tightening from D–G dogfood (Milestone H)
-3. Versioned release foundation gated on A–H (Milestone I)
+1. Spec/docs tightening from D–G dogfood (Milestone H)
+2. Versioned release foundation gated on A–H (Milestone I)
 
-**Landed for B–G:** semantic provider contract, **broker-only** `provider: exec` adapter, stub + GitHub App + Google service-account reference providers (fake CI + httptest-tested real derivation), two-provider same-seam dogfood through the broker. Targets: `make dogfood-exec-provider{,-github,-ga,-two}`.
+**Landed for B–G (including live external proofs):** semantic provider contract, **broker-only** `provider: exec` adapter, stub + GitHub App + Google service-account reference providers (fake CI + httptest-tested real derivation), two-provider same-seam dogfood through the broker, Stage B exec dogfood (`make dogfood-broker-stage-b-exec`), and live Cloud Agent E2E against a private Cloud Run broker for both derived-token capabilities. Targets: `make dogfood-exec-provider{,-github,-ga,-two}`, `make dogfood-broker-stage-b-exec`.
 
 ### Security narrowing: exec is broker-side only
 
@@ -416,9 +417,9 @@ Previous letters after PR #31 (GA-first A–M) are **superseded**:
 | **B — Generic provider contract** | Minimal portable fulfill/derive seam | PADE repo — **draft landed** (`docs/provider-contract.md`) |
 | **C — Dogfood provider binding** | One binding sufficient for dogfood (`provider: exec`) | PADE repo — **landed** (other bindings still open) |
 | **D — GitHub App reference provider** | `examples/providers/github/` — App private key broker-side → installation token | PADE repo — **landed** (fake CI + httptest-tested real path) |
-| **E — GitHub dogfood migration** | Prefer derived installation token; repo-scoped validation (not `/user`) | PADE — **partial** (repo-meta script + fake preferred path); live App optional |
-| **F — Google service-account reference provider (second test)** | `examples/providers/google-analytics/` — structurally different OAuth derivation on same seam | PADE repo — **landed** (fake CI + httptest-tested SA→token); live optional |
-| **G — Two-provider architectural test** | Same `provider: exec` seam for both; no vendor leakage into core | PADE repo — **landed** (`make dogfood-exec-provider-two`) |
+| **E — GitHub dogfood migration** | Prefer derived installation token; repo-scoped validation (not `/user`) | PADE + external — **DONE** (repo-meta + fake CI; live App + Cloud Agent via private Cloud Run broker) |
+| **F — Google service-account reference provider (second test)** | `examples/providers/google-analytics/` — structurally different OAuth derivation on same seam | PADE + external — **DONE** (fake CI + httptest; live property + GA4 report via private Cloud Run broker) |
+| **G — Two-provider architectural test** | Same `provider: exec` seam for both; no vendor leakage into core | PADE repo — **landed** (`make dogfood-exec-provider-two`; live both-capability Cloud Run E2E) |
 | **H — Spec/docs tighten from dogfood** | Capture D–G learnings; no premature Intent redesign | PADE repo |
 | **I — Initial versioned release (`v0.1.0`)** | CLI + broker artifacts; **gated on A–H**; stages 1 and 2 via both providers | PADE repo |
 
@@ -426,8 +427,8 @@ Previous letters after PR #31 (GA-first A–M) are **superseded**:
 
 | Milestone | Focus | Where work happens |
 |-----------|--------|--------------------|
-| **J — Released broker deployment** | Private deploy consumes `ghcr.io/ksteffe/pade-broker:vX.Y.Z` | `pade-broker-deployment` |
-| **K — Released Consumer dogfood** | Cursor Cloud uses released `pade` against real deployed broker | External + PADE artifacts |
+| **J — Released broker deployment** | Private deploy consumes `ghcr.io/ksteffe/pade-broker:vX.Y.Z` | `pade-broker-deployment` — **PARTIAL** (private Cloud Run deploy + Secret Manager live; pre-release image/build) |
+| **K — Released Consumer dogfood** | Cursor Cloud uses released `pade` against real deployed broker | External + PADE artifacts — **PARTIAL** (live Cloud Agent E2E vs private Cloud Run broker; pre-release CLI) |
 | **L — External preview / Cloudflare dogfood** | App + tunnel via generic Material; long-running `pade exec` | External + possible generic exec fix |
 | **M — Endpoint decision** | Portable endpoint declaration decision gate | Architecture decision |
 | **N — Full Cursor iOS workflow** | Analytics → edit → run → preview acceptance | External acceptance |
@@ -549,7 +550,7 @@ PADE core must **not** gain fields or logic specific to GitHub Apps (for example
 
 ### Milestone E — GitHub dogfood migration
 
-**Status:** Partial. Preferred offline path uses capability `github.repo.read` + [`examples/demo-project/scripts/github-repo-meta`](examples/demo-project/scripts/github-repo-meta) (GET `/repos/{owner}/{repo}`; fake tokens skip network). Wired into `make dogfood-exec-provider-github`. PAT + `github-whoami` remain the stage-1 baseline. Live App install + cloud agent proof still optional/local.
+**Status:** Done for pre-release purposes. Preferred offline path uses capability `github.repo.read` + [`examples/demo-project/scripts/github-repo-meta`](examples/demo-project/scripts/github-repo-meta) (GET `/repos/{owner}/{repo}`; fake tokens skip network). Wired into `make dogfood-exec-provider-github` and `make dogfood-broker-stage-b-exec`. **Live proof:** Cloud Agent → private Cloud Run broker → real installation token → `ksteffe/pade` repository metadata. PAT + `github-whoami` remain the stage-1 baseline.
 
 **Goal:** Migrate the **preferred** pre-release GitHub dogfood from PAT delivery to derived installation tokens, while keeping the PAT path documented as stage 1.
 
@@ -571,7 +572,7 @@ The dogfood should demonstrate that the resulting token is:
 
 ### Milestone F — Google service-account reference provider (second structural test)
 
-**Status:** Landed under [`examples/providers/google-analytics`](examples/providers/google-analytics). Real mode uses a broker-side service account JSON/key to mint a JWT assertion and exchange it for a short-lived OAuth2 access token (`analytics.readonly` by default). `PADE_PROVIDER_FAKE=1` keeps CI offline. Dogfood: `make dogfood-exec-provider-ga` (+ `ga-property-meta`). Live Google property proof remains optional/local.
+**Status:** Done for pre-release purposes. Landed under [`examples/providers/google-analytics`](examples/providers/google-analytics). Real mode uses a broker-side service account JSON/key to mint a JWT assertion and exchange it for a short-lived OAuth2 access token (`analytics.readonly` by default). `PADE_PROVIDER_FAKE=1` keeps CI offline. Dogfood: `make dogfood-exec-provider-ga` (+ `ga-property-meta`), `make dogfood-broker-stage-b-exec`. **Live proof:** Cloud Agent → private Cloud Run broker → GA Admin property metadata + GA4 Data API report (after-certainty property).
 
 **Goal:** Add the **second** in-tree reference provider to prove the generic contract was **not** accidentally designed around GitHub’s installation-token exchange. This is **not** vendor breadth or Google Analytics product support.
 
@@ -595,7 +596,7 @@ All Google-specific authentication behavior belongs inside the provider. Do **no
 
 ### Milestone G — Two-provider architectural test
 
-**Status:** Landed. `make dogfood-exec-provider-two` binds `github.repo.read` and `google-analytics.read` through the same `provider: exec` seam in one Intent/bindings pair (fake mode). No GitHub/Google fields were added to PADE core or Intent schema.
+**Status:** Landed. `make dogfood-exec-provider-two` binds `github.repo.read` and `google-analytics.read` through the same `provider: exec` seam in one Intent/bindings pair (fake mode). `make dogfood-broker-stage-b-exec` repeats the same capabilities with real Cursor OIDC on a Cloud Agent (provider fake by default). **Live proof:** both capabilities resolved end-to-end through a private Cloud Run broker in one session. No GitHub/Google fields were added to PADE core or Intent schema.
 
 **Goal:** Explicit pre-release validation that GitHub and Google providers use the **same** generic PADE provider seam without requiring vendor-specific changes to PADE core.
 
@@ -655,7 +656,7 @@ Do **not** redesign DevelopmentSession / Intent around Runtime Conditions or inv
 - Provider derives a short-lived OAuth access token via JWT-bearer exchange
 - Token is scoped appropriately for dogfood
 - DevelopmentSession successfully performs a minimal downstream API call using the derived token (validation only—not GA product logic in PADE)
-- Offline/fake + httptest paths satisfy the seam proof; live Google property proof remains optional/local
+- Offline/fake + httptest paths satisfy the seam proof; **live GitHub + GA proofs completed** via private Cloud Run broker + Cloud Agent (pre-release CLI/broker)
 
 **Abstraction validation**
 
@@ -664,7 +665,7 @@ Do **not** redesign DevelopmentSession / Intent around Runtime Conditions or inv
 - The second provider exists to prove the seam is not GitHub-App-shaped—not to expand PADE’s integration catalog
 - See [Why two derived-token providers before v0.1.0](#why-two-derived-token-providers-before-v010) for release-gate and security rationale
 
-**Not required for `v0.1.0`:** mediated capabilities (stage 3); full provider ecosystem; every future binding; Intent redesign; Runtime Conditions integration; Cloudflare/preview completion; live App/GA proofs (optional enhancements only).
+**Not required for `v0.1.0`:** mediated capabilities (stage 3); full provider ecosystem; every future binding; Intent redesign; Runtime Conditions integration; Cloudflare/preview completion; pinning **released** CLI/broker artifacts in external deploy (Milestones J–K remainder).
 
 #### Release artifacts (implement at I)
 
@@ -718,11 +719,15 @@ without cloning or building PADE source. Operators must be able to identify PADE
 
 External: private broker deployment pulls the released GHCR image, mounts policy/bindings/secrets, and runs with Cloud Run–compatible transport (`PORT`, trusted TLS termination).
 
+**Progress:** Private Cloud Run deployment (`pade-broker-deployment`) is live with Secret Manager–mounted GitHub App key and Google service account; real-mode exec providers; Cursor OIDC policy for `github.repo.read` and `google-analytics.read`. Remaining: consume **released** `ghcr.io/ksteffe/pade-broker:vX.Y.Z` instead of pre-release builds.
+
 PADE acceptance: image runs as already smoked by `make smoke-broker-container`; no PADE protocol change required.
 
 ### Milestone K — Released Consumer dogfood
 
 External Cursor Cloud (or equivalent) installs released `pade`, points agent bindings at the real broker, and resolves a capability end-to-end with Cursor OIDC.
+
+**Progress:** Live Cloud Agent E2E against the private Cloud Run broker succeeded for both `github.repo.read` and `google-analytics.read` using pre-release `pade` built in the agent environment. Remaining: pin released CLI version and repeat against released broker image (Milestone I artifacts).
 
 PADE acceptance: released CLI talks to released broker using the existing wire protocol.
 
