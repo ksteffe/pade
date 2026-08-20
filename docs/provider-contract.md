@@ -1,6 +1,6 @@
 # External provider contract (semantic + exec adapter)
 
-**Status:** Draft / dogfood — Milestones B–G. Not a frozen standard.  
+**Status:** Landed for dogfood (Milestones B–G); draft until Milestone H spec tighten / `v0.1.0`. Exec is an **experimental binding**, not the portable PADE standard.  
 **Related:** [ROADMAP.md](../ROADMAP.md), [spec/broker.md](../spec/broker.md), Go adapters under [`internal/binding`](../internal/binding).
 
 PADE core should understand only:
@@ -144,10 +144,21 @@ Third-party providers need not be written in Go; when using the exec adapter the
 
 In-tree providers under [`examples/providers/`](../examples/providers/) are **non-normative architectural tests**—not integration goals. Full rationale: [ROADMAP.md — Why two derived-token providers before v0.1.0](../ROADMAP.md#why-two-derived-token-providers-before-v010).
 
-Dogfood runs through the broker (`make dogfood-exec-provider{,-github,-ga,-two}`):
+Dogfood runs through the broker:
+
+| Target | Identity | Provider material | CI |
+|--------|----------|-------------------|-----|
+| `make dogfood-exec-provider` (stub) | Fake JWT | Fake stub token | yes |
+| `make dogfood-exec-provider-github` | Fake JWT | Fake installation token + repo-meta | yes |
+| `make dogfood-exec-provider-ga` | Fake JWT | Fake access token + property-meta | yes |
+| `make dogfood-exec-provider-two` | Fake JWT | Both providers, one seam | yes |
+| `make dogfood-broker-stage-b-exec` | Real Cursor OIDC | Fake providers by default (`PADE_PROVIDER_FAKE=1`) | no (Cloud Agent) |
+| External broker E2E | Real Cursor OIDC | Real derived tokens | no (private deploy; ROADMAP J/K) |
 
 ```text
 DevelopmentSession → Consumer (provider: broker) → Broker → exec adapter → trusted provider binary → Material
 ```
+
+**Wire note:** Exec providers may return `expiresAt` in their subprocess JSON. The reference broker HTTP `/v1/resolve` response exposes **`env` only today**—expiry is not yet on the Consumer-visible wire. See [spec/broker.md](../spec/broker.md#resolve-response-success).
 
 Milestone G proves GitHub + Google on the same **semantic** seam without vendor fields in PADE core. If a future vendor forces new **normative** core fields, revisit this contract rather than leaking vendor semantics into PADE.

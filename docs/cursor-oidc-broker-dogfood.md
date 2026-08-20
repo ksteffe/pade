@@ -1,6 +1,8 @@
-# Cursor OIDC broker dogfood (Phase 2 spike)
+# Cursor OIDC broker dogfood (Phase 2)
 
-Prove a clean evolutionary path toward **removing `KSM_CONFIG` from the Cursor Cloud Agent VM**:
+Two fulfillment paths share the same Cursor OIDC + broker authorization seam:
+
+**Stage 1 — direct materialization (baseline):**
 
 ```text
 Cursor Cloud Agent
@@ -10,11 +12,32 @@ Cursor Cloud Agent
   → process-scoped material via pade exec
 ```
 
-> **Spec context:** Cursor OIDC is one **workload identity** adapter used by the reference Consumer/Broker dogfood. It is **not** a provider adapter and is **not** required by the PADE specification. `pade-broker` is an experimental reference Broker; the draft wire protocol is documented in [../spec/broker.md](../spec/broker.md). See also [../spec/consumer.md](../spec/consumer.md).
+**Stage 2 — derived credentials (preferred pre-release proof):**
+
+```text
+Cursor Cloud Agent
+  → mint short-lived Cursor OIDC JWT
+  → PADE broker (server-side policy)
+  → broker-side provider: exec (reference providers under examples/providers/)
+  → short-lived derived token in Material
+  → pade exec → downstream API
+```
+
+> **Spec context:** Cursor OIDC is one **workload identity** adapter used by the reference Consumer/Broker dogfood. It is **not** a provider adapter and is **not** required by the PADE specification. `pade-broker` is an experimental reference Broker; the draft wire protocol is documented in [../spec/broker.md](../spec/broker.md). See also [../spec/consumer.md](../spec/consumer.md) and [provider-contract.md](provider-contract.md).
 
 The portable `DevelopmentSession` in `pade.yaml` keeps provider-specific details out of `spec.capabilities`. Direct `keeper-secrets-manager` (Milestone 9) remains available for local/Cloud Agents that still use ambient `KSM_CONFIG`.
 
 Broker policy and agent bindings use their own `version: "0.1"` configuration format—that is **not** the Intent API version (`pade.local/v1alpha1`).
+
+### Naming (avoid confusion)
+
+| Term | Meaning |
+|------|---------|
+| **Phase 2** | Cursor OIDC + experimental `pade-broker` spike (broader program) |
+| **Stage B (KSM)** | `make dogfood-broker-stage-b` — real OIDC + local broker + fake KSM + `github.user.read` (stage-1 baseline) |
+| **Stage B exec** | `make dogfood-broker-stage-b-exec` — real OIDC + local broker + exec providers for `github.repo.read` + `google-analytics.read` |
+| **External broker** | Broker hosted outside the agent VM (private deployment repo); live E2E documented in [ROADMAP.md](../ROADMAP.md) Milestones J–K |
+| **Milestones D–G** | Reference providers + two-provider seam ([ROADMAP.md](../ROADMAP.md)) |
 
 ## Fake CI dogfood (no Cursor / no Keeper)
 
@@ -72,6 +95,38 @@ Not included in CI (requires a live Cursor identity socket). The script:
 Example policy shape: [`spec/examples/broker-policy.stage-b.example.yaml`](../spec/examples/broker-policy.stage-b.example.yaml).
 
 Production policies should be **static allowlists**, not generated from the current token. Stage B generates policy only to dogfood the path.
+
+## Stage B exec — real OIDC + exec providers (Cloud Agent)
+
+Preferred pre-release proof for derived credentials (Milestones D–G): same real Cursor OIDC path as Stage B, but broker-side **`provider: exec`** instead of KSM, for both reference providers on one seam.
+
+```text
+real Cursor OIDC (identity socket)
+  → local pade-broker on 127.0.0.1 (real JWKS from api.cursor.com)
+  → broker-side exec (GitHub App + Google SA reference providers)
+  → pade exec injects derived, process-scoped material
+```
+
+```bash
+make dogfood-broker-stage-b-exec
+# optional pin: PADE_STAGE_B_SUBJECT=user:<id> make dogfood-broker-stage-b-exec
+# live provider APIs: PADE_PROVIDER_FAKE=0 + broker-side GITHUB_APP_* / GOOGLE_APPLICATION_CREDENTIALS
+```
+
+Not included in CI (requires a live Cursor identity socket). Default **`PADE_PROVIDER_FAKE=1`** keeps provider binaries offline-friendly; unset for live GitHub/GA API calls when broker-side credentials are configured.
+
+The script:
+
+1. Mints identity via `pade identity` (safe claims only; no raw JWT).
+2. Writes session-local broker policy for the attested `subject` + `github.repo.read` + `google-analytics.read` with **`requireRepoURLs: false`**.
+3. Starts `pade-broker` on loopback with server-side exec bindings pointing at `examples/providers/github` and `examples/providers/google-analytics`.
+4. Runs validate/capabilities/exec through `provider: broker` with **no** `PADE_BROKER_FAKE_JWT` and **no** vendor secrets on the agent VM.
+
+Example policy shape: [`spec/examples/broker-policy.stage-b-exec.example.yaml`](../spec/examples/broker-policy.stage-b-exec.example.yaml). Example server bindings: [`spec/examples/broker-bindings.exec.example.yaml`](../spec/examples/broker-bindings.exec.example.yaml).
+
+Preferred GitHub validation: [`examples/demo-project/scripts/github-repo-meta`](../examples/demo-project/scripts/github-repo-meta) (repo-scoped; not `/user` whoami). GA validation: [`ga-property-meta`](../examples/demo-project/scripts/ga-property-meta).
+
+**Live external broker:** A private Cloud Run deployment (`pade-broker-deployment`, outside this repo) has also been dogfooded end-to-end from a Cloud Agent with real secrets and both capabilities. See [ROADMAP.md](../ROADMAP.md) Milestones J–K. Do not commit broker URLs or credentials into this repository.
 
 ## Stage C — external broker + real KSM (manual host)
 
@@ -169,9 +224,9 @@ docker run --rm -p 8080:8080 -e PORT=8080 \
 
 Probe `GET /healthz` (no auth). There is no Docker `HEALTHCHECK` (distroless has no curl); Cloud Run / Kubernetes should use the HTTP probe.
 
-The same image is intended for Cloud Run, Kubernetes ingress, reverse proxies, or local Docker. Full Cloud Run deployment (registry, Secret Manager, custom domain) is a later milestone.
+The same image is intended for Cloud Run, Kubernetes ingress, reverse proxies, or local Docker. **In this repository:** container build, `-tls-termination=proxy`, and smoke tests are landed (`make smoke-broker-container`). **Outside this repository:** a private Cloud Run deployment with real policy, Secret Manager–mounted credentials, and exec providers has been live-dogfooded (ROADMAP Milestones J–K, pre-release image). Pinning a **released** GHCR image is Milestone I/J remainder.
 
-Google Cloud Run is a planned composition example (container listens via `PORT` with plaintext inside the platform; Cloud Run terminates external HTTPS). It is not a normative PADE dependency.
+Google Cloud Run is a deployment example (container listens via `PORT` with plaintext inside the platform; Cloud Run terminates external HTTPS). It is not a normative PADE dependency.
 
 Reachability from a Cloud Agent (public HTTPS URL, SSH tunnel, Tailscale, etc.) is a **deployment concern**. Temporary tunnels are composition options, not PADE architecture.
 
@@ -199,25 +254,30 @@ Agent VM should **not** have `KSM_CONFIG` in this mode.
   examples/demo-project/scripts/github-whoami
 ```
 
-### Next dogfood (Cloud Run — not implemented in this repo yet)
+### External broker with derived credentials (live)
+
+Private deployment outside this repo (for example Cloud Run + Secret Manager + broker-side exec). Agent bindings use `provider: broker` only; durable keys stay on the broker host. Status: **live dogfood complete** for `github.repo.read` and `google-analytics.read` (ROADMAP J/K partial — pre-release artifacts). Deployment automation and released-image pins are Milestone I/J remainder. **Do not commit broker URLs into this repository.**
 
 ```text
 Cursor Cloud Agent
   → Cursor OIDC
-  → public HTTPS Cloud Run endpoint
+  → HTTPS broker endpoint (operator-owned)
   → pade-broker (PORT + -tls-termination=proxy)
-  → broker-side Keeper Secrets Manager
+  → broker-side exec providers (GitHub App + Google SA)
+  → pade exec → downstream APIs
 ```
 
-Remaining work for that milestone: push the proven container image to a registry; deploy to Cloud Run; static policy/bindings; `KSM_CONFIG` via Secret Manager; external HTTPS URL as OIDC audience + agent broker endpoint; invoke from a real Cloud Agent with no agent `KSM_CONFIG`.
+Operator-owned: static policy, server-side exec bindings, secrets mounts, HTTPS URL as OIDC `audience` + agent `broker.audience`. Agent VM should **not** carry `KSM_CONFIG`, App private keys, or service-account JSON in broker mode.
 
 ## Trust boundaries
 
-| Mode | Where KSM_CONFIG lives | Authorization |
-|------|------------------------|---------------|
+| Mode | Where durable authority lives | Authorization |
+|------|-------------------------------|---------------|
 | Milestone 9 direct KSM | Agent VM | PADE reduces accidental propagation; VM is not sandboxed |
-| Stage B local broker | Broker process only (fake KSM OK) | Server policy on Cursor subject + capability (`requireRepoURLs` only when complete `repo_urls` attested) |
-| Stage C external broker | Broker host / platform only | Same; prefer complete `repo_urls` when available |
+| Stage B local broker (KSM) | Broker process only (fake KSM OK) | Server policy on Cursor subject + capability |
+| Stage B exec (local) | Broker process only (exec providers) | Same; derived tokens only in Material |
+| Stage C / external KSM broker | Broker host / platform only | Same; prefer complete `repo_urls` when available |
+| External exec broker | Broker host / platform only | Same; durable keys broker-side; derived Material to Consumer |
 
 Transport (separate from authorization):
 
@@ -238,4 +298,4 @@ Transport (separate from authorization):
 
 ## Deferred
 
-Multi-user admin UI, hosted SaaS, DB-backed policy, SPIFFE / GitHub Actions OIDC, other agent IdPs, OAuth consent, leasing/rotation, OPA, HA, normative tunnel products, Cloud Run deployment automation, replacing direct KSM mode.
+Multi-user admin UI, hosted SaaS, DB-backed policy, SPIFFE / GitHub Actions OIDC, other agent IdPs, OAuth consent, leasing/rotation, OPA, HA, normative tunnel products, **released-image deployment automation** (Milestone I/J), replacing direct KSM mode.

@@ -1,0 +1,30 @@
+# Example broker-side exec bindings for derived-token dogfood (Milestones D–G).
+# Consumer/development bindings must NOT use provider: exec — use provider: broker.
+# Command paths are broker-host local. See docs/provider-contract.md.
+#
+# Fake CI / Stage B exec offline: PADE_PROVIDER_FAKE=1 on the broker process.
+# Live: mount secrets on broker host only; unset PADE_PROVIDER_FAKE.
+version: "0.1"
+
+capabilities:
+  github.repo.read:
+    provider: exec
+    exec:
+      command: ["./bin/pade-provider-github"]
+      config:
+        tokenEnv: GITHUB_TOKEN
+        privateKeyPath: /run/secrets/github-app/private-key.pem
+        repositories: [ksteffe/pade]
+        permissions:
+          metadata: read
+          contents: read
+
+  google-analytics.read:
+    provider: exec
+    exec:
+      command: ["./bin/pade-provider-google-analytics"]
+      config:
+        tokenEnv: GA_ACCESS_TOKEN
+        propertyId: properties/000000000
+        serviceAccountFile: /run/secrets/google-analytics/sa.json
+        scope: https://www.googleapis.com/auth/analytics.readonly

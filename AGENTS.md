@@ -127,6 +127,7 @@ make dogfood-ksm   # Milestone 9 Keeper Secrets Manager (PADE_KSM_FAKE=1)
 make dogfood-ksm-live   # local / Cursor Cloud: real KSM + GitHub API (not CI)
 make dogfood-broker   # Phase 2 spike: fake OIDC + pade-broker + fake KSM
 make dogfood-broker-stage-b   # Stage B: real Cursor OIDC + local broker (Cloud Agent; not CI)
+make dogfood-broker-stage-b-exec   # Stage B exec: real OIDC + github.repo.read + google-analytics.read (Cloud Agent; not CI)
 make dogfood-exec-provider   # Milestone B–C: broker-side provider: exec stub dogfood
 make dogfood-exec-provider-github   # Milestone D–E: GitHub App provider via broker (fake + httptest + repo-meta)
 make dogfood-exec-provider-ga   # Milestone F: Google Analytics provider via broker (fake + httptest + property-meta)
