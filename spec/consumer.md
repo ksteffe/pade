@@ -96,7 +96,20 @@ Consumer
    | capability request
    v
 Broker
+   |
+   | server-side materialization (reference adapters and/or external providers)
+   v
+env-map Material → child process
 ```
+
+The reference Consumer always uses **`provider: broker`** in local bindings for broker mode. It never selects `provider: exec` directly—executable fulfillment is **broker/operator-side only**. See [../docs/provider-contract.md](../docs/provider-contract.md).
+
+The broker MAY materialize authorized capabilities through:
+
+- **Direct materialization adapters** (env, Vault, Keeper Secrets Manager, …) — stage-1 baseline; durable credentials may pass through unchanged when derivation is unavailable.
+- **External providers** (reference binding: broker-side `provider: exec` invoking independently packaged binaries such as those under [`examples/providers/`](../examples/providers/)) — stage-2 derived credentials; durable authority stays on the broker host.
+
+The Consumer receives the same shape either way: today an **env map** over the experimental HTTP `/v1/resolve` response. Expiry metadata may exist inside broker-side provider protocols but is **not** yet on the Consumer-visible broker wire. See [broker.md](broker.md#resolve-response-success).
 
 Current Cursor Cloud dogfood (reference spike):
 
@@ -108,9 +121,11 @@ Cursor OIDC
 pade (Consumer)
    |
 pade-broker (Broker)
+   |
+reference provider adapters and/or examples/providers/* (broker-side only)
 ```
 
-Cursor OIDC is **one** workload-identity adapter used by the reference implementation. It is not a mandatory PADE identity mechanism. See [broker.md](broker.md) and [../docs/cursor-oidc-broker-dogfood.md](../docs/cursor-oidc-broker-dogfood.md).
+Cursor OIDC is **one** workload-identity adapter used by the reference implementation. It is not a mandatory PADE identity mechanism. See [broker.md](broker.md), [../docs/cursor-oidc-broker-dogfood.md](../docs/cursor-oidc-broker-dogfood.md), and [../examples/providers/README.md](../examples/providers/README.md).
 
 ## Workload identity
 
@@ -169,4 +184,6 @@ Third-party Consumers need not use these Go packages.
 - [README.md](README.md) — specification overview
 - [intent.md](intent.md) — portable declaration
 - [broker.md](broker.md) — broker protocol and policy
+- [../docs/provider-contract.md](../docs/provider-contract.md) — external provider / exec subprocess contract
+- [../examples/providers/README.md](../examples/providers/README.md) — non-normative reference providers (Milestones D–G)
 - [../docs/go-reference.md](../docs/go-reference.md) — Go reference implementation notes
