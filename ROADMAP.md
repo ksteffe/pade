@@ -341,10 +341,10 @@ In-tree reference providers under `examples/providers/` exist for **dogfooding a
 
 ### `pade-broker-deployment` (external)
 
-- Google Cloud Run (or equivalent) hosting of the broker
-- Private broker policy and secret-store bootstrap (durable authority, including GitHub App private key and Google durable credentials)
-- Capability → source/provider configuration
-- Consumption of **released** broker images (`ghcr.io/ksteffe/pade-broker:vX.Y.Z`) after Milestone I
+- Google Cloud Run (or equivalent) hosting of the broker — **live** (private deploy; pre-release image)
+- Private broker policy and secret-store bootstrap (durable authority, including GitHub App private key and Google durable credentials) — **live**
+- Capability → source/provider configuration — **live** (`github.repo.read`, `google-analytics.read` via broker-side exec)
+- Consumption of **released** broker images (`ghcr.io/ksteffe/pade-broker:vX.Y.Z`) after Milestone I — **remaining**
 
 ### `after-certainty` (external)
 
