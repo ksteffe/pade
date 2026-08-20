@@ -51,7 +51,7 @@ Broker
    |
    | authorization + materialization
    v
-Keeper / Vault / cloud IAM / preview provider /
+Keeper / Vault / cloud IAM /
 enterprise platform / other service
 ```
 
