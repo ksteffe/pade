@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Release version tag (e.g. v0.1.0)
+        description: Release version tag (e.g. v0.1.0 or 0.1.0)
         required: true
         type: string
 
@@ -22,14 +22,22 @@ jobs:
     name: Pre-release checks
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    outputs:
+      version: ${{ steps.version.outputs.tag }}
     steps:
-      - name: Validate version input
+      - name: Normalize and validate version
+        id: version
         run: |
           v="${{ inputs.version }}"
           case "$v" in
-            v[0-9]*.[0-9]*.[0-9]*) ;;
-            *) echo "error: version must look like v0.1.0 (got: $v)" >&2; exit 1 ;;
+            v*) ;;
+            *) v="v$v" ;;
           esac
+          case "$v" in
+            v[0-9]*.[0-9]*.[0-9]*) ;;
+            *) echo "error: version must look like v0.1.0 or 0.1.0 (got: ${{ inputs.version }})" >&2; exit 1 ;;
+          esac
+          echo "tag=$v" >> "$GITHUB_OUTPUT"
 
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -70,57 +78,60 @@ jobs:
 
       - name: Set release metadata
         id: meta
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
         run: |
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "commit=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
           echo "build_time=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
 
       - name: Build CLI release artifacts
         env:
-          VERSION: ${{ inputs.version }}
+          VERSION: ${{ steps.meta.outputs.version }}
         run: |
           export COMMIT="${{ steps.meta.outputs.commit }}"
           export BUILD_TIME="${{ steps.meta.outputs.build_time }}"
           make release-artifacts
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@f7e8933966f762eea29795d3c4c4199a599b8098 # v3
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
 
       - name: Log in to GHCR
-        uses: docker/login-action@65b78e6e13532edd9faf3aa096ae2630888e7c1d # v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.6.0
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
+          username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push pade-broker image
         id: broker-image
-        uses: docker/build-push-action@0565240e2d4abfbbbd75806656b683e1c2482fc5 # v5
+        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5.7.0
         with:
           context: .
           push: true
           tags: |
-            ghcr.io/ksteffe/pade-broker:${{ inputs.version }}
+            ghcr.io/ksteffe/pade-broker:${{ steps.meta.outputs.version }}
             ghcr.io/ksteffe/pade-broker:latest
           build-args: |
-            VERSION=${{ inputs.version }}
+            VERSION=${{ steps.meta.outputs.version }}
             VCS_REF=${{ steps.meta.outputs.commit }}
             BUILD_TIME=${{ steps.meta.outputs.build_time }}
             IMAGE_SOURCE=https://github.com/${{ github.repository }}
 
       - name: Write image digest artifact
         run: |
-          mkdir -p dist/${{ inputs.version }}
-          echo "${{ steps.broker-image.outputs.digest }}" > "dist/${{ inputs.version }}/pade-broker-image.digest"
+          mkdir -p "dist/${{ steps.meta.outputs.version }}"
+          echo "${{ steps.broker-image.outputs.digest }}" > "dist/${{ steps.meta.outputs.version }}/pade-broker-image.digest"
           {
-            echo "pade-broker ${{ inputs.version }} ${{ steps.broker-image.outputs.digest }}"
+            echo "pade-broker ${{ steps.meta.outputs.version }} ${{ steps.broker-image.outputs.digest }}"
             echo "commit ${{ steps.meta.outputs.commit }}"
-          } > "dist/${{ inputs.version }}/release-manifest.txt"
+          } > "dist/${{ steps.meta.outputs.version }}/release-manifest.txt"
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@a6da7744555790f25c1d0e0b5b4b176ed6e039e8 # v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.3.2
         with:
-          tag_name: ${{ inputs.version }}
-          name: ${{ inputs.version }}
+          tag_name: ${{ steps.meta.outputs.version }}
+          name: ${{ steps.meta.outputs.version }}
           generate_release_notes: true
           files: |
-            dist/${{ inputs.version }}/*
+            dist/${{ steps.meta.outputs.version }}/*

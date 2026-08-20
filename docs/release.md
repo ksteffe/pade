@@ -6,7 +6,7 @@ Pre-1.0 SemVer. Initial target: **`v0.1.0`**. Releases are **manual only** — n
 
 1. Ensure `main` is green (CI unit + smoke + container smoke).
 2. Actions → **Release** → **Run workflow**.
-3. Enter the version tag (for example `v0.1.0`).
+3. Enter the version tag (`v0.1.0` or `0.1.0` — the workflow normalizes to a `v`-prefixed tag).
 4. The workflow will:
    - re-run unit, smoke, and container smoke checks;
    - build CLI archives for **linux/amd64**, **linux/arm64**, **darwin/arm64** (`pade` + `pade-broker` per archive);
