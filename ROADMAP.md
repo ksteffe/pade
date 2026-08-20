@@ -6,7 +6,7 @@ This document is planning only until milestones are implemented. It does not cha
 
 ## Purpose and principles
 
-PADE should prove **generic authority brokering** once. Downstream systems (Google Analytics, Cloudflare Tunnel, GitHub, …) should work because the mechanism is generic—not because PADE knows about them.
+PADE should prove **generic authority brokering** once. Downstream systems (Google Analytics, GitHub, ordinary vendor CLIs, …) should work because the mechanism is generic—not because PADE knows about them.
 
 Before the first meaningful release (`v0.1.0`), PADE must prove that a broker can fulfill a DevelopmentSession capability through an **independently implemented provider** that derives a session-scoped credential—**twice**, with two different vendors—without vendor-specific behavior in PADE core.
 
@@ -25,6 +25,11 @@ Governing principles:
 7. Brokers **SHOULD** prefer session-scoped, short-lived, or otherwise **derived** credentials over delivering durable source credentials when the configured provider supports such derivation. Direct durable-secret **materialization** remains a valid interoperability mechanism where necessary; PADE must work with systems that only expose static credentials and must not pretend every capability can be fulfilled without exposing credential material.
 8. Prove the provider seam with **two** non-normative reference providers (**GitHub App**, then **Google service-account OAuth** as a second structurally different test) **before** cutting the initial versioned release. Accumulating many integrations is less important than proving third parties can implement providers without modifying PADE itself.
 9. **Hard stopping rule after the second provider:** once two structurally different derived-token providers prove the seam, do **not** add in-tree providers merely to demonstrate vendor compatibility. A third provider belongs only if it exposes a **new generic protocol, lifecycle, or security property**—not another OAuth/API variant for its own sake.
+10. **Generic-deficiency rule for post-v0.1 experiments:** only a **generic** protocol, lifecycle, or security deficiency discovered through real external use should return to this repository.
+    - Vendor-specific problem → solve outside PADE (broker deployment / operator config / consumer repository).
+    - Downstream IAM can isolate subjects → no PADE change.
+    - Only a demonstrated generic missing seam → PADE may evolve.
+11. **Concrete external dogfood ≠ supported PADE platform.** Technologies used to test boundaries (for example Vercel CLI or Google Workload Identity Federation) do **not** automatically become PADE dependencies, providers, schema concepts, or supported integrations.
 
 Document roles:
 
@@ -87,8 +92,8 @@ Derived from the repository as of this roadmap pass (reference Consumer/Broker c
 | `pade exec` | DONE | Process-scoped resolve → inject → wait → discard |
 | Child exit-code propagation | DONE | Maps to process exit |
 | Output redaction | DONE | Exact-match secret redaction on child stdout/stderr (defense in depth) |
-| Signal forwarding (SIGINT / SIGTERM → child) | MISSING | No explicit forward; evaluate in Milestone L if needed |
-| Long-running child-process behavior | PARTIAL / UNKNOWN | Wait + stream works; process-group / signal behavior needs dogfood |
+| Signal forwarding (SIGINT / SIGTERM → child) | MISSING | No explicit forward; evaluate in Milestone O only if real dogfood shows a generic `pade exec` gap |
+| Long-running child-process behavior | PARTIAL / UNKNOWN | Wait + stream works; process-group / signal behavior needs dogfood only if a generic gap appears |
 | Remote broker endpoint / audience configuration | DONE | Local bindings only (not in Intent) |
 | Containerized `pade-broker` | DONE | Root [`Dockerfile`](Dockerfile); `make smoke-broker-container` |
 | Cloud Run–compatible transport mode | DONE | `PORT` + `-tls-termination=proxy` |
@@ -99,11 +104,11 @@ Derived from the repository as of this roadmap pass (reference Consumer/Broker c
 | GitHub Release artifacts | DONE | Manual `workflow_dispatch` [`.github/workflows/release.yml`](../.github/workflows/release.yml); first cut [`v0.1.0`](https://github.com/ksteffe/pade/releases/tag/v0.1.0) |
 | Broker container publishing (GHCR) | DONE | `ghcr.io/ksteffe/pade-broker:v0.1.0` (+ digest on the GitHub Release); OCI labels in [`Dockerfile`](../Dockerfile) |
 | Released broker deployment (external) | DONE | `pade-broker-deployment` consumes released GHCR image (Milestone J) |
-| Released Consumer dogfood (external) | DONE | Released `pade v0.1.0` against released broker from PADE Cloud Agent E2E and after-certainty Cloud Agent GA connectivity (Milestone K) |
+| Released Consumer dogfood (external) | DONE | Released `pade v0.1.0` against released broker from PADE Cloud Agent E2E and a cloud-agent consumer repository GA connectivity (Milestone K) |
 
-**First versioned release (`v0.1.0`) is cut.** Remaining planned work is **post-release** (Milestones L–O): Cloudflare/preview dogfood, endpoint decision, Cursor iOS acceptance, and conditional protocol evaluation. Do **not** commit broker URLs into this repository.
+**First versioned release (`v0.1.0`) is cut.** Remaining planned work is **post-release** (Milestones L–O): external vendor CLI authority dogfood, subject-bound authority via downstream identity federation, full cloud-agent acceptance, and conditional protocol evaluation. Preview-environment lifecycle is **not** currently a motivating PADE problem. Do **not** commit broker URLs into this repository.
 
-**Landed for B–K (including live external proofs):** semantic provider contract, **broker-only** `provider: exec` adapter, stub + GitHub App + Google service-account reference providers (fake CI + httptest-tested real derivation), two-provider same-seam dogfood through the broker, Stage B exec dogfood (`make dogfood-broker-stage-b-exec`), live Cloud Agent E2E against a private Cloud Run broker for both derived-token capabilities, versioned `v0.1.0` artifacts, released GHCR broker image consumed by `pade-broker-deployment`, and released CLI consumed by after-certainty. Targets: `make dogfood-exec-provider{,-github,-ga,-two}`, `make dogfood-broker-stage-b-exec`.
+**Landed for B–K (including live external proofs):** semantic provider contract, **broker-only** `provider: exec` adapter, stub + GitHub App + Google service-account reference providers (fake CI + httptest-tested real derivation), two-provider same-seam dogfood through the broker, Stage B exec dogfood (`make dogfood-broker-stage-b-exec`), live Cloud Agent E2E against a private Cloud Run broker for both derived-token capabilities, versioned `v0.1.0` artifacts, released GHCR broker image consumed by `pade-broker-deployment`, and released CLI consumed by a real external dogfood repository. Targets: `make dogfood-exec-provider{,-github,-ga,-two}`, `make dogfood-broker-stage-b-exec`.
 
 ### Security narrowing: exec is broker-side only
 
@@ -166,29 +171,20 @@ repository-scoped GitHub operation
 
 The durable App private key must remain broker-side. The DevelopmentSession receives only the derived installation token.
 
-Do **not** add Cloudflare or additional vendor integrations merely to repeat direct Material delivery. Two **non-normative** in-tree reference providers (`examples/providers/github/`, `examples/providers/google-analytics/`) dogfood the **provider contract and derivation**—not to make GitHub or Google Analytics part of the PADE standard. The Google directory name reflects a convenient dogfood validation hook only; PADE does not ship Google Analytics as an application feature.
+Do **not** add additional in-tree vendor integrations merely to repeat direct Material delivery. Two **non-normative** in-tree reference providers (`examples/providers/github/`, `examples/providers/google-analytics/`) dogfood the **provider contract and derivation**—not to make GitHub or Google Analytics part of the PADE standard. The Google directory name reflects a convenient dogfood validation hook only; PADE does not ship Google Analytics as an application feature.
 
-## Material vs Endpoint vs Grant
+## Material vs Grant (Endpoint retired)
 
-Three emerging concepts—only **Material** is implemented today:
+Two emerging concepts—only **Material** is implemented today:
 
 | Concept | Meaning | Status |
 |---------|---------|--------|
-| **Material** | Authority returned to a child process (today: env map). Examples: API credential, tunnel token. | Current protocol / reference implementation |
-| **Endpoint** | Potential portable description of a **local** service a capability may act upon. Example: HTTP on port 3000. | Unevaluated; see Milestone M |
-| **Grant / Lease** | Potential future broker result for dynamically provisioned resources (preview URL, ephemeral DB, expiration/revocation). | Deferred; no schema or type |
+| **Material** | Authority returned to a child process (today: env map). Examples: API credential, session token. | Current protocol / reference implementation |
+| **Grant / Lease** | Potential future broker result for dynamically provisioned resources (ephemeral DB, expiration/revocation). | Deferred; no schema or type |
 
-Post-release Cloudflare / preview dogfood (Milestone L) should first test:
+**Endpoint** (portable declaration of a local service a capability may act upon) was previously an open post-preview decision. It is **retired from the active roadmap**. PADE should not add schema surface without a demonstrated generic requirement. Preview/tunnel dogfood is no longer a reason to add Endpoint. If later external dogfood independently shows that portable endpoint declaration is necessary, that question can be reopened then—do not preserve an Endpoint milestone merely because it previously existed.
 
-```text
-existing Material
-+
-repo-local service startup
-+
-possibly future Endpoint declaration (only if dogfood requires it)
-```
-
-Do **not** implement Grant/Lease before the initial release.
+Do **not** implement Grant/Lease before the initial release (already cut) or without dogfood evidence.
 
 ### Fulfillment maturity (Material path)
 
@@ -280,7 +276,7 @@ short-lived Google access token
 Material
 ```
 
-The Google path uses Google’s generic OAuth2 JWT-bearer grant. The in-tree example under `examples/providers/google-analytics/` uses an Analytics-related scope and a minimal Admin API call **only as a dogfood validation hook**—not because PADE owns GA4 report logic, dimensions/metrics, property semantics, GA client libraries, or after-certainty analytics tooling. Those belong in downstream applications such as `after-certainty`.
+The Google path uses Google’s generic OAuth2 JWT-bearer grant. The in-tree example under `examples/providers/google-analytics/` uses an Analytics-related scope and a minimal Admin API call **only as a dogfood validation hook**—not because PADE owns GA4 report logic, dimensions/metrics, property semantics, GA client libraries, or consumer-application analytics tooling. Those belong in downstream application repositories.
 
 #### DevelopmentSession relationship
 
@@ -334,11 +330,13 @@ PADE should **not** put into core:
 
 - GitHub App authentication, installation identification, token issuance, or repository/permission policy fields as protocol semantics
 - Google service-account / OAuth derivation logic, GA4 report logic, analytics dimensions/metrics, property semantics, or GA client behavior in PADE core
-- Cloudflare-specific APIs or tunnel provisioning
+- Vercel-specific APIs, CLI wrappers, schema, broker logic, Consumer logic, SDKs, or MCP integration
+- Google Workload Identity Federation or Secret Manager wiring as PADE protocol semantics
 - Application start/stop orchestration (DevPod / repo tooling owns lifecycle)
+- Preview-environment / tunnel lifecycle (not currently a motivating PADE problem)
 - A catalog of vendor integrations
 
-In-tree reference providers under `examples/providers/` exist for **dogfooding and illustrating the provider contract**. They are **non-normative** and **architecturally removable** from PADE core. Their presence does **not** make the vendor, API, or capability part of the PADE standard. Prefer `examples/providers/` over an `extensions/` directory name (avoids collision with CNCF Runtime Conditions “extension” terminology).
+In-tree reference providers under `examples/providers/` exist for **dogfooding and illustrating the provider contract**. They are **non-normative** and **architecturally removable** from PADE core. Their presence does **not** make the vendor, API, or capability part of the PADE standard. Prefer `examples/providers/` over an `extensions/` directory name (avoids collision with CNCF Runtime Conditions “extension” terminology). Post-v0.1 external integrations (Milestone L+) should prefer **deployment/operator configuration outside this repository**, not new in-tree vendors.
 
 ### `pade-broker-deployment` (external)
 
@@ -346,13 +344,15 @@ In-tree reference providers under `examples/providers/` exist for **dogfooding a
 - Private broker policy and secret-store bootstrap (durable authority, including GitHub App private key and Google durable credentials) — **live**
 - Capability → source/provider configuration — **live** (`github.repo.read`, `google-analytics.read` via broker-side exec)
 - Consumption of **released** broker images (`ghcr.io/ksteffe/pade-broker:v0.1.0`) — **DONE** (Milestone J; digest pin on the GitHub Release)
+- Future: deployment-specific external providers (for example Vercel CLI authority Material) without adding vendor code to PADE — Milestone L
+- Future: subject-aware fulfillment composed with downstream IAM (for example Google WIF + Secret Manager) — Milestone M
 
-### `after-certainty` (external)
+### Consumer / application repository (external)
 
-- `DevelopmentSession` Intent for the site — **live**
+- `DevelopmentSession` Intent for the application — **live** (external dogfood)
 - Cursor Cloud agent environment bootstrap of released `pade v0.1.0` — **DONE** (Milestone K)
-- Product GA4 tooling, analytics commands/scripts, use of returned credentials — **live** (GA connectivity verified from an after-certainty Cloud Agent via the broker)
-- Application start command, local port, Cloudflare preview command, stable preview hostname — **remaining** (Milestone L)
+- Product tooling (for example GA4 scripts) and use of returned credentials — **live** (GA connectivity verified from a cloud-agent consumer via the broker)
+- Ordinary vendor CLI usage against generic Material (for example Vercel diagnostics) — **remaining** (Milestone L)
 - Consumption of **released** PADE CLI (`pade v0.1.0`) — **DONE** (Milestone K)
 
 Do not move these external product responsibilities into PADE merely because PADE enables them.
@@ -374,18 +374,41 @@ The directory is named `google-analytics/` for dogfood convenience only. PADE do
 |-------|----------------|
 | **PADE** (`examples/providers/google-analytics/`) | Non-normative **reference provider / architectural test**: broker-side service-account → OAuth access-token derivation on the same generic seam as GitHub. Not part of the PADE standard. |
 | `pade-broker-deployment` | Private durable Google service-account / secret-store bootstrap and broker policy wiring |
-| `after-certainty` | Product GA4 tooling; analytics commands; dimensions/metrics; use of returned Material |
+| Consumer / application repository | Product GA4 tooling; analytics commands; dimensions/metrics; use of returned Material |
 | **PADE core** | Remains vendor-neutral; sees only the generic provider request/result contract |
 
-PADE must **not** own or contain: GA4 report logic, GA dimensions/metrics, Analytics property semantics, GA client libraries, or after-certainty analytics tooling. The in-tree provider demonstrates **credential derivation only**; a minimal downstream API call in dogfood validates the derived token—not GA product behavior inside PADE.
+PADE must **not** own or contain: GA4 report logic, GA dimensions/metrics, Analytics property semantics, GA client libraries, or consumer-application analytics tooling. The in-tree provider demonstrates **credential derivation only**; a minimal downstream API call in dogfood validates the derived token—not GA product behavior inside PADE.
 
-### Cloudflare ownership
+### Shared organizational vs subject-bound authority
 
-| Owner | Responsibility |
-|-------|----------------|
-| `pade-broker-deployment` | Private capability → Cloudflare credential binding |
-| `after-certainty` | App dev command; `cloudflared` install; preview workflow; hostname configuration |
-| **PADE** | No Cloudflare-specific APIs or tunnel provisioning. Track the **endpoint declaration** question (Milestone M) as a portable protocol concern if needed. Post-release (Milestone L). |
+PADE should support **both** conceptual models:
+
+| Model | Meaning |
+|-------|---------|
+| **Shared organizational capability** | All authorized subjects receive the same organizational authority for that capability |
+| **Subject-bound capability** | Fulfillment depends on the authenticated workload subject |
+
+Existing dogfood (GitHub App installation token, shared Google service-account OAuth Material) exercises the shared organizational model. Milestone M investigates whether the subject-bound model can be composed from existing identity/IAM systems **without** expanding PADE with user/secret mapping tables.
+
+Prefer:
+
+```text
+authenticated subject
+        ↓
+external identity federation
+        ↓
+downstream IAM decision
+```
+
+over:
+
+```text
+authenticated subject
+        ↓
+PADE-owned user/secret mapping table
+```
+
+Do **not** roadmap PADE-specific constructs such as `userSecrets`, `subjectBindings`, `perUserSecrets`, or `secretOwner`. Do not assume PADE needs a database mapping subjects to secret paths. The first desired outcome is that existing IAM systems perform the isolation.
 
 ## Forward milestones
 
@@ -393,10 +416,10 @@ Completed learning dogfood (0–9 / 9b) is summarized under [Historical dogfood 
 
 ### Mapping from previous roadmap letters
 
-Previous letters after PR #31 (GA-first A–M) are **superseded**:
+Previous letters after PR #31 (GA-first A–M) and the post-`v0.1.0` Cloudflare/Endpoint plan are **superseded** where noted:
 
-| Previous (PR #31) | Now |
-|-------------------|-----|
+| Previous | Now |
+|----------|-----|
 | A (PAT baseline) | **A** (unchanged role) |
 | B (provider contract) | **B** |
 | C (dogfood binding) | **C** |
@@ -405,10 +428,12 @@ Previous letters after PR #31 (GA-first A–M) are **superseded**:
 | G (v0.1.0) | **I** |
 | H (released broker deploy) | **J** |
 | I (released Consumer) | **K** |
-| J (Cloudflare preview) | **L** |
-| K (endpoint decision) | **M** |
-| L (Cursor iOS) | **N** |
-| M (post-dogfood evaluation) | **O** |
+| J / former **L** (Cloudflare preview) | **Superseded** — preview/tunnel dogfood removed from the active roadmap |
+| K / former **M** (endpoint decision) | **Superseded** — Endpoint question retired from the active roadmap |
+| L / former **N** (Cursor iOS) | **N** (full cloud-agent acceptance; no preview/tunnel requirement) |
+| M / former **O** (post-dogfood evaluation) | **O** |
+| — | **L** (new) — external vendor CLI authority dogfood (Vercel as concrete case) |
+| — | **M** (new) — subject-bound authority via downstream identity federation (Google WIF experiment) |
 
 ### Pre-release (required for `v0.1.0`)
 
@@ -424,15 +449,15 @@ Previous letters after PR #31 (GA-first A–M) are **superseded**:
 | **H — Spec/docs tighten from dogfood** | Capture D–G learnings; no premature Intent redesign | PADE repo — **DONE** |
 | **I — Initial versioned release (`v0.1.0`)** | CLI + broker artifacts; **gated on A–H**; stages 1 and 2 via both providers | PADE repo — **DONE** ([`v0.1.0`](https://github.com/ksteffe/pade/releases/tag/v0.1.0)) |
 
-### Post-release (preserved; renumbered)
+### Post-release
 
 | Milestone | Focus | Where work happens |
 |-----------|--------|--------------------|
 | **J — Released broker deployment** | Private deploy consumes `ghcr.io/ksteffe/pade-broker:vX.Y.Z` | `pade-broker-deployment` — **DONE** (released `v0.1.0` GHCR image) |
-| **K — Released Consumer dogfood** | Cursor Cloud uses released `pade` against real deployed broker | External + PADE artifacts — **DONE** (released `pade v0.1.0`; after-certainty GA connectivity) |
-| **L — External preview / Cloudflare dogfood** | App + tunnel via generic Material; long-running `pade exec` | External + possible generic exec fix |
-| **M — Endpoint decision** | Portable endpoint declaration decision gate | Architecture decision |
-| **N — Full Cursor iOS workflow** | Analytics → edit → run → preview acceptance | External acceptance |
+| **K — Released Consumer dogfood** | Cursor Cloud uses released `pade` against real deployed broker | External + PADE artifacts — **DONE** (released `pade v0.1.0`; consumer-repo GA connectivity) |
+| **L — External CLI authority dogfood** | Real vendor CLI (Vercel as concrete dogfood) via generic Material; no Vercel in PADE | Broker deployment + consumer repository |
+| **M — Subject-bound authority (WIF experiment)** | Same portable capability → different Material by subject via downstream IAM | Broker deployment + external identity/IAM |
+| **N — Full cloud-agent acceptance** | End-to-end cloud-agent workflow without manual credential copy | External acceptance |
 | **O — Post-dogfood protocol evaluation** | Only generic deficiencies return to PADE | Conditional |
 
 ```text
@@ -447,9 +472,9 @@ A (PAT direct Material baseline)
   → I (v0.1.0)
   → J (released broker deploy)
   → K (released Consumer)
-  → L (Cloudflare preview)
-  → M (endpoint decision)
-  → N (Cursor iOS acceptance)
+  → L (external vendor CLI authority)
+  → M (subject-bound authority / WIF)
+  → N (cloud-agent acceptance)
   → O (post-dogfood evaluation)
 ```
 
@@ -462,12 +487,27 @@ pade-broker-deployment
     ↓
 real Cloud Run broker
     ↓
-after-certainty
-    ├── Google Analytics usage (product tooling — not PADE core)
-    └── Cloudflare preview
+consumer / application repository
+    ├── shared organizational capabilities (existing GA / GitHub dogfood)
+    ├── external vendor CLI via generic Material (Milestone L)
+    └── subject-bound fulfillment via downstream IAM (Milestone M)
 ```
 
-The Google reference provider must **not** become an excuse to keep building vendor examples inside PADE. Real product dogfood (GA usage, preview tunnels) belongs in external repos after released artifacts exist (Milestones J–N).
+Conceptual post-v0.1 progression:
+
+```text
+completed v0.1 proof
+    ↓
+external vendor integration without PADE changes
+    ↓
+subject-bound authority through downstream identity federation
+    ↓
+full cloud-agent acceptance/dogfood
+    ↓
+bring back only generic deficiencies
+```
+
+The Google reference provider must **not** become an excuse to keep building vendor examples inside PADE. Real product and vendor-CLI dogfood belongs in external repos / broker deployment configuration after released artifacts exist (Milestones J–N).
 
 ### Milestone A — Broker dogfood baseline
 
@@ -573,7 +613,7 @@ The dogfood should demonstrate that the resulting token is:
 
 ### Milestone F — Google service-account reference provider (second structural test)
 
-**Status:** Done for pre-release purposes. Landed under [`examples/providers/google-analytics`](examples/providers/google-analytics). Real mode uses a broker-side service account JSON/key to mint a JWT assertion and exchange it for a short-lived OAuth2 access token (`analytics.readonly` by default). `PADE_PROVIDER_FAKE=1` keeps CI offline. Dogfood: `make dogfood-exec-provider-ga` (+ `ga-property-meta`), `make dogfood-broker-stage-b-exec`. **Live proof:** Cloud Agent → private Cloud Run broker → GA Admin property metadata + GA4 Data API report (after-certainty property).
+**Status:** Done for pre-release purposes. Landed under [`examples/providers/google-analytics`](examples/providers/google-analytics). Real mode uses a broker-side service account JSON/key to mint a JWT assertion and exchange it for a short-lived OAuth2 access token (`analytics.readonly` by default). `PADE_PROVIDER_FAKE=1` keeps CI offline. Dogfood: `make dogfood-exec-provider-ga` (+ `ga-property-meta`), `make dogfood-broker-stage-b-exec`. **Live proof:** Cloud Agent → private Cloud Run broker → GA Admin property metadata + GA4 Data API report (external dogfood property).
 
 **Goal:** Add the **second** in-tree reference provider to prove the generic contract was **not** accidentally designed around GitHub’s installation-token exchange. This is **not** vendor breadth or Google Analytics product support.
 
@@ -680,7 +720,7 @@ Do **not** redesign DevelopmentSession / Intent around Runtime Conditions or inv
 - The second provider exists to prove the seam is not GitHub-App-shaped—not to expand PADE’s integration catalog
 - See [Why two derived-token providers before v0.1.0](#why-two-derived-token-providers-before-v010) for release-gate and security rationale
 
-**Not required for `v0.1.0`:** mediated capabilities (stage 3); full provider ecosystem; every future binding; Intent redesign; Runtime Conditions integration; Cloudflare/preview completion (Milestones L–O). Pinning released CLI/broker artifacts in external deploy was **J–K** (now DONE).
+**Not required for `v0.1.0`:** mediated capabilities (stage 3); full provider ecosystem; every future binding; Intent redesign; Runtime Conditions integration; post-release Milestones L–O. Pinning released CLI/broker artifacts in external deploy was **J–K** (now DONE).
 
 #### Release artifacts (landed at I)
 
@@ -728,7 +768,7 @@ ghcr.io/ksteffe/pade-broker:vX.Y.Z
 
 without cloning or building PADE source. Operators must be able to identify PADE version, source commit, and image digest.
 
-**Cloud development environments install** `pade vX.Y.Z` from a GitHub Release asset (`after-certainty` uses `v0.1.0`).
+**Cloud development environments install** `pade vX.Y.Z` from a GitHub Release asset (consumer repositories use `v0.1.0`).
 
 ### Milestone J — Released broker deployment
 
@@ -749,73 +789,136 @@ External Cursor Cloud (or equivalent) installs released `pade`, points agent bin
 **Progress:**
 
 - Released `pade v0.1.0` from a PADE Cloud Agent resolved both `github.repo.read` and `google-analytics.read` against the released Cloud Run broker (installation token + GA Admin/Data API).
-- **after-certainty** Cloud Agent environment bootstraps released `pade v0.1.0` and verified **GA connectivity** through the same broker (`google-analytics.read`). Broker URL may live in that product repo; it must **not** be copied into PADE.
+- A **cloud-agent consumer / application repository** bootstraps released `pade v0.1.0` and verified **GA connectivity** through the same broker (`google-analytics.read`). Broker URL may live in that consumer repository; it must **not** be copied into PADE.
 
 PADE acceptance: released CLI talks to released broker using the existing wire protocol.
 
-### Milestone L — External preview / Cloudflare dogfood
+### Milestone L — External CLI authority dogfood (Vercel as concrete case)
 
 **Status:** Not started (next post-release milestone).
 
-after-certainty runs its normal application and establishes a Cloudflare Tunnel using **generic** PADE-brokered Material (tunnel token or equivalent), plus **repo-local** start command / port / `cloudflared` invocation.
+**Goal:** Test whether a real vendor CLI can receive authority through PADE **entirely** via deployment/operator configuration—without adding vendor-specific functionality to this repository.
 
-Evaluate long-running `pade exec` (signals, exit codes, Material lifetime, redaction). Fix gaps as **generic execution** improvements—not Cloudflare support.
-
-Preserved from the prior roadmap; intentionally **after** the initial release. Keeper/1Password and other historical dogfood remain documented under historical milestones and existing docs—not deleted.
-
-### Milestone M — Endpoint decision
-
-A credential capability alone may not fully describe a preview workflow. A preview needs external authority **and** a local service to expose.
-
-**Architectural question (do not change schema until decided):**
-
-> Should a `DevelopmentSession` be able to declare local endpoints/services that external capabilities may act upon?
-
-Illustrative **future** shape only (not accepted by today’s schema):
-
-```yaml
-apiVersion: pade.local/v1alpha1
-kind: DevelopmentSession
-metadata:
-  name: example
-spec:
-  capabilities:
-    preview.http:
-      access: use
-  endpoints:
-    web:
-      protocol: http
-      port: 3000
-```
-
-Keep **application startup** separate from endpoint intent (`package.json` / Makefile / Dev Container vs possible future Intent endpoints vs capability authority).
-
-#### Decision gate (dogfood-first)
+Vercel is **concrete external dogfood**, not a supported PADE platform, provider, schema concept, or integration.
 
 ```text
-First: dogfood after-certainty with a repo-local preview command
-that knows start command, port, and cloudflared invocation
-outside PADE.
+cloud DevelopmentSession
         ↓
-If this feels clean
-        → keep endpoint metadata out of PADE.
+portable PADE capability request
         ↓
-If every Consumer needs repo-specific knowledge of which
-local service/port a capability targets
-        → promote endpoint declaration into the Intent roadmap
-          and implement only then.
+released PADE broker
         ↓
-If PADE must also start/stop services itself
-        → revisit lifecycle carefully; do not assume this outcome.
+deployment-specific external provider
+        ↓
+generic Material
+        ↓
+ordinary Vercel CLI
+        ↓
+logs / inspect / diagnostics
 ```
 
-### Milestone N — Full Cursor iOS workflow
+Architecture ownership:
+
+```text
+PADE
+    defines generic capability and Material semantics
+broker deployment
+    decides how a concrete capability is fulfilled
+vendor CLI
+    consumes the resulting Material
+```
+
+**Where work happens:** `pade-broker-deployment` (provider wiring) + consumer / application repository (CLI usage). **Not** in PADE core.
+
+The PADE repository must **not** gain:
+
+- a Vercel provider;
+- Vercel-specific schema;
+- Vercel-specific broker or Consumer logic;
+- Vercel SDK dependencies;
+- Vercel MCP integration;
+- Vercel-specific vocabulary in Intent or core packages.
+
+**Useful example operations** (read-oriented investigation; not deployment creation as the primary purpose):
+
+- deployment inspection;
+- production or preview log retrieval;
+- project diagnostics.
+
+**Success criterion:** Vercel CLI diagnostics work through **generic PADE Material** with **no** Vercel-specific code or vocabulary added to PADE core.
+
+**Generic-deficiency rule:** vendor-specific problems stay outside PADE. Only a generic missing seam discovered by this experiment may return here (Milestone O).
+
+This milestone is intended to prove that a real external integration can exist **without** becoming an in-tree reference provider—consistent with the hard stopping rule after the second provider.
+
+### Milestone M — Subject-bound authority (Google WIF experiment)
+
+**Status:** Not started.
+
+**Goal:** Investigate whether the **same portable PADE capability** can resolve to **different** authority according to the authenticated workload subject, while **downstream IAM**—not a PADE-maintained user-to-secret database—enforces isolation.
+
+This is an **experiment**, not a pre-designed PADE feature. Do **not** add roadmap requirements for `userSecrets`, `subjectBindings`, `perUserSecrets`, `secretOwner`, or similar PADE-specific constructs. Do **not** assume PADE needs a subject→secret mapping table.
+
+**Concrete external dogfood stack** (non-normative; none becomes part of the PADE specification):
+
+- Cursor workload OIDC identity;
+- Google Workload Identity Federation;
+- Google Secret Manager IAM;
+- per-subject access to distinct secret material;
+- Vercel CLI authority as the external dogfood capability (from Milestone L).
+
+```text
+authenticated cloud-agent subject A
+        ↓
+PADE broker
+        ↓
+Google Workload Identity Federation
+        ↓
+Google federated principal A
+        ↓
+Secret Manager IAM
+        ↓
+secret/material authorized for subject A
+```
+
+and independently:
+
+```text
+authenticated cloud-agent subject B
+        ↓
+same PADE capability
+        ↓
+Google Workload Identity Federation
+        ↓
+Google federated principal B
+        ↓
+Secret Manager IAM
+        ↓
+different secret/material authorized for subject B
+```
+
+Preserve **shared organizational authority** as a valid model. Do not rewrite PADE as if every capability must become user-specific. Milestone M asks whether the **subject-bound** model can be composed from existing identity/IAM systems without expanding PADE unnecessarily.
+
+**Do not change the provider contract in this roadmap pass.** The experiment may reveal that the current seam does or does not expose enough broker-verified workload identity context for a trusted provider to perform an identity exchange.
+
+**Acceptance branches:**
+
+| Outcome | Action |
+|---------|--------|
+| **Yes** — existing provider contract is sufficient | **No PADE change.** Record that subject-aware fulfillment can be achieved by composing PADE with downstream IAM. |
+| **No** — a generic deficiency is demonstrated | Bring back only the **smallest generic** deficiency (for example, carefully scoped access to broker-verified workload identity context for a trusted provider). |
+
+Any future PADE change must be justified as a **generic provider requirement**, not a Google-, Cursor-, Vercel-, or Secret-Manager-specific feature.
+
+### Milestone N — Full cloud-agent acceptance
+
+**Status:** Not started.
 
 Acceptance story:
 
-From Cursor iOS, launch a fresh after-certainty Cloud Agent and ask it to inspect Google Analytics, make an appropriate change, run the application, and provide a public preview—**without manually copying credentials into the agent**.
+From Cursor iOS (or equivalent), launch a fresh cloud-agent DevelopmentSession against a consumer / application repository and ask it to inspect authorized capabilities and perform read-oriented operational investigation—**without manually copying credentials into the agent**.
 
-Expected path uses **released** CLI/broker (post-I) and derived Material where the configured provider supports it:
+Expected path uses **released** CLI/broker and generic Material:
 
 ```text
 released PADE CLI
@@ -826,20 +929,28 @@ Cursor workload identity
     ↓
 released PADE broker
     ↓
-provider fulfillment (derived GA credential / tunnel Material)
+provider fulfillment (derived / subject-aware Material as configured)
     ↓
-repo-owned tooling (GA scripts, app start, cloudflared)
+repo-owned tooling (analytics scripts, ordinary vendor CLI, …)
 ```
 
-PADE core remains unaware of the downstream vendors.
+PADE core remains unaware of the downstream vendors. Preview-environment / tunnel lifecycle is **not** part of this acceptance story.
 
 ### Milestone O — Post-dogfood protocol evaluation
 
-Only **generic** deficiencies discovered during real use return to the PADE repository (Intent, Consumer, Broker, or reference execution behavior). Vendor-specific work stays in external repos or `examples/providers/`.
+Only **generic** deficiencies discovered during real use (especially Milestones L and M) return to the PADE repository (Intent, Consumer, Broker, or reference execution behavior). Vendor-specific work stays in broker deployment configuration, consumer repositories, or—only when still serving as an architectural test—`examples/providers/`.
+
+Apply the generic-deficiency rule explicitly:
+
+| Experiment | Prefer |
+|------------|--------|
+| Vercel CLI dogfood (L) | Vendor-specific problem → solve outside PADE |
+| Subject-bound WIF dogfood (M) | Downstream IAM can solve it → no PADE change |
+| Either | Only a demonstrated generic missing seam → PADE may evolve |
 
 ## Capability naming (exploratory)
 
-External dogfood may use names resembling `github.repo.read`, `analytics.google.read`, or `preview.http`.
+External dogfood may use names resembling `github.repo.read`, `analytics.google.read`, or other opaque capability ids.
 
 - Do **not** create a capability registry in PADE.
 - Do **not** standardize vendor capability names in this roadmap pass.
@@ -871,7 +982,7 @@ Track these without freezing Intent or Broker wire formats prematurely.
 14. **Mediated capabilities** — Does credential-less exercise require Consumer protocol changes beyond today’s resolve → Material path?
 15. **Runtime Conditions (CNCF)** — Active discussion with Runtime Conditions maintainers. Emerging possibility: Runtime Conditions describe requirements of a runtime *thing* (application, Dev Container, code session, agent sandbox, development environment), while PADE creates/fulfills an identity-bound DevelopmentSession and handles downstream capability fulfillment. **Do not** claim adopt/extend/replace/integrate yet. **Do not** redesign Intent while this is open.
 16. **Hierarchical / composed profiles** — Emerging idea that development-session requirements could layer on top of application runtime requirements. Record only; no PADE schema work yet.
-17. **Endpoint declaration** — See Milestone M.
+17. **Broker-verified workload identity context for trusted providers** — Does a trusted external provider need carefully scoped access to broker-verified workload identity in order to perform downstream identity federation? **Do not answer in this planning pass.** Milestone M (WIF experiment) asks whether the existing provider contract is sufficient; only a demonstrated generic deficiency should return here.
 18. **Capability vocabulary** — See [Capability naming](#capability-naming-exploratory).
 
 ## Deferred until after the initial release / full workflow
@@ -879,15 +990,11 @@ Track these without freezing Intent or Broker wire formats prematurely.
 Explicitly deferred (not blockers for `v0.1.0` unless noted otherwise):
 
 - **Mediated capabilities** (Consumer never receives credential Material) — after stage 2 is proven with both reference providers
-- Endpoint schema implementation **unless** Milestone M decides it is required
 - Grant / Lease model
-- Additional vendor reference providers / integration catalog
+- Additional vendor reference providers / integration catalog (in-tree)
 - Extra provider bindings beyond the first dogfood binding
 - Provider packaging / distribution choices beyond what dogfood needs
-- Dynamic preview provisioning by the broker
-- Multiple simultaneous previews / branch-specific preview URLs
 - Capability registry / standardized capability naming
-- frp or other tunnel implementations inside PADE
 - Additional workload identity adapters (beyond Cursor OIDC reference)
 - Codex / Claude (or other agent runtime) support as PADE features
 - Managed broker products
@@ -898,8 +1005,11 @@ Explicitly deferred (not blockers for `v0.1.0` unless noted otherwise):
 - Standards / governance work
 - Runtime Conditions adoption or hierarchical-profile Intent changes
 - JTI replay store, multi-tenant broker hosting, DB-backed policy (still deferred spike hardening)
-- Cloudflare / preview completion (Milestone L — post-release, preserved)
+- Preview-environment / tunnel lifecycle inside PADE (not currently a motivating problem; Cloudflare/preview direction **superseded**)
+- Portable Endpoint Intent schema (retired from the active roadmap; reopen only if independent dogfood shows a generic need)
 - Keeper / 1Password / Vault historical dogfood remains available; not deleted
+
+**Historical note:** An earlier post-`v0.1.0` plan centered on Cloudflare tunnels / `cloudflared` / temporary preview endpoints and an Endpoint-declaration decision gate. That direction is **superseded**. Preview-environment lifecycle is not currently a motivating PADE problem; do not replace Cloudflare with a different tunnel provider in this repository.
 
 ## Historical dogfood milestones
 
@@ -920,4 +1030,4 @@ The following learning milestones are **complete or spiked** and are not the liv
 | **9** | Keeper Secrets Manager + Cursor Cloud dogfood |
 | **9b** | Cursor OIDC + minimal `pade-broker` — **experimental reference Broker** |
 
-Earlier README “9+ / Later” rows, the release-first A–I ordering, and the GA-first A–M ordering (PR #31) are **superseded** by Milestones **A–O** in this document (GitHub App first, Google Analytics second, both before `v0.1.0`).
+Earlier README “9+ / Later” rows, the release-first A–I ordering, the GA-first A–M ordering (PR #31), and the post-`v0.1.0` Cloudflare/Endpoint L–O ordering are **superseded** by Milestones **A–O** in this document (GitHub App first, Google Analytics second, both before `v0.1.0`; post-release external CLI + WIF experiments).

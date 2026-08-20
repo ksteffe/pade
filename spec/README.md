@@ -75,7 +75,7 @@ Conceptually:
 A conforming PADE ecosystem participant SHOULD NOT need to run binaries produced by this repository. For example, hypothetically:
 
 - a Cursor-like runtime could implement a PADE Consumer directly;
-- a Vercel-like platform could implement a PADE Broker directly;
+- a deployment platform could implement a PADE Broker directly;
 - an enterprise platform could implement both.
 
 Those are **roles in a story**, not claims that any vendor currently supports PADE.
@@ -84,18 +84,18 @@ Those are **roles in a story**, not claims that any vendor currently supports PA
 
 ```text
 Repository
-  pade.yaml requests preview.http
+  pade.yaml requests an opaque capability
 Cursor-like runtime
   implements PADE Consumer
-Vercel-like service
-  implements PADE Broker
-Broker authorizes workload
-  and returns temporary preview access
-Development server
-  remains in the original runtime
+Broker deployment
+  authorizes the workload and invokes a configured provider
+Generic Material
+  reaches the DevelopmentSession
+Ordinary vendor CLI (or other tooling)
+  consumes Material
 ```
 
-This illustrates separated Intent, Consumer, and Broker roles. `preview.http` is **not** in the Intent schema (`pade.local/v1alpha1`); resource/lease-shaped results remain an open design question.
+This illustrates separated Intent, Consumer, and Broker roles. Capability names remain opaque; Material (env maps today) is the current result shape. Grant/Lease remains deferred. A “Vercel-like” platform implementing a Broker is a **role in a story**, not a claim that Vercel is a supported PADE integration—see [ROADMAP.md](../ROADMAP.md) Milestone L for concrete external CLI dogfood framing.
 
 ## Current reference dogfood paths
 
@@ -158,15 +158,15 @@ Historical flat `version: "0.1"` Intent manifests are rejected with an explicit 
 
 ## Open specification questions
 
-Dogfood should drive these; do not freeze them prematurely. Sequencing and ownership for near-term external dogfood, releases, and the endpoint-declaration decision gate live in [ROADMAP.md](../ROADMAP.md)—do not duplicate that plan here.
+Dogfood should drive these; do not freeze them prematurely. Sequencing and ownership for near-term external dogfood and conditional protocol evaluation live in [ROADMAP.md](../ROADMAP.md)—do not duplicate that plan here.
 
-1. **Grant / lease model** — Today results are largely credential **material** (env maps). Future capabilities (preview URLs, ephemeral databases, temporary queues/storage, cloud roles) may need a broader grant/lease result model. There is no Grant Specification yet. See [ROADMAP.md](../ROADMAP.md) (Material vs Endpoint vs Grant; deferred until after full workflow dogfood).
-2. **Endpoint declaration** — Whether a `DevelopmentSession` should declare local services/ports that capabilities may act upon is an open architecture question with an explicit post-preview dogfood decision gate. Not in v1alpha1. See [ROADMAP.md](../ROADMAP.md) Milestone M.
-3. **Derived / session-scoped materialization** — Brokers may fulfill a capability by deriving short-lived credentials from durable authority via independently implemented providers (or, later, mediating without returning credentials). Required for `v0.1.0` alongside direct materialization, demonstrated by **two non-normative reference providers** on the same generic seam: GitHub App (first) and Google service-account OAuth (second **architectural test**—not vendor breadth or GA product support). Neither provider is part of the normative PADE protocol. See [ROADMAP.md](../ROADMAP.md#why-two-derived-token-providers-before-v010) Milestones B–I.
-4. **Runtime Conditions (CNCF)** — Could Runtime Conditions eventually describe some portable *demand* (including hierarchical/composed profiles) while PADE focuses on creating and fulfilling an identity-bound DevelopmentSession? Under discussion; no adopt/extend/replace/integrate claim yet. See [ROADMAP.md](../ROADMAP.md#open-design-questions).
-5. **Capability vocabulary** — Naming, namespaces, registration, and third-party extension rules remain exploratory. There is no global capability registry in v0.1.
-6. **Broker discovery / configuration** — Today the reference consumer configures broker endpoint and audience via local bindings. Universal discovery is unspecified.
-7. **Workload identity catalog** — Cursor OIDC is the first reference adapter. GitHub Actions OIDC, SPIFFE, cloud workload identity, and enterprise mechanisms are possible later adapters, not standardized here.
+1. **Grant / lease model** — Today results are largely credential **material** (env maps). Future capabilities (ephemeral databases, temporary queues/storage, cloud roles) may need a broader grant/lease result model. There is no Grant Specification yet. See [ROADMAP.md](../ROADMAP.md) (Material vs Grant; deferred). Portable Endpoint Intent schema is **retired** from the active roadmap—reopen only if independent dogfood shows a generic need.
+2. **Derived / session-scoped materialization** — Brokers may fulfill a capability by deriving short-lived credentials from durable authority via independently implemented providers (or, later, mediating without returning credentials). Required for `v0.1.0` alongside direct materialization, demonstrated by **two non-normative reference providers** on the same generic seam: GitHub App (first) and Google service-account OAuth (second **architectural test**—not vendor breadth or GA product support). Neither provider is part of the normative PADE protocol. See [ROADMAP.md](../ROADMAP.md#why-two-derived-token-providers-before-v010) Milestones B–I.
+3. **Runtime Conditions (CNCF)** — Could Runtime Conditions eventually describe some portable *demand* (including hierarchical/composed profiles) while PADE focuses on creating and fulfilling an identity-bound DevelopmentSession? Under discussion; no adopt/extend/replace/integrate claim yet. See [ROADMAP.md](../ROADMAP.md#open-design-questions).
+4. **Capability vocabulary** — Naming, namespaces, registration, and third-party extension rules remain exploratory. There is no global capability registry in v0.1.
+5. **Broker discovery / configuration** — Today the reference consumer configures broker endpoint and audience via local bindings. Universal discovery is unspecified.
+6. **Workload identity catalog** — Cursor OIDC is the first reference adapter. GitHub Actions OIDC, SPIFFE, cloud workload identity, and enterprise mechanisms are possible later adapters, not standardized here.
+7. **Broker-verified workload identity context for trusted providers** — Whether a trusted external provider needs carefully scoped access to broker-verified workload identity for downstream federation is an open experiment question (see [ROADMAP.md](../ROADMAP.md) Milestone M). Do not change the provider contract until dogfood shows a generic deficiency.
 8. **Version negotiation** — Schema/protocol version fields and compatibility rules beyond fixed `pade.local/v1alpha1` remain future work. Legacy flat `version: "0.1"` Intent is not accepted.
 
 ## Normative language

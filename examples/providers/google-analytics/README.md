@@ -12,7 +12,7 @@ This provider demonstrates **broker-side credential derivation only** (service a
 - Analytics property semantics beyond injecting a non-secret `GA_PROPERTY_ID` into Material
 - GA client libraries or analytics tooling
 
-Product GA4 usage belongs in downstream applications such as `after-certainty`. The minimal `ga-property-meta` script is a **validation hook** for the derived token—not GA application code inside PADE.
+Product GA4 usage belongs in downstream application / consumer repositories. The minimal `ga-property-meta` script is a **validation hook** for the derived token—not GA application code inside PADE.
 
 Rationale for two pre-release providers: [ROADMAP.md — Why two derived-token providers](../../../ROADMAP.md#why-two-derived-token-providers-before-v010).
 

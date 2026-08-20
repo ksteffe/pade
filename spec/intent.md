@@ -185,13 +185,12 @@ Current reference work has focused primarily on **credentials / material** (reso
 
 Future capabilities might represent resources or leases such as:
 
-- `preview.http`
 - ephemeral database
 - temporary environment
 - service lease
 - temporary queue / storage / cloud role
 
-These ideas are **not** part of the normative v1alpha1 schema and have no standardized result model yet. See [Open specification questions](README.md#open-specification-questions) in the spec overview. Do not add them to Intent documents expecting interoperability.
+These ideas are **not** part of the normative v1alpha1 schema and have no standardized result model yet. See [Open specification questions](README.md#open-specification-questions) in the spec overview. Do not add them to Intent documents expecting interoperability. Portable Endpoint Intent schema is retired from the active roadmap (see [ROADMAP.md](../ROADMAP.md)).
 
 ## Normative vs reference
 
