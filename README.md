@@ -101,7 +101,8 @@ make ci          # local mirror of GitHub unit + smoke jobs
 Dogfood and learning milestones (not the product definition):
 
 - **Milestone 9** — Keeper Secrets Manager direct mode + Cursor Cloud composition (`KSM_CONFIG` on the agent VM).
-- **Phase 2 spike** — Cursor OIDC + experimental `pade-broker` so `KSM_CONFIG` can stay off the agent VM.
+- **Phase 2** — Cursor OIDC + experimental `pade-broker` so `KSM_CONFIG` can stay off the agent VM.
+- **Milestones D–G** — Non-normative reference providers (GitHub App, Google SA OAuth) on broker-side `provider: exec`; two-provider same-seam proof; preferred GitHub dogfood is repo-scoped (`github.repo.read`). Stage-1 PAT / `github.user.read` remains the baseline.
 - **Milestone 8 spike** — Teleport Application Access composition (not a PADE dependency).
 - **Environment lifecycle** — DevPod (or equivalent) owns workspace create/SSH/ports/prebuilds; PADE does not reimplement that.
 
@@ -117,8 +118,13 @@ make install-keeper-cli   # install real `keeper` (Homebrew or .tools/keeper-ven
 make dogfood-keeper-live  # local only: real Keeper + real GitHub API
 make dogfood-ksm          # Milestone 9: Keeper Secrets Manager (PADE_KSM_FAKE=1 in CI)
 make dogfood-ksm-live     # local / Cursor Cloud: real KSM + real GitHub API
-make dogfood-broker       # Phase 2 spike: fake Cursor OIDC + pade-broker + fake KSM
-make dogfood-broker-stage-b  # Stage B: real Cursor OIDC + local broker (Cloud Agent only)
+make dogfood-broker       # Phase 2: fake Cursor OIDC + pade-broker + fake KSM
+make dogfood-broker-stage-b  # Stage B: real Cursor OIDC + local broker + fake KSM (Cloud Agent only)
+make dogfood-broker-stage-b-exec  # Stage B exec: real OIDC + exec providers (Cloud Agent only)
+make dogfood-exec-provider   # Milestone B–C: broker-side provider: exec stub
+make dogfood-exec-provider-github   # Milestone D–E: GitHub App provider (fake CI + repo-meta)
+make dogfood-exec-provider-ga   # Milestone F: Google SA provider (fake CI + property-meta)
+make dogfood-exec-provider-two   # Milestone G: GitHub + GA same seam (CI)
 make smoke-broker-container  # Docker image smoke: healthz + unauthenticated resolve deny
 make dogfood-ingress-teleport  # Milestone 8 spike: Teleport Application Access (host; Docker optional)
 make dogfood-ingress-teleport-down
@@ -201,7 +207,8 @@ Earlier sections of [DESIGN.md](DESIGN.md) and [docs/go-reference.md](docs/go-re
 | [docs/keeper-dogfood.md](docs/keeper-dogfood.md) | Keeper Commander provider / Milestone 7 |
 | [docs/keeper-secrets-manager-dogfood.md](docs/keeper-secrets-manager-dogfood.md) | Keeper Secrets Manager / Milestone 9 |
 | [docs/cursor-cloud-dogfood.md](docs/cursor-cloud-dogfood.md) | Cursor Cloud Agent + KSM (vendor-specific) |
-| [docs/cursor-oidc-broker-dogfood.md](docs/cursor-oidc-broker-dogfood.md) | Phase 2 Cursor OIDC broker spike |
+| [docs/cursor-oidc-broker-dogfood.md](docs/cursor-oidc-broker-dogfood.md) | Phase 2 Cursor OIDC broker dogfood (Stage B, exec, external) |
+| [examples/providers/README.md](examples/providers/README.md) | Non-normative reference providers (Milestones D–G) |
 | [docs/teleport-ingress.md](docs/teleport-ingress.md) | Teleport Application Access / Milestone 8 spike |
 | [examples/demo-project](examples/demo-project) | DevPod-first dogfood project (+ `identities/`) |
 | [examples/ingress-demo](examples/ingress-demo) | Teleport ingress dogfood (tiny Go HTTP app) |

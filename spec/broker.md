@@ -86,7 +86,7 @@ The reference broker exposes a minimal HTTP API. **Protocol status: Experimental
 { "env": { "<NAME>": "<value>", "...": "..." } }
 ```
 
-Today’s result shape is env-map **material**, matching the reference Consumer’s process injection model. This is not a generalized grant/lease object. See open questions in [README.md](README.md).
+Today’s result shape is env-map **material**, matching the reference Consumer’s process injection model. This is not a generalized grant/lease object. **`expiresAt`** and other expiry metadata may appear in the broker-side exec provider subprocess protocol and internal reference `Material`, but are **not** yet fields on this HTTP response—see open questions in [README.md](README.md) and [../docs/provider-contract.md](../docs/provider-contract.md).
 
 ### Errors
 
@@ -142,7 +142,7 @@ Important invariant: broker policy is independent of whether the repository’s 
 
 ## Materialization
 
-After authorization, the reference broker resolves material through its **server-side** bindings and provider adapters (for example Keeper Secrets Manager). The Go `Provider` interface is a **reference implementation detail**.
+After authorization, the reference broker resolves material through its **server-side** bindings and provider adapters—for example Keeper Secrets Manager (direct materialization) or **broker-side `provider: exec`** invoking independently packaged reference providers under [`examples/providers/`](../examples/providers/). The Go `Provider` interface is a **reference implementation detail**. See [../docs/provider-contract.md](../docs/provider-contract.md).
 
 A different PADE-compatible broker MAY materialize authority using Vault, cloud IAM, OAuth, its own secrets service, temporary credentials, or an enterprise control plane. It does **not** need to implement this repository’s Go interfaces.
 
@@ -192,3 +192,5 @@ There is no certification program. Informally, a broker claiming compatibility w
 - [consumer.md](consumer.md) — consumer / broker client role
 - [../SECURITY.md](../SECURITY.md) — trust boundaries and TLS modes
 - [../docs/cursor-oidc-broker-dogfood.md](../docs/cursor-oidc-broker-dogfood.md) — Cursor OIDC dogfood details
+- [../docs/provider-contract.md](../docs/provider-contract.md) — external provider / exec subprocess contract
+- [../examples/providers/README.md](../examples/providers/README.md) — non-normative reference providers (Milestones D–G)

@@ -619,9 +619,20 @@ If implementing the second provider had required adding vendor-specific concepts
 
 ### Milestone H — Spec/docs tighten from dogfood
 
+**Status:** In progress.
+
 **Goal:** Update draft specs, SECURITY notes, and examples based on what D–G learned.
 
 Do **not** redesign DevelopmentSession / Intent around Runtime Conditions or invent Grant/Lease without evidence. Keep changes proportional to dogfood.
+
+**This milestone captures (among other updates):**
+
+- Stage 1 vs stage 2 fulfillment paths in [spec/README.md](spec/README.md) and [docs/cursor-oidc-broker-dogfood.md](docs/cursor-oidc-broker-dogfood.md)
+- Stage B exec (`make dogfood-broker-stage-b-exec`) and external live broker status (J/K partial; no URLs in-repo)
+- Broker-side exec materialization and `expiresAt` wire boundary in [spec/broker.md](spec/broker.md) and [docs/provider-contract.md](docs/provider-contract.md)
+- Derived-credential trust boundaries in [SECURITY.md](SECURITY.md)
+- Example fixtures: [spec/examples/broker-policy.stage-b-exec.example.yaml](spec/examples/broker-policy.stage-b-exec.example.yaml), [spec/examples/broker-bindings.exec.example.yaml](spec/examples/broker-bindings.exec.example.yaml)
+- Discoverability in [README.md](README.md), [AGENTS.md](AGENTS.md), [examples/providers/README.md](examples/providers/README.md)
 
 ### Milestone I — Initial versioned release (`v0.1.0`)
 

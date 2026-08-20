@@ -86,6 +86,17 @@ Local equivalent: `make dogfood-ksm-live` with `KSM_CONFIG` + `KSM_RECORD_UID` s
 - Cursor Runtime Secret redaction does not hide values from users with Terminal access to the VM.
 - Do not bake `KSM_CONFIG` or resolved tokens into environment snapshots; use the Secrets tab.
 
-## Phase 2 (spike implemented; live dogfood manual)
+## Phase 2 — broker OIDC (landed; multiple dogfood tiers)
 
-Cursor Cloud Agents can mint short-lived OIDC JWTs from a local identity socket (`CURSOR_AGENT_SOCKET`). A `pade-broker` spike can verify Cursor identity and keep Keeper credentials entirely outside the VM. Portable `pade.yaml` stays capability-only; Cursor OIDC remains a runtime identity mechanism. Stage B local proof: `make dogfood-broker-stage-b`. See [cursor-oidc-broker-dogfood.md](cursor-oidc-broker-dogfood.md).
+Cursor Cloud Agents can mint short-lived OIDC JWTs from a local identity socket (`CURSOR_AGENT_SOCKET`). A `pade-broker` spike verifies Cursor identity and keeps credentials outside the VM when using `provider: broker`.
+
+| Path | When | Target |
+|------|------|--------|
+| Direct KSM on VM | Milestone 9 baseline; `KSM_CONFIG` on agent | This guide + `make dogfood-ksm-live` |
+| Local broker + KSM | Stage-1 broker proof; no agent `KSM_CONFIG` | `make dogfood-broker-stage-b` |
+| Local broker + exec | Derived-token proof (D–G); no agent vendor secrets | `make dogfood-broker-stage-b-exec` |
+| External broker + exec | Private deployment; live APIs | ROADMAP J/K (outside this repo) |
+
+Portable `pade.yaml` stays capability-only; Cursor OIDC remains a runtime identity mechanism. See [cursor-oidc-broker-dogfood.md](cursor-oidc-broker-dogfood.md).
+
+Preferred pre-release GitHub validation is **repo-scoped** (`github-repo-meta` / `github.repo.read`), not `/user` whoami—the M9 walkthrough below remains the stage-1 KSM baseline.

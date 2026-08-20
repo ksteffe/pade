@@ -69,6 +69,7 @@ Conceptually:
 | **Specification** | Interoperability behavior that independent implementations can agree upon. |
 | **Reference implementation** | The Go code in this repository (`cmd/pade`, `cmd/pade-broker`, `internal/*`) used to prove and revise the specs. |
 | **Provider adapter** | Reference-implementation integration that materializes a capability (env, Vault, 1Password, Keeper, Keeper Secrets Manager). **Not** automatically part of the PADE standard. |
+| **External provider seam** | Independently implemented fulfill/derive logic invoked by the broker (reference binding: broker-side `provider: exec`; non-normative binaries under [`examples/providers/`](../examples/providers/)). See [../docs/provider-contract.md](../docs/provider-contract.md). |
 | **Workload identity adapter** | Runtime identity integration used when authenticating to a Broker (reference: Cursor OIDC). **Not** a provider adapter and **not** a normative PADE identity mechanism. |
 
 A conforming PADE ecosystem participant SHOULD NOT need to run binaries produced by this repository. For example, hypothetically:
@@ -96,7 +97,9 @@ Development server
 
 This illustrates separated Intent, Consumer, and Broker roles. `preview.http` is **not** in the Intent schema (`pade.local/v1alpha1`); resource/lease-shaped results remain an open design question.
 
-## Current reference dogfood path
+## Current reference dogfood paths
+
+### Stage 1 — direct materialization (baseline)
 
 ```text
 Repository
@@ -107,13 +110,36 @@ Cursor OIDC
   one workload-identity adapter
 pade-broker
   reference Broker (experimental)
-Keeper Secrets Manager
+Keeper Secrets Manager (or env / Vault / …)
   one materialization provider (provider adapter)
 GitHub
   downstream authorization
 ```
 
-See [examples/](examples/) and the dogfood guides under [`docs/`](../docs/).
+Targets: `make dogfood-broker`, `make dogfood-broker-stage-b` (Cloud Agent, real OIDC + fake KSM).
+
+### Stage 2 — derived credentials (preferred pre-release proof)
+
+```text
+Repository
+  DevelopmentSession requests github.repo.read, google-analytics.read, …
+pade
+  reference Consumer (provider: broker only)
+Cursor OIDC
+  workload identity
+pade-broker
+  server policy + broker-side provider: exec
+examples/providers/*
+  non-normative reference providers (GitHub App, Google SA OAuth)
+Downstream APIs
+  GitHub / Google (validation scripts only in PADE — not product GA logic)
+```
+
+Targets: `make dogfood-exec-provider{,-github,-ga,-two}` (CI fake JWT); `make dogfood-broker-stage-b-exec` (Cloud Agent, real OIDC). Live external broker E2E is documented in [ROADMAP.md](../ROADMAP.md) J/K (private deployment, outside this repo).
+
+Preferred GitHub dogfood uses **`github.repo.read`** and repo-scoped validation—not `/user` whoami (installation tokens are not personal users).
+
+See [examples/](examples/), [examples/providers/README.md](../examples/providers/README.md), and the dogfood guides under [`docs/`](../docs/).
 
 ## Maturity and versioning
 

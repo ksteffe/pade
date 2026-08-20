@@ -173,16 +173,29 @@ Use a narrowly scoped Keeper Secrets Manager Application so possession of `KSM_C
 
 Keeper Secrets Manager is one **reference materialization provider**. It is not part of the portable Intent Specification.
 
-## Phase 2 — Cursor OIDC broker mode (spike)
+## Phase 2 — Cursor OIDC broker mode
+
+**Stage 1 (direct materialization):**
 
 ```text
-agent VM has no KSM_CONFIG
-→ workload can mint Cursor OIDC identity (local socket)
-→ pade-broker verifies JWT (issuer, audience, signature, nbf; **exp required**; reference also rejects tokens whose `exp` is more than 24h ahead)
-→ server-side policy authorizes subject + repo_urls + capability
-→ Keeper bootstrap stays on the broker host
-→ only requested env material returns to the agent
+agent VM has no KSM_CONFIG (broker mode)
+→ workload mints Cursor OIDC identity (local socket)
+→ pade-broker verifies JWT + server-side policy
+→ broker materializes via KSM / env / Vault / … (reference adapters)
+→ env Material returns to the agent
 ```
+
+**Stage 2 (derived credentials — Milestones D–G):**
+
+```text
+agent VM has no durable vendor keys
+→ same OIDC + broker authorization
+→ broker-side provider: exec invokes trusted provider binary
+→ provider derives short-lived token (GitHub installation token, Google OAuth access token, …)
+→ only derived env Material returns to the agent
+```
+
+See [docs/provider-contract.md](docs/provider-contract.md) and [docs/cursor-oidc-broker-dogfood.md](docs/cursor-oidc-broker-dogfood.md). **`provider: exec` is broker-side only** — the Consumer rejects development-side exec bindings even when workspace bindings are trusted.
 
 Important distinctions:
 
