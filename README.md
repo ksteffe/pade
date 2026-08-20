@@ -140,6 +140,8 @@ CI runs on pushes to `main` and on pull requests via [`.github/workflows/ci.yml`
 
 Pull requests also run [CodeQL](.github/workflows/codeql.yml) (Go) and [dependency review](.github/workflows/dependency-review.yml).
 
+Releases are **manual only**: [`.github/workflows/release.yml`](.github/workflows/release.yml) (`workflow_dispatch`). See [docs/release.md](docs/release.md).
+
 Local mirrors: `make ci` (unit + smoke on the local toolchain), `make ci-compat` (same commands GitHub runs on Go 1.22), `make smoke-broker-container` / `make ci-container` (Docker required). CodeQL, dependency review, and DevPod integration are GitHub-only.
 
 ### Cloud Run–style container listen (reference Broker)
@@ -208,6 +210,7 @@ Earlier sections of [DESIGN.md](DESIGN.md) and [docs/go-reference.md](docs/go-re
 | [docs/keeper-secrets-manager-dogfood.md](docs/keeper-secrets-manager-dogfood.md) | Keeper Secrets Manager / Milestone 9 |
 | [docs/cursor-cloud-dogfood.md](docs/cursor-cloud-dogfood.md) | Cursor Cloud Agent + KSM (vendor-specific) |
 | [docs/cursor-oidc-broker-dogfood.md](docs/cursor-oidc-broker-dogfood.md) | Phase 2 Cursor OIDC broker dogfood (Stage B, exec, external) |
+| [docs/release.md](docs/release.md) | Milestone I — manual versioned releases |
 | [examples/providers/README.md](examples/providers/README.md) | Non-normative reference providers (Milestones D–G) |
 | [docs/teleport-ingress.md](docs/teleport-ingress.md) | Teleport Application Access / Milestone 8 spike |
 | [examples/demo-project](examples/demo-project) | DevPod-first dogfood project (+ `identities/`) |

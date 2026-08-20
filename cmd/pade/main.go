@@ -13,6 +13,7 @@ import (
 	"github.com/ksteffe/pade/internal/output"
 	"github.com/ksteffe/pade/internal/planner"
 	"github.com/ksteffe/pade/internal/providerset"
+	"github.com/ksteffe/pade/internal/version"
 	"github.com/spf13/cobra"
 )
 
@@ -23,6 +24,7 @@ func main() {
 		Long:          "PADE validates and plans portable capability declarations for agent development environments. Workspace lifecycle is owned by DevPod (or equivalent).",
 		SilenceUsage:  true,
 		SilenceErrors: true,
+		Version:       version.String(),
 	}
 
 	var (

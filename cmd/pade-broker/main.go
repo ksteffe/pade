@@ -13,11 +13,13 @@ import (
 	"github.com/ksteffe/pade/internal/binding"
 	"github.com/ksteffe/pade/internal/broker"
 	"github.com/ksteffe/pade/internal/providerset"
+	"github.com/ksteffe/pade/internal/version"
 )
 
 func main() {
 	var (
-		listen = flag.String("listen", "",
+		showVersion = flag.Bool("version", false, "print version and exit")
+		listen      = flag.String("listen", "",
 			"listen address. Empty: use PORT env as 0.0.0.0:PORT, else "+broker.DefaultListenAddr+". Non-loopback plaintext requires -tls-termination=proxy or -tls-cert/-tls-key")
 		policy   = flag.String("policy", "", "path to broker-policy.yaml (required)")
 		bindings = flag.String("bindings", "", "path to server-side bindings.yaml (required)")
@@ -34,6 +36,10 @@ func main() {
 			"maximum in-flight /v1/resolve handlers; excess requests get 503 busy (no queue)")
 	)
 	flag.Parse()
+	if *showVersion {
+		fmt.Println(version.String())
+		return
+	}
 	if *policy == "" || *bindings == "" {
 		fmt.Fprintln(os.Stderr, "usage: pade-broker -policy FILE -bindings FILE [-listen ADDR] [-tls-cert FILE -tls-key FILE | -tls-termination=proxy] [-resolve-timeout DURATION] [-max-concurrent-resolves N]")
 		os.Exit(2)
