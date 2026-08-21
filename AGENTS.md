@@ -146,3 +146,11 @@ Treat [spec/pade.schema.json](spec/pade.schema.json) as the machine-readable Int
 ## Adding a provider later
 
 Capability and runtime providers should be adapters behind small interfaces in the **reference implementation**. Prefer CLI adapters when practical. The Keeper Secrets Manager adapter (`internal/binding/keepersm`) is an intentional exception that imports Keeper’s official Go SDK in the adapter package only — not in portable core packages. Do not import Vault/Google/Cursor/Keeper SDKs into portable packages. See [docs/go-reference.md](docs/go-reference.md). Third-party brokers need not use the Go `Provider` interface.
+
+## Cursor Cloud specific instructions
+
+- The reference implementation is a Go CLI (`bin/pade`, `bin/pade-broker`); there is no long-running dev server to keep up. "Running the app" means building and invoking the CLI (`make build`, then `make dogfood` for the quickest end-to-end capability flow).
+- The base image already ships Go 1.26.x, so the README/`Makefile` `.tools/go` PATH workaround for old system Go (1.13) is unnecessary here; `go`/`make` targets work as-is.
+- The startup update script runs `go mod download`. Lint targets fetch their tools on demand at run time (`make staticcheck` → `honnef.co/go/tools`, `make govulncheck` → `golang.org/x/vuln` via `go run ...@version`), and `make ci-smoke`/`make dogfood-vault` download a Vault dev binary into `.tools/` on first run — all require network egress the first time they run.
+- Fast local verification mirrors CI: `make ci-unit` (fmt, vet, shuffled tests, staticcheck, race, govulncheck, build) and `make ci-smoke` (all provider + broker + exec dogfoods). Both pass in this environment without secrets because provider adapters use fake shims / `PADE_KSM_FAKE=1`.
+- Live provider dogfoods (`*-live`, `dogfood-broker-stage-b*`) and `make smoke-broker-container` (Docker) are intentionally out of the default flow: they need real credentials, the Cursor OIDC identity socket, or Docker, none of which are provisioned by the update script.
