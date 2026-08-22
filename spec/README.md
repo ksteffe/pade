@@ -95,7 +95,7 @@ Ordinary vendor CLI (or other tooling)
   consumes Material
 ```
 
-This illustrates separated Intent, Consumer, and Broker roles. Capability names remain opaque; Material (env maps today) is the current result shape. Grant/Lease remains deferred. A “Vercel-like” platform implementing a Broker is a **role in a story**, not a claim that Vercel is a supported PADE integration—see [ROADMAP.md](../ROADMAP.md) Milestone L for concrete external CLI dogfood framing.
+This illustrates separated Intent, Consumer, and Broker roles. Capability names remain opaque; Material (env maps today) is the current result shape. Grant/Lease remains deferred. A “Vercel-like” platform implementing a Broker is a **role in a story**, not a claim that Vercel is a supported PADE integration. Milestone L dogfood retrieved Vercel logs through generic Material from an external broker deployment—see [ROADMAP.md](../ROADMAP.md) Milestone L (**DONE**).
 
 ## Current reference dogfood paths
 

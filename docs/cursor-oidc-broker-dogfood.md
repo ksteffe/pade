@@ -36,7 +36,7 @@ Broker policy and agent bindings use their own `version: "0.1"` configuration fo
 | **Phase 2** | Cursor OIDC + experimental `pade-broker` spike (broader program) |
 | **Stage B (KSM)** | `make dogfood-broker-stage-b` — real OIDC + local broker + fake KSM + `github.user.read` (stage-1 baseline) |
 | **Stage B exec** | `make dogfood-broker-stage-b-exec` — real OIDC + local broker + exec providers for `github.repo.read` + `google-analytics.read` |
-| **External broker** | Broker hosted outside the agent VM (private deployment repo); live E2E documented in [ROADMAP.md](../ROADMAP.md) Milestones J–K |
+| **External broker** | Broker hosted outside the agent VM (private deployment repo); live E2E documented in [ROADMAP.md](../ROADMAP.md) Milestones J–L |
 | **Milestones D–G** | Reference providers + two-provider seam ([ROADMAP.md](../ROADMAP.md)) |
 
 ## Fake CI dogfood (no Cursor / no Keeper)
@@ -126,7 +126,7 @@ Example policy shape: [`spec/examples/broker-policy.stage-b-exec.example.yaml`](
 
 Preferred GitHub validation: [`examples/demo-project/scripts/github-repo-meta`](../examples/demo-project/scripts/github-repo-meta) (repo-scoped; not `/user` whoami). GA validation: [`ga-property-meta`](../examples/demo-project/scripts/ga-property-meta).
 
-**Live external broker:** A private Cloud Run deployment (`pade-broker-deployment`, outside this repo) has been dogfooded end-to-end with **released** `pade v0.1.0` and **released** `ghcr.io/ksteffe/pade-broker:v0.1.0` (ROADMAP J–K **DONE**). Consumer / application repositories may pin the broker URL; do not commit broker URLs or credentials into this repository.
+**Live external broker:** A private Cloud Run deployment (`pade-broker-deployment`, outside this repo) has been dogfooded end-to-end with **released** `pade v0.1.0` and **released** `ghcr.io/ksteffe/pade-broker:v0.1.0` (ROADMAP J–K **DONE**). Deployment-specific Vercel capabilities on that broker were used from a cloud-agent consumer repository to retrieve Vercel logs (ROADMAP L **DONE**). Consumer / application repositories may pin the broker URL; do not commit broker URLs or credentials into this repository.
 
 ## Stage C — external broker + real KSM (manual host)
 
@@ -224,7 +224,7 @@ docker run --rm -p 8080:8080 -e PORT=8080 \
 
 Probe `GET /healthz` (no auth). There is no Docker `HEALTHCHECK` (distroless has no curl); Cloud Run / Kubernetes should use the HTTP probe.
 
-The same image is intended for Cloud Run, Kubernetes ingress, reverse proxies, or local Docker. **In this repository:** container build, `-tls-termination=proxy`, and smoke tests are landed (`make smoke-broker-container`). **Outside this repository:** a private Cloud Run deployment with real policy, Secret Manager–mounted credentials, and exec providers consumes **released** `ghcr.io/ksteffe/pade-broker:v0.1.0` (ROADMAP Milestones J–K **DONE**). **Do not commit broker URLs into this repository.**
+The same image is intended for Cloud Run, Kubernetes ingress, reverse proxies, or local Docker. **In this repository:** container build, `-tls-termination=proxy`, and smoke tests are landed (`make smoke-broker-container`). **Outside this repository:** a private Cloud Run deployment with real policy, Secret Manager–mounted credentials, and exec providers consumes **released** `ghcr.io/ksteffe/pade-broker:v0.1.0` (ROADMAP Milestones J–K **DONE**). That deploy also fulfills deployment-specific Vercel capabilities for consumer-repo Cloud Agents (ROADMAP Milestone L **DONE**). **Do not commit broker URLs into this repository.**
 
 Google Cloud Run is a deployment example (container listens via `PORT` with plaintext inside the platform; Cloud Run terminates external HTTPS). It is not a normative PADE dependency.
 
